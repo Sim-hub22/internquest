@@ -65,9 +65,9 @@
     "typescript": "^5"
   },
   "lint-staged": {
-    "*": [
-      "pnpm lint",
-      "pnpm format:check"
+    "*.{ts,tsx,js,jsx,mdx}": [
+      "eslint --fix",
+      "prettier --write"
     ]
   }
 }
