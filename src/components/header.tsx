@@ -2,15 +2,29 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from "@/components/ui/navigation-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
+const NAV_LINKS = [
+  { href: "/", label: "Home" },
+  { href: "/tasks", label: "Tasks" },
+  { href: "#", label: "About" },
+  { href: "#", label: "Contact" },
+] as const;
+
 export function Header() {
   const isMobile = useIsMobile();
+  const pathname = usePathname();
 
   return (
     <header className="border-border bg-background sticky top-0 z-40 w-full border-b">
@@ -28,23 +42,34 @@ export function Header() {
           />
           <span className="hidden sm:inline">InternQuest</span>
         </Link>
+
+        <NavigationMenu>
+          <NavigationMenuList className="gap-2">
+            {NAV_LINKS.map(({ href, label }, idx) => (
+              <NavigationMenuItem key={`nav-link-${idx}`}>
+                <NavigationMenuLink
+                  asChild
+                  className={cn(
+                    navigationMenuTriggerStyle(),
+                    buttonVariants({ size: "default", variant: "ghost" })
+                  )}
+                  active={pathname === href}
+                >
+                  <Link href={href}>{label}</Link>
+                </NavigationMenuLink>
+              </NavigationMenuItem>
+            ))}
+          </NavigationMenuList>
+        </NavigationMenu>
+
         <div className="flex items-center gap-2">
-          <Show when="signed-out">
-            <SignInButton>
-              <Button variant="ghost" size={isMobile ? "sm" : "default"}>
-                Sign In
-              </Button>
-            </SignInButton>
-            <SignUpButton>
-              <Button variant="default" size={isMobile ? "sm" : "default"}>
-                Sign Up
-              </Button>
-            </SignUpButton>
-          </Show>
-          <Show when="signed-in">
-            <UserButton />
-          </Show>
-        </div>{" "}
+          <Button variant="ghost" size={isMobile ? "sm" : "default"}>
+            Sign In
+          </Button>
+          <Button variant="default" size={isMobile ? "sm" : "default"}>
+            Sign Up
+          </Button>
+        </div>
       </nav>
     </header>
   );
