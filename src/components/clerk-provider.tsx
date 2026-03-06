@@ -12,6 +12,10 @@ export function ClerkProvider({
     <ClerkNextJSProvider
       appearance={{
         theme: shadcn,
+        options: {
+          socialButtonsPlacement: "bottom",
+          unsafe_disableDevelopmentModeWarnings: true,
+        },
         ...appearance,
       }}
       {...props}
