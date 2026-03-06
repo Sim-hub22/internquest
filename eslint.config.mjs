@@ -1,3 +1,4 @@
+import convexPlugin from "@convex-dev/eslint-plugin";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
@@ -7,6 +8,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  ...convexPlugin.configs.recommended,
   prettier,
   {
     plugins: {
@@ -20,6 +22,12 @@ const eslintConfig = defineConfig([
       "n/no-process-env": ["error"],
     },
   },
+  {
+    files: ["src/convex/**/*", "src/env.ts"],
+    rules: {
+      "n/no-process-env": "off",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
@@ -27,6 +35,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "src/convex/_generated",
   ]),
 ]);
 
