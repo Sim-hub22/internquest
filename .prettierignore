@@ -1,4 +1,4 @@
 # Ignore artifacts:
 .next
-src/convex/_generated.env.example
+src/convex/_generated
 .agents
