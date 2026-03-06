@@ -7,6 +7,7 @@
  * To regenerate, run `npx convex dev`.
  * @module
  */
+
 import { AnyDataModel } from "convex/server";
 import type { GenericId } from "convex/values";
 
