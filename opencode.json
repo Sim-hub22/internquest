@@ -16,6 +16,11 @@
       "type": "local",
       "command": ["npx", "-y", "convex@latest", "mcp", "start"],
       "enabled": true
+    },
+    "clerk": {
+      "type": "remote",
+      "url": "https://mcp.clerk.dev/mcp",
+      "enabled": true
     }
   }
 }
