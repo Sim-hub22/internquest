@@ -66,12 +66,12 @@ export function Header() {
 
         <div className="flex items-center gap-2">
           <Show when="signed-out">
-            <SignInButton mode="modal">
+            <SignInButton>
               <Button variant="ghost" size={isMobile ? "sm" : "default"}>
                 Sign In
               </Button>
             </SignInButton>
-            <SignUpButton mode="modal">
+            <SignUpButton>
               <Button variant="default" size={isMobile ? "sm" : "default"}>
                 Sign Up
               </Button>
