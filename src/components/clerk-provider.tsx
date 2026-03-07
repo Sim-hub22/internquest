@@ -1,15 +1,18 @@
-import { ClerkProvider as ClerkNextJSProvider } from "@clerk/nextjs";
-import { shadcn } from "@clerk/themes";
+import React from "react";
 
-type ClerkProviderProps = React.ComponentProps<typeof ClerkNextJSProvider>;
+import { ClerkProvider as ClerkNextJsProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
+
+type ClerkProviderProps = React.ComponentProps<typeof ClerkNextJsProvider>;
 
 export function ClerkProvider({
   children,
   appearance,
+  localization,
   ...props
 }: ClerkProviderProps) {
   return (
-    <ClerkNextJSProvider
+    <ClerkNextJsProvider
       appearance={{
         theme: shadcn,
         options: {
@@ -18,9 +21,13 @@ export function ClerkProvider({
         },
         ...appearance,
       }}
+      localization={{
+        formFieldInputPlaceholder__username: "Enter your username",
+        ...localization,
+      }}
       {...props}
     >
       {children}
-    </ClerkNextJSProvider>
+    </ClerkNextJsProvider>
   );
 }
