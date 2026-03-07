@@ -7,6 +7,7 @@
     "source.fixAll": "always",
     "source.organizeImports": "always"
   },
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
   "files.associations": {
     "*.css": "tailwindcss"
   },

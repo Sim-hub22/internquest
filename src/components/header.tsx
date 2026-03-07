@@ -15,7 +15,7 @@ import {
   NavigationMenuList,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { useIsMobile } from "@/hooks/use-mobile";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
@@ -26,7 +26,6 @@ const NAV_LINKS = [
 ] as const;
 
 export function Header() {
-  const isMobile = useIsMobile();
   const pathname = usePathname();
 
   return (
@@ -41,7 +40,7 @@ export function Header() {
             alt="InternQuest Logo"
             width={24}
             height={24}
-            className={cn("size-7.5", isMobile && "size-6.5")}
+            className="size-7.5"
           />
           <span className="hidden sm:inline">InternQuest</span>
         </Link>
@@ -67,33 +66,23 @@ export function Header() {
 
         <div className="ml-auto flex items-center gap-2">
           <AuthLoading>
-            <AuthButtons isMobile={isMobile} />
+            <Skeleton className="aspect-square size-7.5 rounded-full" />
           </AuthLoading>
-          <Unauthenticated>
-            <AuthButtons isMobile={isMobile} />
-          </Unauthenticated>
+
           <Authenticated>
             <UserButton />
           </Authenticated>
+
+          <Unauthenticated>
+            <SignInButton>
+              <Button variant="ghost">Sign In</Button>
+            </SignInButton>
+            <SignUpButton>
+              <Button variant="default">Sign Up</Button>
+            </SignUpButton>
+          </Unauthenticated>
         </div>
       </nav>
     </header>
-  );
-}
-
-function AuthButtons({ isMobile }: { isMobile: boolean }) {
-  return (
-    <>
-      <SignInButton>
-        <Button variant="ghost" size={isMobile ? "sm" : "default"}>
-          Sign In
-        </Button>
-      </SignInButton>
-      <SignUpButton>
-        <Button variant="default" size={isMobile ? "sm" : "default"}>
-          Sign Up
-        </Button>
-      </SignUpButton>
-    </>
   );
 }
