@@ -15,12 +15,12 @@ export default function SignUpPage() {
   return (
     <>
       <ClerkLoading>
-        <div className="bg-muted flex min-h-screen w-full flex-1 items-center justify-center p-6 md:p-10">
-          <Spinner className="text-primary size-10" />
+        <div className="flex min-h-screen w-full flex-1 items-center justify-center bg-muted p-6 md:p-10">
+          <Spinner className="size-10 text-primary" />
         </div>
       </ClerkLoading>
       <ClerkLoaded>
-        <div className="bg-muted grid min-h-screen flex-1 lg:grid-cols-2">
+        <div className="grid min-h-screen flex-1 bg-muted lg:grid-cols-2">
           <div className="hidden flex-1 items-center justify-end p-6 md:p-10 lg:flex">
             <ul className="max-w-sm space-y-8">
               <li>
@@ -28,7 +28,7 @@ export default function SignUpPage() {
                   <Clock className="size-4" />
                   <p className="font-semibold">Save on development time</p>
                 </div>
-                <p className="text-muted-foreground mt-2 text-sm">
+                <p className="mt-2 text-sm text-muted-foreground">
                   Add authentication and user management to your app with just a
                   few lines of code.
                 </p>
@@ -38,7 +38,7 @@ export default function SignUpPage() {
                   <ChartLine className="size-4" />
                   <p className="font-semibold">Increase engagement</p>
                 </div>
-                <p className="text-muted-foreground mt-2 text-sm">
+                <p className="mt-2 text-sm text-muted-foreground">
                   Add intuitive UIs designed to decrease friction for your
                   users.
                 </p>
@@ -48,7 +48,7 @@ export default function SignUpPage() {
                   <ShieldCheck className="size-4" />
                   <p className="font-semibold">Protect your users</p>
                 </div>
-                <p className="text-muted-foreground mt-2 text-sm">
+                <p className="mt-2 text-sm text-muted-foreground">
                   Enable features like two-step verification and enjoy automatic
                   security updates.
                 </p>
@@ -58,7 +58,7 @@ export default function SignUpPage() {
                   <Sparkles className="size-4" />
                   <p className="font-semibold">Match your brand</p>
                 </div>
-                <p className="text-muted-foreground mt-2 text-sm">
+                <p className="mt-2 text-sm text-muted-foreground">
                   Theme our pre-built components, or integrate with our
                   easy-to-use APIs.
                 </p>
@@ -66,7 +66,7 @@ export default function SignUpPage() {
             </ul>
           </div>
           <div className="flex flex-1 items-center justify-center p-6 md:p-10 lg:justify-start">
-            <SignUp />
+            <SignUp forceRedirectUrl="/dashboard" />
           </div>
         </div>
       </ClerkLoaded>

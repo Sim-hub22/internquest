@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 
 import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { AuthLoading, Authenticated, Unauthenticated } from "convex/react";
-import { ChevronsUpDownIcon, MenuIcon } from "lucide-react";
+import { LayoutDashboardIcon, MenuIcon } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -80,13 +80,15 @@ export function Header() {
             <Skeleton className="aspect-square size-7.5 rounded-full" />
           </AuthLoading>
           <Authenticated>
-            <UserButton
-              appearance={{
-                elements: {
-                  userButtonBox: "flex-row-reverse",
-                },
-              }}
-            />
+            <UserButton>
+              <UserButton.MenuItems>
+                <UserButton.Link
+                  label="Dashboard"
+                  labelIcon={<LayoutDashboardIcon className="size-4" />}
+                  href="/dashboard"
+                />
+              </UserButton.MenuItems>
+            </UserButton>
           </Authenticated>
           <Unauthenticated>
             <SignInButton>
@@ -127,24 +129,15 @@ export function Header() {
 
               <SheetFooter>
                 <Authenticated>
-                  <Button
-                    size="lg"
-                    variant="ghost"
-                    className="w-full justify-between py-6"
-                    asChild
-                  >
-                    <div>
-                      <UserButton
-                        showName
-                        appearance={{
-                          elements: {
-                            userButtonBox: "flex-row-reverse!",
-                          },
-                        }}
+                  <UserButton>
+                    <UserButton.MenuItems>
+                      <UserButton.Link
+                        label="Dashboard"
+                        labelIcon={<LayoutDashboardIcon className="size-4" />}
+                        href="/dashboard"
                       />
-                      <ChevronsUpDownIcon />
-                    </div>
-                  </Button>
+                    </UserButton.MenuItems>
+                  </UserButton>
                 </Authenticated>
                 <Unauthenticated>
                   <SignInButton>
