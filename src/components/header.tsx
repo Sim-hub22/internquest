@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   NavigationMenu,
@@ -63,12 +65,21 @@ export function Header() {
         </NavigationMenu>
 
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size={isMobile ? "sm" : "default"}>
-            Sign In
-          </Button>
-          <Button variant="default" size={isMobile ? "sm" : "default"}>
-            Sign Up
-          </Button>
+          <Show when="signed-out">
+            <SignInButton mode="modal">
+              <Button variant="ghost" size={isMobile ? "sm" : "default"}>
+                Sign In
+              </Button>
+            </SignInButton>
+            <SignUpButton mode="modal">
+              <Button variant="default" size={isMobile ? "sm" : "default"}>
+                Sign Up
+              </Button>
+            </SignUpButton>
+          </Show>
+          <Show when="signed-in">
+            <UserButton />
+          </Show>
         </div>
       </nav>
     </header>

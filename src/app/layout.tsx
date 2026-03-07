@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 
+import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 
@@ -46,10 +47,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ConvexClientProvider>
-            <TooltipProvider>{children}</TooltipProvider>
-            <Toaster position="top-center" richColors />
-          </ConvexClientProvider>
+          <ClerkProvider>
+            <ConvexClientProvider>
+              <TooltipProvider>{children}</TooltipProvider>
+              <Toaster position="top-center" richColors />
+            </ConvexClientProvider>
+          </ClerkProvider>
         </ThemeProvider>
         <SpeedInsights />
         <Analytics />
