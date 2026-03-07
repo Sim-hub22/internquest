@@ -31,7 +31,7 @@ export function Header() {
 
   return (
     <header className="border-border bg-background sticky top-0 z-40 w-full border-b">
-      <nav className="container mx-auto flex h-14 max-w-7xl items-center justify-between px-4">
+      <nav className="container mx-auto grid h-14 max-w-7xl grid-cols-[1fr_2fr_1fr] items-center px-4">
         <Link
           href="/"
           className="text-foreground hover:text-foreground/80 flex items-center gap-2 font-medium"
@@ -46,7 +46,7 @@ export function Header() {
           <span className="hidden sm:inline">InternQuest</span>
         </Link>
 
-        <NavigationMenu>
+        <NavigationMenu className="mx-auto">
           <NavigationMenuList className="gap-2">
             {NAV_LINKS.map(({ href, label }, idx) => (
               <NavigationMenuItem key={`nav-link-${idx}`}>
@@ -65,7 +65,7 @@ export function Header() {
           </NavigationMenuList>
         </NavigationMenu>
 
-        <div className="flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-2">
           <AuthLoading>
             <AuthButtons isMobile={isMobile} />
           </AuthLoading>
