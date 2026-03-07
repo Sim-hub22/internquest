@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { AuthLoading, Authenticated, Unauthenticated } from "convex/react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -65,23 +66,34 @@ export function Header() {
         </NavigationMenu>
 
         <div className="flex items-center gap-2">
-          <Show when="signed-out">
-            <SignInButton>
-              <Button variant="ghost" size={isMobile ? "sm" : "default"}>
-                Sign In
-              </Button>
-            </SignInButton>
-            <SignUpButton>
-              <Button variant="default" size={isMobile ? "sm" : "default"}>
-                Sign Up
-              </Button>
-            </SignUpButton>
-          </Show>
-          <Show when="signed-in">
+          <AuthLoading>
+            <AuthButtons isMobile={isMobile} />
+          </AuthLoading>
+          <Unauthenticated>
+            <AuthButtons isMobile={isMobile} />
+          </Unauthenticated>
+          <Authenticated>
             <UserButton />
-          </Show>
+          </Authenticated>
         </div>
       </nav>
     </header>
+  );
+}
+
+function AuthButtons({ isMobile }: { isMobile: boolean }) {
+  return (
+    <>
+      <SignInButton>
+        <Button variant="ghost" size={isMobile ? "sm" : "default"}>
+          Sign In
+        </Button>
+      </SignInButton>
+      <SignUpButton>
+        <Button variant="default" size={isMobile ? "sm" : "default"}>
+          Sign Up
+        </Button>
+      </SignUpButton>
+    </>
   );
 }
