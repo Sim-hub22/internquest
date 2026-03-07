@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-InternQuest is an internship-finding platform built with **Next.js 16**, **React 19**, **Convex** (backend/database), **Tailwind CSS v4**, and **shadcn/ui**. The package manager is **pnpm**. The React Compiler is enabled so manual memoization (`memo`, `useMemo`, `useCallback`) is unnecessary.
+InternQuest is an internship-finding platform built with **Next.js 16**, **React 19**, **Convex** (backend/database), **Tailwind CSS v4**, and **shadcn/ui** (radix-nova style). Package manager: **pnpm**. The React Compiler is enabled -- never add manual `memo()`, `useMemo()`, or `useCallback()`.
 
-## Build / Lint / Format Commands
+## Commands
 
 ```bash
 pnpm dev              # Run frontend (Next.js) + backend (Convex) in parallel
@@ -17,18 +17,11 @@ pnpm format           # Prettier format all files
 pnpm format:check     # Prettier check (no write)
 ```
 
-## Testing
-
-No test framework is configured yet. When tests are added, update this section.
+No test framework is configured yet. When one is added, update this section with single-test commands.
 
 ## Pre-commit Hooks
 
-Husky + lint-staged runs on every commit:
-
-- `eslint --fix` on staged `*.{ts,tsx,js,jsx,mdx}` files
-- `prettier --write` on staged `*.{ts,tsx,js,jsx,mdx}` files
-
-All code must pass lint and format checks before commit.
+Husky + lint-staged runs `eslint --fix` then `prettier --write` on staged `*.{ts,tsx,js,jsx,mdx}` files. Run `pnpm lint:fix && pnpm format` before committing to avoid hook failures.
 
 ## Project Structure
 
@@ -36,133 +29,133 @@ All code must pass lint and format checks before commit.
 src/
   app/              # Next.js App Router (pages, layouts, route groups)
   components/       # Shared application components
-  components/ui/    # shadcn/ui primitives (DO NOT manually edit)
+  components/ui/    # shadcn/ui primitives -- DO NOT manually edit
   convex/           # Convex backend functions (queries, mutations, actions)
-  convex/_generated # Auto-generated Convex types (DO NOT edit)
+  convex/_generated # Auto-generated Convex types -- DO NOT edit
   hooks/            # Custom React hooks
-  lib/              # Utility functions (e.g. cn())
-  styles/           # Global CSS (Tailwind v4 theme config)
-  env.ts            # Centralized environment variable validation
+  lib/              # Utility functions (cn())
+  styles/           # Global CSS (Tailwind v4 theme via @theme inline {})
+  env.ts            # Centralized env var validation (@t3-oss/env-nextjs + Zod)
+  proxy.ts          # Clerk middleware (route protection)
 ```
 
-Key: Convex functions live in `src/convex/` (configured in `convex.json`), NOT a top-level `convex/` directory.
+`@/*` maps to `./src/*` -- always use `@/` imports for anything inside `src/`.
 
-## Path Aliases
-
-`@/*` maps to `./src/*`. Always use `@/` for imports from `src/`.
+Convex functions live in `src/convex/` (set in `convex.json`), NOT a top-level `convex/` directory.
 
 ## Code Style
 
-### Formatting (enforced by Prettier + ESLint)
+### Formatting (Prettier + ESLint enforced)
 
-- **Double quotes** everywhere (`"`, not `'`)
-- **Semicolons** required at end of statements
-- **2-space indentation**
+- **Double quotes** (`"`, not `'`), **semicolons** required, **2-space indent**
 - **Trailing commas** in ES5 positions (objects, arrays, parameters)
-- **Arrow callbacks** preferred over `function` expressions in callbacks (`prefer-arrow-callback`)
+- **Arrow callbacks** preferred (`prefer-arrow-callback` ESLint rule)
 - **Template literals** preferred over string concatenation (`prefer-template`)
 
-### Import Ordering (enforced by `@trivago/prettier-plugin-sort-imports`)
+### Import Ordering (auto-sorted by `@trivago/prettier-plugin-sort-imports`)
 
-Imports are auto-sorted into 4 groups separated by blank lines:
+Four groups separated by blank lines -- do not manually reorder:
 
 ```typescript
 // 1. React / Next.js
-import Link from "next/link";
 import { useState } from "react";
 
 // 2. Third-party modules
-import { ConvexProvider } from "convex/react";
 import { z } from "zod";
 
 // 3. Internal aliases (@/)
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 // 4. Relative imports
-import { something } from "./utils";
+import { helper } from "./utils";
 ```
-
-Specifiers within each import are sorted alphabetically. Do not manually reorder imports -- Prettier handles it.
 
 ### Naming Conventions
 
-| Item              | Convention                  | Example                                  |
-| ----------------- | --------------------------- | ---------------------------------------- |
-| Files/directories | kebab-case                  | `convex-client-provider.tsx`             |
-| Components        | PascalCase function         | `export function ConvexClientProvider()` |
-| Hooks             | camelCase with `use` prefix | `useIsMobile`                            |
-| Utilities         | camelCase                   | `cn()`                                   |
-| Constants         | UPPER_SNAKE_CASE            | `MOBILE_BREAKPOINT`                      |
-| CSS variables     | kebab-case                  | `--font-sans`                            |
-| Convex tables     | camelCase                   | `users`, `internships`                   |
+| Item              | Convention                  | Example                      |
+| ----------------- | --------------------------- | ---------------------------- |
+| Files/directories | kebab-case                  | `convex-client-provider.tsx` |
+| Components        | PascalCase named export     | `export function AppSidebar` |
+| Hooks             | camelCase with `use` prefix | `useIsMobile`                |
+| Utilities         | camelCase                   | `cn()`                       |
+| Constants         | UPPER_SNAKE_CASE            | `MOBILE_BREAKPOINT`          |
+| CSS variables     | kebab-case                  | `--font-sans`                |
+| Convex tables     | camelCase                   | `users`, `internships`       |
 
 ### Component Patterns
 
-- Use **named exports** for components: `export function MyComponent()`. Exception: page components use `export default function Page()`.
-- Add `"use client"` directive at the top of client components.
-- Type props inline using `React.ComponentProps<"element">` or destructured types. Avoid creating separate `interface` declarations for simple props.
-- Use `Readonly<{ children: React.ReactNode }>` for layout props.
-- Use `PropsWithChildren` from React for simple wrapper components.
+- **Named exports**: `export function MyComponent()`. Exception: pages use `export default function Page()`.
+- Add `"use client"` at the top of client components.
+- Type props inline: `React.ComponentProps<"div">` or destructured object types. Avoid separate `interface` for simple props.
+- Layouts: `Readonly<{ children: React.ReactNode }>`. Wrappers: `PropsWithChildren`.
 - Spread remaining props: `function Comp({ className, ...props }: React.ComponentProps<"div">)`.
-- Use `cn()` from `@/lib/utils` to merge Tailwind classes.
-- Add `data-slot="name"` attributes on shadcn components for CSS targeting.
+- Merge classes with `cn()` from `@/lib/utils`.
+- Add `data-slot="name"` on shadcn components for CSS targeting.
 
 ### TypeScript
 
-- **Strict mode** is enabled. Do not use `any` or `@ts-ignore`.
+- **Strict mode** enabled. Never use `any` or `@ts-ignore`.
 - Prefer inline types over separate type declarations for component props.
 - Use `as const` for constant arrays/objects.
-- For Convex types use: `Id<"tableName">`, `Doc<"tableName">`, `v.*` validators.
+- Convex types: `Id<"tableName">`, `Doc<"tableName">`, `v.*` validators.
+
+### Error Handling
+
+- Convex functions: throw `ConvexError` from `convex/values` for user-facing errors. Validate all args with `v.*` validators (required for every function).
+- Auth checks: call `ctx.auth.getUserIdentity()` and throw early if `null`.
+- Client: handle loading/error states from `useQuery` (returns `undefined` while loading). Use `sonner` `toast.error()` for user-visible errors.
 
 ### Environment Variables
 
-- **Never use `process.env` directly** in application code. The ESLint rule `n/no-process-env` is enforced everywhere except `src/convex/` and `src/env.ts`.
-- Access env vars through the validated `env` object from `@/env`:
-  ```typescript
-  import { env } from "@/env";
-
-  env.NEXT_PUBLIC_CONVEX_URL;
-  ```
-- Add new env vars to `src/env.ts` with Zod validation using `@t3-oss/env-nextjs`.
+- **Never use `process.env`** in app code. ESLint rule `n/no-process-env` is enforced everywhere except `src/convex/` and `src/env.ts`.
+- Access via the validated `env` object: `import { env } from "@/env"`.
+- Add new vars to `src/env.ts` with Zod schemas.
 
 ## Convex Backend
 
-Convex functions are in `src/convex/`. Key patterns:
+Functions in `src/convex/`. See `.github/instructions/convex.instructions.md` for full patterns.
 
-- Register functions with `query`, `mutation`, `action` from `src/convex/_generated/server`.
-- Use `internal` functions for server-only logic (not exposed to client).
-- Validate args with `v.*` validators from `convex/values`.
-- Reference functions via `api.module.functionName` (public) or `internal.module.functionName` (internal).
-- Call other functions within functions: `ctx.runQuery(internal.module.fn, args)`, `ctx.runMutation(...)`, `ctx.runAction(...)`.
-- Use `ctx.auth.getUserIdentity()` for authentication checks.
-- For detailed Convex patterns, see `.github/instructions/convex.instructions.md`.
+Key rules:
+
+- Register with `query`/`mutation`/`action` (public) or `internalQuery`/`internalMutation`/`internalAction` (private). All from `src/convex/_generated/server`.
+- **Always include `args` validators** -- even for empty args use `args: {}`.
+- Reference: `api.module.fn` (public), `internal.module.fn` (internal).
+- Call between functions: `ctx.runQuery(...)`, `ctx.runMutation(...)`, `ctx.runAction(...)`.
+- Queries/mutations have `ctx.db` access. Actions do NOT -- they must call queries/mutations via `ctx.runQuery`/`ctx.runMutation`.
+- Actions can use `"use node"` directive for Node.js APIs and network calls.
+- Auth: `const identity = await ctx.auth.getUserIdentity(); if (!identity) throw new Error("Unauthenticated");`
+- Schema: define in `src/convex/schema.ts` with `defineSchema`/`defineTable` from `convex/server`.
+- `undefined` is not a valid Convex value -- use `null` instead.
 
 ## UI / Styling
 
-- **Tailwind CSS v4** -- configured entirely in `src/styles/globals.css` using `@theme inline {}`. No `tailwind.config` file.
-- **shadcn/ui** (radix-nova style) -- components in `src/components/ui/`. Add new components via `pnpm dlx shadcn add <component>`. Do not manually edit generated UI components.
-- **Icons**: `lucide-react` -- import from `lucide-react`.
-- **Toast notifications**: `sonner` -- use `toast()` from `sonner`.
-- **Theming**: `next-themes` with `class` strategy, system default. Light/dark vars defined in `globals.css`.
-- Colors use `oklch()` color space via CSS custom properties.
+- **Tailwind CSS v4** -- configured in `src/styles/globals.css` via `@theme inline {}`. No `tailwind.config` file.
+- **shadcn/ui** -- add components: `pnpm dlx shadcn add <component>`. Never manually edit `src/components/ui/`.
+- **Icons**: `lucide-react`.
+- **Toasts**: `sonner` -- `toast()` / `toast.error()` / `toast.success()`.
+- **Theming**: `next-themes` with `class` strategy. Light/dark vars in `globals.css` using `oklch()`.
 
 ## Next.js Configuration
 
-- **React Compiler** is enabled (`reactCompiler: true` in `next.config.ts`). Do not add manual `memo()`, `useMemo()`, or `useCallback()` wrappers.
-- **Typed routes** are enabled (`typedRoutes: true`). Use `Route` type from `next` for type-safe links.
-- There are **no API routes** -- the backend is entirely Convex.
-- There is **no middleware** file yet.
+- **React Compiler** enabled (`reactCompiler: true`). No manual memoization.
+- **Typed routes** enabled (`typedRoutes: true`). Use `Route` type from `next` for links.
+- **No API routes** -- backend is entirely Convex.
+- Clerk middleware in `src/proxy.ts` protects non-public routes.
 
 ## Deployment
 
-- Hosted on **Vercel**. Build command: `pnpm dlx convex deploy --cmd 'pnpm run build'`.
-- Convex deployment is configured via `CONVEX_DEPLOYMENT` and `CONVEX_DEPLOY_KEY` env vars.
+Hosted on **Vercel**. Build: `pnpm dlx convex deploy --cmd 'pnpm run build'`. Env vars: `CONVEX_DEPLOYMENT`, `CONVEX_DEPLOY_KEY`.
+
+## Copilot Instructions
+
+Convex-specific guidelines are in `.github/instructions/convex.instructions.md` (applied to `**/*.ts,**/*.tsx,**/*.js,**/*.jsx`). It covers validators, function registration, queries vs mutations vs actions, schema definition, auth, file storage, scheduling, and full-text search. Read it before writing Convex functions.
 
 ## Common Pitfalls
 
-1. Do not edit files in `src/components/ui/` or `src/convex/_generated/` -- they are auto-generated.
-2. Do not use `process.env` outside `src/env.ts` and `src/convex/` -- it will fail linting.
-3. Do not add `useMemo`/`useCallback`/`memo` -- the React Compiler handles optimization.
-4. Convex functions are in `src/convex/`, not a top-level `convex/` directory.
-5. Run `pnpm lint:fix && pnpm format` before committing to avoid pre-commit hook failures.
+1. **Do not edit** `src/components/ui/` or `src/convex/_generated/` -- they are auto-generated.
+2. **Do not use `process.env`** outside `src/env.ts` and `src/convex/` -- linting will fail.
+3. **Do not add** `useMemo`/`useCallback`/`memo` -- the React Compiler handles it.
+4. **Convex functions** are in `src/convex/`, not a top-level `convex/` directory.
+5. **`undefined` is not valid** in Convex -- use `null` for absent values.
+6. **Always validate args** in Convex functions -- omitting `args` causes runtime errors.
+7. Run `pnpm lint:fix && pnpm format` before committing.
