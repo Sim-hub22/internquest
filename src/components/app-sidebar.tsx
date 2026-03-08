@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import * as React from "react";
 
 import {
@@ -18,14 +19,11 @@ import {
   UsersIcon,
 } from "lucide-react";
 
-import { NavDocuments } from "@/components/nav-documents";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
-import { NavUser } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -150,32 +148,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:p-1.5!"
-            >
-              <a href="/dashboard">
+            <SidebarMenuButton size="lg" asChild>
+              <Link href="/dashboard">
                 <Image
                   src="/internquest.svg"
                   alt="InternQuest logo"
-                  width={20}
-                  height={20}
-                  className="size-5 shrink-0"
+                  width={24}
+                  height={24}
+                  className="size-8 shrink-0"
                 />
-                <span className="text-base font-semibold">InternQuest</span>
-              </a>
+                <span className="text-base font-medium">InternQuest</span>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />
-        <NavDocuments items={data.documents} />
         <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser />
-      </SidebarFooter>
     </Sidebar>
   );
 }
