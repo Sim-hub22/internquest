@@ -106,6 +106,11 @@
       "sourceType": "github",
       "computedHash": "b53e061304bb81d037c6dd4e38762d27a596523bcbeab43c58e0b05140449802"
     },
+    "email-best-practices": {
+      "source": "resend/email-best-practices",
+      "sourceType": "github",
+      "computedHash": "7e6c8d495e66e88a20dc45d17d24b445d6c5c9072855c78d8800fff994bc813f"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",
@@ -125,6 +130,21 @@
       "source": "vercel-labs/next-skills",
       "sourceType": "github",
       "computedHash": "be6bbf6ab1dc2cc6f2505cea52d497920c04f5b532c0846ee201f6029b803fb0"
+    },
+    "react-email": {
+      "source": "resend/react-email",
+      "sourceType": "github",
+      "computedHash": "9b8a308f7c8d5df05b0cf00e45348bffbd427d78dee3eef0b898e4b3da3e56d1"
+    },
+    "resend": {
+      "source": "resend/resend-skills",
+      "sourceType": "github",
+      "computedHash": "1c7a372d1886c34f16ab32ea2feff7133daa8d5db2589064a9b92fbbee6a2208"
+    },
+    "resend-design-skills": {
+      "source": "resend/design-skills",
+      "sourceType": "github",
+      "computedHash": "2677e7fda41b51e23f5a4320fddf893d537a183731adf922d0e2ad204ebe2c8d"
     },
     "shadcn": {
       "source": "shadcn/ui",
