@@ -1,5 +1,7 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
+
 import { MoonIcon, SunIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 
@@ -16,32 +18,36 @@ export function ModeToggle({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<typeof Toggle>) {
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+
+  const isDarkMode = isClient ? resolvedTheme === "dark" : false;
+  const nextTheme = isDarkMode ? "light" : "dark";
 
   return (
     <Tooltip>
-      <TooltipTrigger>
+      <TooltipTrigger asChild>
         <Toggle
           {...props}
-          aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+          aria-label={`Switch to ${nextTheme} mode`}
           className={cn(
-            "data-[state=on]:bg-transparent data-[state=on]:hover:bg-muted",
+            "aria-pressed:bg-transparent aria-pressed:hover:bg-muted data-[state=on]:bg-transparent data-[state=on]:hover:bg-muted",
             className
           )}
-          onPressedChange={() =>
-            setTheme((prev) => (prev === "dark" ? "light" : "dark"))
-          }
-          pressed={theme === "dark"}
+          onPressedChange={(pressed) => setTheme(pressed ? "dark" : "light")}
+          pressed={isDarkMode}
         >
           <MoonIcon
             aria-hidden="true"
             className="shrink-0 scale-0 opacity-0 transition-all dark:scale-100 dark:opacity-100"
-            size={16}
           />
           <SunIcon
             aria-hidden="true"
             className="absolute shrink-0 scale-100 opacity-100 transition-all dark:scale-0 dark:opacity-0"
-            size={16}
           />
         </Toggle>
       </TooltipTrigger>

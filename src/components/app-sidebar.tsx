@@ -1,22 +1,19 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import * as React from "react";
 
 import {
-  ChartBarIcon,
   CircleHelpIcon,
   DatabaseIcon,
   FileChartColumnIcon,
   FileIcon,
   FileTextIcon,
-  FolderIcon,
   LayoutDashboardIcon,
-  ListIcon,
   SearchIcon,
   Settings2Icon,
-  UsersIcon,
 } from "lucide-react";
 
 import { NavMain } from "@/components/nav-main";
@@ -34,28 +31,13 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: <LayoutDashboardIcon />,
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: <ListIcon />,
-    },
-    {
-      title: "Analytics",
-      url: "#",
-      icon: <ChartBarIcon />,
-    },
-    {
-      title: "Projects",
-      url: "#",
-      icon: <FolderIcon />,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: <UsersIcon />,
+      title: "Messages",
+      url: "/messages",
+      icon: <FileTextIcon />,
     },
   ],
   navClouds: [
@@ -109,17 +91,17 @@ const data = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
+      url: "#" as Route,
       icon: <Settings2Icon />,
     },
     {
       title: "Get Help",
-      url: "#",
+      url: "#" as Route,
       icon: <CircleHelpIcon />,
     },
     {
       title: "Search",
-      url: "#",
+      url: "#" as Route,
       icon: <SearchIcon />,
     },
   ],
@@ -144,7 +126,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
+    <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
