@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Fragment } from "react";
 
 import { UserButton } from "@clerk/nextjs";
+import { AuthLoading, Authenticated } from "convex/react";
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationButton } from "@/components/notification-button";
@@ -96,9 +97,16 @@ export function SiteHeader() {
             className="mr-2 data-[orientation=vertical]:h-4"
           />
         </div>
-        <UserButton
-          fallback={<Skeleton className="aspect-square size-7 rounded-full" />}
-        />
+        <AuthLoading>
+          <Skeleton className="aspect-square size-7 rounded-full" />
+        </AuthLoading>
+        <Authenticated>
+          <UserButton
+            fallback={
+              <Skeleton className="aspect-square size-7 rounded-full" />
+            }
+          />
+        </Authenticated>
       </div>
     </header>
   );

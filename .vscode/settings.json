@@ -8,6 +8,7 @@
     "source.organizeImports": "always"
   },
   "js/ts.preferences.importModuleSpecifier": "non-relative",
+  "js/ts.preferences.autoImportSpecifierExcludeRegexes": ["^@base-ui/.*$"],
   "files.associations": {
     "*.css": "tailwindcss"
   },
