@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as backfill from "../backfill.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as onboarding from "../onboarding.js";
@@ -20,6 +21,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  backfill: typeof backfill;
   http: typeof http;
   messages: typeof messages;
   onboarding: typeof onboarding;

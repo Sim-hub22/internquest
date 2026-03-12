@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "@/convex/_generated/api";
 import { internalAction, mutation } from "@/convex/_generated/server";
+import { getCurrentUser } from "@/convex/users";
 
 export const complete = mutation({
   args: {
@@ -12,6 +13,16 @@ export const complete = mutation({
     if (!identity) {
       throw new ConvexError("Unauthenticated");
     }
+
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      throw new ConvexError("User record not found");
+    }
+
+    await ctx.db.patch(user._id, {
+      role: args.role,
+      onboardingComplete: true,
+    });
 
     await ctx.scheduler.runAfter(0, internal.onboarding.applyClerkMetadata, {
       clerkUserId: identity.subject,
