@@ -1,5 +1,3 @@
-import type { Route } from "next";
-
 export type SidebarRole = "candidate" | "recruiter" | "admin" | null;
 
 export type SidebarIcon =
@@ -15,7 +13,7 @@ export type SidebarIcon =
 
 export type SidebarNavItem = {
   title: string;
-  url: Route;
+  url: string;
   icon: SidebarIcon;
 };
 
@@ -87,7 +85,7 @@ export function getSidebarNavItems(role: SidebarRole): SidebarNavItem[] {
   return [];
 }
 
-export function getSidebarDashboardHref(role: SidebarRole): Route {
+export function getSidebarDashboardHref(role: SidebarRole) {
   if (role === "candidate") {
     return "/candidate/dashboard";
   }

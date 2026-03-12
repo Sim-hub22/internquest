@@ -9,7 +9,7 @@
     "predev": "convex dev --until-success && convex dashboard",
     "build": "next build",
     "start": "next start",
-    "preview": "convex deploy --cmd 'next build' && next start",
+    "preview": "next build && next start",
     "test": "vitest",
     "test:once": "vitest run",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",

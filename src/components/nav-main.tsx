@@ -1,5 +1,6 @@
 "use client";
 
+import { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -60,7 +61,7 @@ export function NavMain({ items }: { items: SidebarNavItem[] }) {
                 className="data-active:shadow-sm-sm data-active:bg-sidebar-primary/10! data-active:text-sidebar-primary!"
                 asChild
               >
-                <Link href={item.url}>
+                <Link href={item.url as Route}>
                   {getSidebarIcon(item.icon)}
                   <span>{item.title}</span>
                 </Link>
