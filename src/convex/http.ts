@@ -4,6 +4,7 @@ import { Webhook } from "svix";
 
 import { internal } from "@/convex/_generated/api";
 import { httpAction } from "@/convex/_generated/server";
+import { parseClerkRole } from "@/convex/users";
 
 const http = httpRouter();
 
@@ -17,11 +18,20 @@ http.route({
     }
     switch (event.type) {
       case "user.created": // intentional fallthrough
-      case "user.updated":
+      case "user.updated": {
+        const role = parseClerkRole(event.data.public_metadata?.role);
+        const onboardingComplete =
+          typeof event.data.public_metadata?.onboardingComplete === "boolean"
+            ? event.data.public_metadata.onboardingComplete
+            : undefined;
+
         await ctx.runMutation(internal.users.upsertFromClerk, {
           data: event.data,
+          role,
+          onboardingComplete,
         });
         break;
+      }
 
       case "user.deleted": {
         const clerkUserId = event.data.id!;

@@ -1,7 +1,10 @@
+"use client";
+
 import React from "react";
 
 import { ClerkProvider as ClerkNextJsProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
+import { useTheme } from "next-themes";
 
 type ClerkProviderProps = React.ComponentProps<typeof ClerkNextJsProvider>;
 
@@ -11,6 +14,7 @@ export function ClerkProvider({
   localization,
   ...props
 }: ClerkProviderProps) {
+  const { theme } = useTheme();
   return (
     <ClerkNextJsProvider
       appearance={{
@@ -18,6 +22,10 @@ export function ClerkProvider({
         options: {
           socialButtonsPlacement: "bottom",
           unsafe_disableDevelopmentModeWarnings: true,
+          logoImageUrl:
+            theme === "dark"
+              ? "/internquest-dark.svg"
+              : "/internquest-light.svg",
         },
         ...appearance,
       }}

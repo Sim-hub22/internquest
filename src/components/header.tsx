@@ -91,10 +91,10 @@ export function Header() {
             </UserButton>
           </Authenticated>
           <Unauthenticated>
-            <SignInButton>
+            <SignInButton forceRedirectUrl="/dashboard">
               <Button variant="ghost">Sign In</Button>
             </SignInButton>
-            <SignUpButton>
+            <SignUpButton forceRedirectUrl="/onboarding">
               <Button variant="default">Sign Up</Button>
             </SignUpButton>
           </Unauthenticated>
