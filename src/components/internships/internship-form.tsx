@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { CalendarIcon, PlusIcon } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -142,12 +142,15 @@ export function InternshipForm(props: InternshipFormProps) {
     typeof window === "undefined"
       ? undefined
       : Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const { isAuthenticated } = useConvexAuth();
   const createInternship = useMutation(api.internships.create);
   const updateInternship = useMutation(api.internships.update);
 
   const internship = useQuery(
     api.internships.getForRecruiter,
-    props.mode === "edit" ? { internshipId: props.internshipId } : "skip"
+    isAuthenticated && props.mode === "edit"
+      ? { internshipId: props.internshipId }
+      : "skip"
   );
 
   const form = useForm<InternshipFormValues>({

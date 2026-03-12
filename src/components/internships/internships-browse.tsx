@@ -4,7 +4,8 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
-import { useQuery } from "convex/react";
+import type { Preloaded } from "convex/react";
+import { usePreloadedQuery, useQuery } from "convex/react";
 import { BriefcaseBusinessIcon, SearchIcon } from "lucide-react";
 
 import {
@@ -41,6 +42,7 @@ import { api } from "@/convex/_generated/api";
 
 type InternshipsBrowseProps = {
   showCreateCta?: boolean;
+  preloadedListResults: Preloaded<typeof api.internships.listPublic>;
 };
 
 type InternshipCategory = (typeof INTERNSHIP_CATEGORIES)[number];
@@ -50,6 +52,7 @@ const PAGE_SIZE = 9;
 
 export function InternshipsBrowse({
   showCreateCta = false,
+  preloadedListResults,
 }: InternshipsBrowseProps) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<"all" | InternshipCategory>("all");
@@ -68,16 +71,26 @@ export function InternshipsBrowse({
     cursor,
   };
 
-  const listResults = useQuery(
+  // SSR-preloaded result for the default view (no search, default filters, first page)
+  const isDefaultState =
+    !trimmedSearch &&
+    category === "all" &&
+    locationType === "all" &&
+    sortBy === "newest" &&
+    cursor === null;
+
+  const ssrListResults = usePreloadedQuery(preloadedListResults);
+
+  const dynamicListResults = useQuery(
     api.internships.listPublic,
-    trimmedSearch
-      ? "skip"
-      : {
+    !isDefaultState && !trimmedSearch
+      ? {
           category: category === "all" ? undefined : category,
           locationType: locationType === "all" ? undefined : locationType,
           sortBy,
           paginationOpts: sharedPagination,
         }
+      : "skip"
   );
 
   const searchResults = useQuery(
@@ -92,7 +105,11 @@ export function InternshipsBrowse({
       : "skip"
   );
 
-  const results = trimmedSearch ? searchResults : listResults;
+  const results = trimmedSearch
+    ? searchResults
+    : isDefaultState
+      ? ssrListResults
+      : dynamicListResults;
 
   const resetPagination = () => {
     setCursor(null);
