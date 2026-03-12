@@ -36,6 +36,7 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "src/convex/_generated",
+    ".agents/**",
   ]),
 ]);
 
