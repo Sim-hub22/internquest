@@ -39,7 +39,7 @@ InternHub is a platform connecting students with internship opportunities. It di
 - **Integrated quiz assessments** -- Recruiters create quizzes for shortlisted candidates as part of the hiring pipeline.
 - **Learning resources** -- Admins publish blog posts and sample quizzes to help candidates prepare.
 - **Full application pipeline** -- Transparent, trackable status flow from application through acceptance.
-- **Dual-channel notifications** -- Real-time in-app notifications via Convex subscriptions + email via @convex-dev/resend (with built-in queuing and delivery guarantees).
+- **Dual-channel notifications** -- Real-time in-app notifications via Convex subscriptions + email via @convex-dev/resend with React Email templates (component-based, type-safe emails with built-in queuing and delivery guarantees).
 - **Recruiter analytics** -- Views, applications, conversion funnels, and trend charts.
 
 ### Core Value Proposition
@@ -63,7 +63,8 @@ InternHub is a platform connecting students with internship opportunities. It di
 | UI Components    | shadcn/ui (radix-nova) | Latest             |
 | Rich Text Editor | TipTap                 | Latest             |
 | Charts           | Recharts               | 2.15.x (installed) |
-| Email            | @convex-dev/resend     | ^0.2.x (component) |
+| Email Delivery   | @convex-dev/resend     | ^0.2.x (component) |
+| Email Templates  | React Email            | Latest             |
 | Package Manager  | pnpm                   | Latest             |
 | Language         | TypeScript (strict)    | 5.9.x              |
 
@@ -763,9 +764,11 @@ When an admin publishes a blog post, all users receive an in-app notification. E
 - **Actions:** Mark as read (individual or all), click to navigate to relevant page.
 - **Reactivity:** New notifications appear instantly via Convex's real-time subscriptions -- no polling.
 
-#### 7.6.2 Email Notifications (@convex-dev/resend)
+#### 7.6.2 Email Notifications (@convex-dev/resend + React Email)
 
 - **Integration:** `@convex-dev/resend` Convex component -- provides built-in queuing, batching, rate limiting, idempotency, and retry with durable execution.
+- **Templates:** Email templates are React components built with `@react-email/components`. They live in `src/convex/emails/` and are rendered to HTML/plain-text strings in `"use node"` Convex actions before being passed to `resend.sendEmail()`.
+
 - **Setup:**
   1. Register the component in `convex/convex.config.ts`:
 
@@ -788,12 +791,110 @@ When an admin publishes a blog post, all users receive an in-app notification. E
      export const resend = new Resend(components.resend, {});
      ```
 
-  3. Send emails from any mutation (prefer internal mutations for security) using `resend.sendEmail(ctx, { ... })`.
+  3. Create email templates as React components in `convex/emails/`:
 
+     ```tsx
+     // convex/emails/application-status.tsx
+     import {
+       Body,
+       Container,
+       Head,
+       Heading,
+       Html,
+       Preview,
+       Tailwind,
+       Text,
+       pixelBasedPreset,
+     } from "@react-email/components";
+
+     interface ApplicationStatusEmailProps {
+       name: string;
+       internshipTitle: string;
+       status: string;
+     }
+
+     export function ApplicationStatusEmail({
+       name,
+       internshipTitle,
+       status,
+     }: ApplicationStatusEmailProps) {
+       return (
+         <Html lang="en">
+           <Tailwind config={{ presets: [pixelBasedPreset] }}>
+             <Head />
+             <Preview>
+               Your application for {internshipTitle} has been updated
+             </Preview>
+             <Body className="bg-gray-100 font-sans">
+               <Container className="mx-auto max-w-xl p-5">
+                 <Heading className="text-2xl text-gray-800">
+                   Application Update
+                 </Heading>
+                 <Text className="text-base text-gray-800">
+                   Hi {name}, your application for {internshipTitle} has been
+                   updated to {status}.
+                 </Text>
+               </Container>
+             </Body>
+           </Tailwind>
+         </Html>
+       );
+     }
+     ```
+
+  4. Render and send from a `"use node"` internal action:
+
+     ```tsx
+     // convex/emailActions.ts
+     "use node";
+
+     import { render } from "@react-email/components";
+     import { v } from "convex/values";
+
+     import { internalAction } from "./_generated/server";
+     import { ApplicationStatusEmail } from "./emails/application-status";
+     import { resend } from "./resend";
+
+     export const sendApplicationStatusEmail = internalAction({
+       args: {
+         to: v.string(),
+         name: v.string(),
+         internshipTitle: v.string(),
+         status: v.string(),
+       },
+       handler: async (ctx, args) => {
+         const html = await render(
+           ApplicationStatusEmail({
+             name: args.name,
+             internshipTitle: args.internshipTitle,
+             status: args.status,
+           })
+         );
+         const text = await render(
+           ApplicationStatusEmail({
+             name: args.name,
+             internshipTitle: args.internshipTitle,
+             status: args.status,
+           }),
+           { plainText: true }
+         );
+         await resend.sendEmail(ctx, {
+           from: "InternQuest <notifications@internquest.com>",
+           to: args.to,
+           subject: `Application update: ${args.internshipTitle}`,
+           html,
+           text,
+         });
+       },
+     });
+     ```
+
+- **Rendering architecture:** React Email's `render()` requires a Node.js runtime (JSX + React). Since `resend.sendEmail()` is called from mutations, templates are rendered in `"use node"` internal actions that call `render()` and then pass the HTML string to `resend.sendEmail()`. Mutations schedule these actions via `ctx.scheduler.runAfter(0, internal.emailActions.sendXxx, { ... })`.
+- **Tailwind in emails:** Templates use the `<Tailwind>` component with `pixelBasedPreset` (emails don't support `rem` units). This is separate from the app's Tailwind v4 setup -- React Email bundles its own Tailwind processing.
+- **Preview server:** `pnpm email` launches React Email's dev server for visual template editing (configured via `email dev --dir src/convex/emails --port 3001`).
 - **Delivery guarantees:** The component uses Convex workpools for durable execution, automatically retrying failed sends. Idempotency keys prevent duplicate emails.
 - **No custom queue needed:** Unlike a manual `emailQueue` table approach, the component manages its own internal state for pending/sent/failed emails.
 - **Test mode:** The component defaults to `testMode: true`, which only delivers to test addresses (e.g., `delivered@resend.dev`). Set `testMode: false` in the `Resend` constructor options for production delivery.
-- **Templates:** Simple HTML strings passed via the `html` parameter (no external template engine for MVP).
 - **Environment:** Requires `RESEND_API_KEY` set as a Convex environment variable (the component reads it automatically).
 
 #### 7.6.3 Notification Events
@@ -919,6 +1020,14 @@ convex/
 ├── auth.config.ts               # Clerk JWT configuration
 ├── http.ts                      # HTTP router: /webhooks/clerk
 ├── resend.ts                    # Resend client initialization + sendEmail helper
+├── emailActions.ts              # "use node" actions: render React Email templates + send via resend
+├── emails/                      # React Email templates (rendered in emailActions.ts)
+│   ├── application-status.tsx   # Application status change email
+│   ├── quiz-assigned.tsx        # Quiz assignment notification
+│   ├── quiz-graded.tsx          # Quiz graded notification
+│   ├── new-internship.tsx       # New matching internship email
+│   ├── new-application.tsx      # New application notification (recruiter)
+│   └── new-resource.tsx         # New blog/resource notification
 ├── users.ts                     # User queries/mutations (get, getByClerkId, update)
 ├── onboarding.ts                # Onboarding mutation (set role + onboardingComplete, sync to Clerk)
 ├── candidateProfiles.ts         # Profile CRUD (get, upsert)
@@ -959,8 +1068,8 @@ export const _processWebhook = internalMutation({
 - Always include `returns` validators.
 - Use `ConvexError` for user-facing errors.
 - Role-restricted functions call `requireRole(ctx, "recruiter")` at the start.
-- Actions needing Node.js (`"use node"`) are isolated in their own files (e.g., `onboarding.ts` for Clerk Backend API calls).
-- Email sending uses the `@convex-dev/resend` component via `resend.ts` -- no `"use node"` needed for email.
+- Actions needing Node.js (`"use node"`) are isolated in their own files (e.g., `onboarding.ts` for Clerk Backend API calls, `emailActions.ts` for React Email rendering).
+- Email sending uses the `@convex-dev/resend` component via `resend.ts`. Templates are React components in `emails/`, rendered to HTML in `"use node"` actions via `@react-email/components` `render()`.
 
 ---
 
@@ -972,6 +1081,7 @@ export const _processWebhook = internalMutation({
 | --------------------------------------- | ------------------------------------------------------------------------------------------ | ----- | ---------------------- |
 | `svix`                                  | Clerk webhook signature verification                                                       | 1     | Server (Convex action) |
 | `@convex-dev/resend`                    | Email sending with built-in queuing, batching, rate limiting, and retry (Convex component) | 1     | Server (Convex)        |
+| `@react-email/components`               | React components for building email templates (Html, Body, Container, Tailwind, etc.)      | 1     | Server (Convex action) |
 | `@tiptap/react`                         | Rich text editor core                                                                      | 2     | Client                 |
 | `@tiptap/starter-kit`                   | Basic editor extensions (bold, italic, headings, lists)                                    | 2     | Client                 |
 | `@tiptap/extension-image`               | Image support in editor                                                                    | 2     | Client                 |
@@ -1011,19 +1121,19 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 
 **Goal:** Auth with roles, user sync, notification infrastructure, role-based layouts.
 
-| #    | Task                            | Details                                                                                                   |
-| ---- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| 1.1  | Design and deploy Convex schema | All tables from Section 5                                                                                 |
-| 1.2  | Clerk webhook endpoint          | HTTP action at `/webhooks/clerk`, svix verification, user sync                                            |
-| 1.3  | Onboarding page                 | `/onboarding` with role selector (Candidate/Recruiter), Convex mutation + Clerk metadata sync             |
-| 1.4  | Session token + middleware      | Custom session claim (`metadata`), onboarding gate in `proxy.ts`, force redirect env var                  |
-| 1.5  | Auth helpers                    | `requireAuth`, `requireRole`, `getCurrentUser` in `convex/lib/auth.ts`                                    |
-| 1.6  | Update middleware (`proxy.ts`)  | Route matchers for `/candidate/*`, `/recruiter/*`, `/admin/*`, onboarding redirect                        |
-| 1.7  | Protected layout                | Auth check, header with notification bell, role-aware navigation                                          |
-| 1.8  | Role-specific layouts           | Candidate, recruiter, and admin sidebar layouts                                                           |
-| 1.9  | Notification infrastructure     | `notifications` table, queries, bell component, mark-as-read                                              |
-| 1.10 | Resend integration              | Register `@convex-dev/resend` component in `convex.config.ts`, create `resend.ts` with `sendEmail` helper |
-| 1.11 | Basic user functions            | `users.ts` queries/mutations (get, getByClerkId, update)                                                  |
+| #    | Task                            | Details                                                                                                                                                                                                                     |
+| ---- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1  | Design and deploy Convex schema | All tables from Section 5                                                                                                                                                                                                   |
+| 1.2  | Clerk webhook endpoint          | HTTP action at `/webhooks/clerk`, svix verification, user sync                                                                                                                                                              |
+| 1.3  | Onboarding page                 | `/onboarding` with role selector (Candidate/Recruiter), Convex mutation + Clerk metadata sync                                                                                                                               |
+| 1.4  | Session token + middleware      | Custom session claim (`metadata`), onboarding gate in `proxy.ts`, force redirect env var                                                                                                                                    |
+| 1.5  | Auth helpers                    | `requireAuth`, `requireRole`, `getCurrentUser` in `convex/lib/auth.ts`                                                                                                                                                      |
+| 1.6  | Update middleware (`proxy.ts`)  | Route matchers for `/candidate/*`, `/recruiter/*`, `/admin/*`, onboarding redirect                                                                                                                                          |
+| 1.7  | Protected layout                | Auth check, header with notification bell, role-aware navigation                                                                                                                                                            |
+| 1.8  | Role-specific layouts           | Candidate, recruiter, and admin sidebar layouts                                                                                                                                                                             |
+| 1.9  | Notification infrastructure     | `notifications` table, queries, bell component, mark-as-read                                                                                                                                                                |
+| 1.10 | Resend + React Email            | Register `@convex-dev/resend` in `convex.config.ts`, create `resend.ts`, build React Email templates in `convex/emails/`, create `emailActions.ts` with `"use node"` render + send actions, add `pnpm email` preview script |
+| 1.11 | Basic user functions            | `users.ts` queries/mutations (get, getByClerkId, update)                                                                                                                                                                    |
 
 **Deliverable:** Users can sign up, complete onboarding with role selection, see role-appropriate navigation, and receive notifications.
 
@@ -1139,22 +1249,23 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 
 ## 11. Key Design Decisions
 
-| #   | Decision                   | Choice                                                      | Reasoning                                                                                                                                                                             |
-| --- | -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Role storage               | Clerk `publicMetadata` synced to Convex `users`             | Fast middleware checks (Clerk session claims) + fast DB queries (Convex). Dual enforcement.                                                                                           |
-| 2   | Route structure            | Real folders for URL paths, route groups for layouts only   | Next.js route groups are invisible in URLs. `/candidate/dashboard` needs a real `candidate/` folder inside `(protected)/`.                                                            |
-| 3   | Quiz questions             | Embedded array in quiz document                             | Always loaded together, no joins needed, well within Convex document size limits for reasonable quiz lengths (< 100 questions).                                                       |
-| 4   | Application status history | Embedded array in application document                      | Simple audit trail without a separate table. Status changes are append-only and infrequent.                                                                                           |
-| 5   | File storage               | Convex built-in file storage                                | Same auth model, no external service config (S3, Cloudinary), simpler architecture.                                                                                                   |
-| 6   | Rich text editor           | TipTap                                                      | Lightweight, extensible, React-native. Used for both blog posts (admin) and internship descriptions (recruiter). Single reusable component.                                           |
-| 7   | Charts                     | Recharts (already installed)                                | No new dependency. shadcn `chart` component wraps Recharts with theme-aware styling.                                                                                                  |
-| 8   | Email                      | @convex-dev/resend component                                | Built-in queuing, batching, rate limiting, and exactly-once delivery with idempotency. No custom email queue table or retry cron needed. Generous free tier (100 emails/day).         |
-| 9   | In-app notifications       | Convex realtime subscription                                | Automatic push via `useQuery` -- no WebSocket setup, no polling. New notifications appear instantly.                                                                                  |
-| 10  | Analytics storage          | Separate `internshipViews` table                            | Avoids write conflicts (OCC) on the main `internships` table. Views are high-frequency writes that should be isolated. `viewCount` is denormalized for quick display.                 |
-| 11  | Notification delivery      | Dual-channel (in-app + email)                               | In-app for instant awareness, email for when user is offline. Both fire on the same events.                                                                                           |
-| 12  | Authorization              | Four-layer (middleware + onboarding gate + layout + Convex) | Defense in depth. Middleware = fast redirect. Onboarding gate = ensures role is set. Layout = UI enforcement. Convex functions = authoritative backend check that cannot be bypassed. |
-| 13  | Onboarding flow            | Post-sign-up `/onboarding` page (Clerk guide pattern)       | Standard Clerk `<SignUp />` avoids custom auth UI. Role collected post-sign-up via dedicated page. `publicMetadata.onboardingComplete` gates access via session claims in middleware. |
-| 14  | Incremental build          | 7 phases, MVP first                                         | Ship working auth + listings first. Each phase adds a complete feature. Enables early feedback and iteration.                                                                         |
+| #   | Decision                   | Choice                                                      | Reasoning                                                                                                                                                                                   |
+| --- | -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Role storage               | Clerk `publicMetadata` synced to Convex `users`             | Fast middleware checks (Clerk session claims) + fast DB queries (Convex). Dual enforcement.                                                                                                 |
+| 2   | Route structure            | Real folders for URL paths, route groups for layouts only   | Next.js route groups are invisible in URLs. `/candidate/dashboard` needs a real `candidate/` folder inside `(protected)/`.                                                                  |
+| 3   | Quiz questions             | Embedded array in quiz document                             | Always loaded together, no joins needed, well within Convex document size limits for reasonable quiz lengths (< 100 questions).                                                             |
+| 4   | Application status history | Embedded array in application document                      | Simple audit trail without a separate table. Status changes are append-only and infrequent.                                                                                                 |
+| 5   | File storage               | Convex built-in file storage                                | Same auth model, no external service config (S3, Cloudinary), simpler architecture.                                                                                                         |
+| 6   | Rich text editor           | TipTap                                                      | Lightweight, extensible, React-native. Used for both blog posts (admin) and internship descriptions (recruiter). Single reusable component.                                                 |
+| 7   | Charts                     | Recharts (already installed)                                | No new dependency. shadcn `chart` component wraps Recharts with theme-aware styling.                                                                                                        |
+| 8   | Email delivery             | @convex-dev/resend component                                | Built-in queuing, batching, rate limiting, and exactly-once delivery with idempotency. No custom email queue table or retry cron needed. Generous free tier (100 emails/day).               |
+| 9   | Email templates            | React Email (`@react-email/components`)                     | Type-safe, component-based email authoring with Tailwind styling. Dev preview server for visual iteration. Rendered to HTML in `"use node"` Convex actions, passed to `resend.sendEmail()`. |
+| 10  | In-app notifications       | Convex realtime subscription                                | Automatic push via `useQuery` -- no WebSocket setup, no polling. New notifications appear instantly.                                                                                        |
+| 11  | Analytics storage          | Separate `internshipViews` table                            | Avoids write conflicts (OCC) on the main `internships` table. Views are high-frequency writes that should be isolated. `viewCount` is denormalized for quick display.                       |
+| 12  | Notification delivery      | Dual-channel (in-app + email)                               | In-app for instant awareness, email for when user is offline. Both fire on the same events.                                                                                                 |
+| 13  | Authorization              | Four-layer (middleware + onboarding gate + layout + Convex) | Defense in depth. Middleware = fast redirect. Onboarding gate = ensures role is set. Layout = UI enforcement. Convex functions = authoritative backend check that cannot be bypassed.       |
+| 14  | Onboarding flow            | Post-sign-up `/onboarding` page (Clerk guide pattern)       | Standard Clerk `<SignUp />` avoids custom auth UI. Role collected post-sign-up via dedicated page. `publicMetadata.onboardingComplete` gates access via session claims in middleware.       |
+| 15  | Incremental build          | 7 phases, MVP first                                         | Ship working auth + listings first. Each phase adds a complete feature. Enables early feedback and iteration.                                                                               |
 
 ---
 
@@ -1170,16 +1281,70 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 | Admin            | 9 (dashboard, users list, user detail, internships, blog list, new blog, edit blog, quizzes, reports)                                                                        | Phase 5-7 |
 | **Total**        | **~39 pages**                                                                                                                                                                |           |
 
-## Appendix B: Email Templates (MVP)
+## Appendix B: Email Templates (React Email)
 
-Simple HTML emails for each notification type:
+All email templates are React components in `src/convex/emails/`, built with `@react-email/components`. Each template uses the `<Tailwind>` component with `pixelBasedPreset` for styling (email clients don't support `rem` units). Templates are rendered to HTML/plain-text via `render()` in `"use node"` Convex actions.
 
-1. **Application Status Change** -- "Hi {name}, your application for {internship} has been updated to {status}."
-2. **Quiz Assigned** -- "Hi {name}, you've been assigned a quiz for {internship}. Complete it by {deadline}."
-3. **Quiz Graded** -- "Hi {name}, your quiz for {internship} has been graded. Your score: {score}/{maxScore}."
-4. **New Matching Internship** -- "Hi {name}, a new internship matching your preferences was posted: {title} at {company}."
-5. **New Application (Recruiter)** -- "Hi {name}, {candidate} applied to your internship: {title}."
-6. **New Resource** -- "Hi {name}, a new resource has been published: {title}."
+**Preview server:** Add `"email": "email dev --dir src/convex/emails --port 3001"` to `package.json` scripts. Run `pnpm email` to launch the visual editor for iterating on templates in the browser.
+
+| #   | Template File            | Props                                              | Subject Line Example                                          |
+| --- | ------------------------ | -------------------------------------------------- | ------------------------------------------------------------- |
+| 1   | `application-status.tsx` | `name`, `internshipTitle`, `status`                | "Application update: {internshipTitle}"                       |
+| 2   | `quiz-assigned.tsx`      | `name`, `internshipTitle`, `quizTitle`, `deadline` | "Quiz assigned: {quizTitle} for {internshipTitle}"            |
+| 3   | `quiz-graded.tsx`        | `name`, `internshipTitle`, `score`, `maxScore`     | "Quiz results ready: {internshipTitle}"                       |
+| 4   | `new-internship.tsx`     | `name`, `internshipTitle`, `company`, `link`       | "New internship matching your preferences: {internshipTitle}" |
+| 5   | `new-application.tsx`    | `name`, `candidateName`, `internshipTitle`         | "New application for {internshipTitle}"                       |
+| 6   | `new-resource.tsx`       | `name`, `resourceTitle`, `link`                    | "New resource: {resourceTitle}"                               |
+
+Each template follows the same structure:
+
+```tsx
+import {
+  Body,
+  Button,
+  Container,
+  Head,
+  Heading,
+  Hr,
+  Html,
+  Preview,
+  Tailwind,
+  Text,
+  pixelBasedPreset,
+} from "@react-email/components";
+
+interface TemplateProps {
+  /* typed props */
+}
+
+export function TemplateName(props: TemplateProps) {
+  return (
+    <Html lang="en">
+      <Tailwind config={{ presets: [pixelBasedPreset] }}>
+        <Head />
+        <Preview>Inbox preview text</Preview>
+        <Body className="bg-gray-100 font-sans">
+          <Container className="mx-auto max-w-xl p-5">
+            {/* Content */}
+          </Container>
+        </Body>
+      </Tailwind>
+    </Html>
+  );
+}
+
+TemplateName.PreviewProps = {
+  /* sample data for dev server */
+} satisfies TemplateProps;
+```
+
+**Constraints (email client compatibility):**
+
+- No flexbox/grid -- use `<Row>` / `<Column>` components for multi-column layouts
+- No SVG/WEBP images -- PNG/JPG only
+- No CSS media queries (`sm:`, `md:`) -- not supported in email clients
+- Always use `box-border` on `<Button>` components
+- Always specify border type (`border-solid`) explicitly
 
 ## Appendix C: Convex Cron Jobs
 
