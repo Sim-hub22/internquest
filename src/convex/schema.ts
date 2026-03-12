@@ -105,6 +105,12 @@ export default defineSchema({
     .index("by_recruiter", ["recruiterId"])
     .index("by_status", ["status"])
     .index("by_category_and_status", ["category", "status"])
+    .index("by_status_and_locationType", ["status", "locationType"])
+    .index("by_category_and_status_and_locationType", [
+      "category",
+      "status",
+      "locationType",
+    ])
     .index("by_status_and_deadline", ["status", "applicationDeadline"])
     .index("by_recruiter_and_status", ["recruiterId", "status"])
     .searchIndex("search_internships", {
@@ -267,6 +273,11 @@ export default defineSchema({
     viewedAt: v.number(),
   })
     .index("by_internship", ["internshipId"])
+    .index("by_internship_and_viewer_and_viewedAt", [
+      "internshipId",
+      "viewerId",
+      "viewedAt",
+    ])
     .index("by_internship_and_date", ["internshipId", "viewedAt"]),
 
   // ─── Moderation ──────────────────────────────────────────────────────────────
