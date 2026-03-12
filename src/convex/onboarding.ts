@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { internal } from "@/convex/_generated/api";
 import { internalAction, mutation } from "@/convex/_generated/server";
-import { getCurrentUser } from "@/convex/users";
+import { getCurrentUser } from "@/convex/lib/auth";
 
 export const complete = mutation({
   args: {

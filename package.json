@@ -9,7 +9,7 @@
     "predev": "convex dev --until-success && convex dashboard",
     "build": "next build",
     "start": "next start",
-    "preview": "convex deploy --cmd 'next build' && next start",
+    "preview": "next build && next start",
     "test": "vitest",
     "test:once": "vitest run",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
@@ -18,7 +18,8 @@
     "lint:fix": "eslint --fix",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
-    "prepare": "husky"
+    "prepare": "husky",
+    "email": "email dev --dir src/convex/emails --port 3001"
   },
   "dependencies": {
     "@base-ui/react": "^1.2.0",
@@ -30,6 +31,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.2.2",
+    "@react-email/components": "^1.0.9",
     "@t3-oss/env-nextjs": "^0.13.10",
     "@tanstack/react-table": "^8.21.3",
     "@vercel/analytics": "^1.6.1",
@@ -66,6 +68,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "4.0.18",
     "babel-plugin-react-compiler": "1.0.0",
     "convex-test": "^0.0.41",
     "eslint": "^9",

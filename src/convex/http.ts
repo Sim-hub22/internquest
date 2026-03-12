@@ -4,25 +4,26 @@ import { Webhook } from "svix";
 
 import { internal } from "@/convex/_generated/api";
 import { httpAction } from "@/convex/_generated/server";
-import { parseClerkRole } from "@/convex/users";
 
 const http = httpRouter();
 
 http.route({
-  path: "/clerk-users-webhook",
+  path: "/webhooks/clerk",
   method: "POST",
   handler: httpAction(async (ctx, request) => {
     const event = await validateRequest(request);
     if (!event) {
-      return new Response("Error occured", { status: 400 });
+      return new Response("Invalid webhook signature", { status: 400 });
     }
+
     switch (event.type) {
-      case "user.created": // intentional fallthrough
+      case "user.created":
       case "user.updated": {
-        const role = parseClerkRole(event.data.public_metadata?.role);
+        const metadata = event.data.public_metadata as Record<string, unknown>;
+        const role = parseRole(metadata?.role);
         const onboardingComplete =
-          typeof event.data.public_metadata?.onboardingComplete === "boolean"
-            ? event.data.public_metadata.onboardingComplete
+          typeof metadata?.onboardingComplete === "boolean"
+            ? metadata.onboardingComplete
             : undefined;
 
         await ctx.runMutation(internal.users.upsertFromClerk, {
@@ -38,6 +39,7 @@ http.route({
         await ctx.runMutation(internal.users.deleteFromClerk, { clerkUserId });
         break;
       }
+
       default:
         console.log("Ignored Clerk webhook event", event.type);
     }
@@ -45,6 +47,8 @@ http.route({
     return new Response(null, { status: 200 });
   }),
 });
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 async function validateRequest(req: Request): Promise<WebhookEvent | null> {
   const payloadString = await req.text();
@@ -60,6 +64,15 @@ async function validateRequest(req: Request): Promise<WebhookEvent | null> {
     console.error("Error verifying webhook event", error);
     return null;
   }
+}
+
+function parseRole(
+  value: unknown
+): "candidate" | "recruiter" | "admin" | undefined {
+  if (value === "candidate" || value === "recruiter" || value === "admin") {
+    return value;
+  }
+  return undefined;
 }
 
 export default http;

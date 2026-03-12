@@ -1,20 +1,9 @@
-"use client";
-
 import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import * as React from "react";
+import type { ComponentProps } from "react";
 
-import {
-  CircleHelpIcon,
-  DatabaseIcon,
-  FileChartColumnIcon,
-  FileIcon,
-  FileTextIcon,
-  LayoutDashboardIcon,
-  SearchIcon,
-  Settings2Icon,
-} from "lucide-react";
+import { auth } from "@clerk/nextjs/server";
 
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
@@ -26,112 +15,28 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+  SECONDARY_NAV,
+  SidebarRole,
+  getSidebarDashboardHref,
+  getSidebarNavItems,
+} from "@/const/sidebar-nav";
 
-const data = {
-  navMain: [
-    {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: <LayoutDashboardIcon />,
-    },
-    {
-      title: "Messages",
-      url: "/messages",
-      icon: <FileTextIcon />,
-    },
-  ],
-  navClouds: [
-    {
-      title: "Capture",
-      icon: <FileTextIcon />,
-      isActive: true,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Proposal",
-      icon: <FileTextIcon />,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-    {
-      title: "Prompts",
-      icon: <FileTextIcon />,
-      url: "#",
-      items: [
-        {
-          title: "Active Proposals",
-          url: "#",
-        },
-        {
-          title: "Archived",
-          url: "#",
-        },
-      ],
-    },
-  ],
-  navSecondary: [
-    {
-      title: "Settings",
-      url: "#" as Route,
-      icon: <Settings2Icon />,
-    },
-    {
-      title: "Get Help",
-      url: "#" as Route,
-      icon: <CircleHelpIcon />,
-    },
-    {
-      title: "Search",
-      url: "#" as Route,
-      icon: <SearchIcon />,
-    },
-  ],
-  documents: [
-    {
-      name: "Data Library",
-      url: "#",
-      icon: <DatabaseIcon />,
-    },
-    {
-      name: "Reports",
-      url: "#",
-      icon: <FileChartColumnIcon />,
-    },
-    {
-      name: "Word Assistant",
-      url: "#",
-      icon: <FileIcon />,
-    },
-  ],
-};
+export async function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
+  const { sessionClaims } = await auth();
+  const role = ((sessionClaims?.metadata as { role?: SidebarRole } | undefined)
+    ?.role ?? null) as SidebarRole;
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const navItems = getSidebarNavItems(role);
+  const dashboardHref = getSidebarDashboardHref(role);
+
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link href="/dashboard">
+              <Link href={dashboardHref as Route}>
                 <Image
                   src="/internquest.svg"
                   alt="InternQuest logo"
@@ -146,8 +51,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
+        <NavMain items={navItems} />
+        <NavSecondary items={SECONDARY_NAV} className="mt-auto" />
       </SidebarContent>
     </Sidebar>
   );

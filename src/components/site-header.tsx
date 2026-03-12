@@ -23,8 +23,19 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const BREADCRUMB_LABELS: Record<string, string> = {
+  candidate: "Candidate",
+  recruiter: "Recruiter",
+  admin: "Admin",
   dashboard: "Dashboard",
-  messages: "Messages",
+  applications: "Applications",
+  quizzes: "Quizzes",
+  internships: "Internships",
+  notifications: "Notifications",
+  profile: "Profile",
+  settings: "Settings",
+  blog: "Blog",
+  reports: "Reports",
+  users: "Users",
 };
 
 function toBreadcrumbLabel(segment: string) {

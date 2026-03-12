@@ -1,9 +1,11 @@
 "use client";
 
-import type { Route } from "next";
+import { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
+
+import { BellIcon, Settings2Icon } from "lucide-react";
 
 import {
   SidebarGroup,
@@ -12,16 +14,24 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { SidebarIcon, SidebarNavItem } from "@/const/sidebar-nav";
+
+function getSidebarIcon(icon: SidebarIcon) {
+  switch (icon) {
+    case "bell":
+      return <BellIcon />;
+    case "settings":
+      return <Settings2Icon />;
+    default:
+      return null;
+  }
+}
 
 export function NavSecondary({
   items,
   ...props
 }: {
-  items: {
-    title: string;
-    url: Route;
-    icon: React.ReactNode;
-  }[];
+  items: SidebarNavItem[];
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   const pathname = usePathname();
 
@@ -32,8 +42,8 @@ export function NavSecondary({
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton isActive={pathname === item.url} asChild>
-                <Link href={item.url}>
-                  {item.icon}
+                <Link href={item.url as Route}>
+                  {getSidebarIcon(item.icon)}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>
