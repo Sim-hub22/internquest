@@ -6,7 +6,6 @@ import * as React from "react";
 
 import { BellIcon, Settings2Icon } from "lucide-react";
 
-import { SidebarIcon, SidebarNavItem } from "@/components/sidebar-nav";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -14,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { SidebarIcon, SidebarNavItem } from "@/const/sidebar-nav";
 
 function getSidebarIcon(icon: SidebarIcon) {
   switch (icon) {

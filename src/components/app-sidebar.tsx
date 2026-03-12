@@ -8,12 +8,6 @@ import { auth } from "@clerk/nextjs/server";
 import { NavMain } from "@/components/nav-main";
 import { NavSecondary } from "@/components/nav-secondary";
 import {
-  SECONDARY_NAV,
-  SidebarRole,
-  getSidebarDashboardHref,
-  getSidebarNavItems,
-} from "@/components/sidebar-nav";
-import {
   Sidebar,
   SidebarContent,
   SidebarHeader,
@@ -21,6 +15,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+  SECONDARY_NAV,
+  SidebarRole,
+  getSidebarDashboardHref,
+  getSidebarNavItems,
+} from "@/const/sidebar-nav";
 
 export async function AppSidebar({ ...props }: ComponentProps<typeof Sidebar>) {
   const { sessionClaims } = await auth();
