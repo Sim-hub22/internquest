@@ -1,9 +1,19 @@
 "use client";
 
-import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import {
+  BookOpenIcon,
+  BriefcaseIcon,
+  ClipboardListIcon,
+  LayoutDashboardIcon,
+  ShieldIcon,
+  UserIcon,
+  UsersIcon,
+} from "lucide-react";
+
+import { SidebarIcon, SidebarNavItem } from "@/components/sidebar-nav";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -13,15 +23,28 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-export function NavMain({
-  items,
-}: {
-  items: {
-    title: string;
-    url: string;
-    icon?: React.ReactNode;
-  }[];
-}) {
+function getSidebarIcon(icon: SidebarIcon) {
+  switch (icon) {
+    case "book-open":
+      return <BookOpenIcon />;
+    case "briefcase":
+      return <BriefcaseIcon />;
+    case "clipboard-list":
+      return <ClipboardListIcon />;
+    case "dashboard":
+      return <LayoutDashboardIcon />;
+    case "shield":
+      return <ShieldIcon />;
+    case "user":
+      return <UserIcon />;
+    case "users":
+      return <UsersIcon />;
+    default:
+      return null;
+  }
+}
+
+export function NavMain({ items }: { items: SidebarNavItem[] }) {
   const pathname = usePathname();
 
   return (
@@ -37,8 +60,8 @@ export function NavMain({
                 className="data-active:shadow-sm-sm data-active:bg-sidebar-primary/10! data-active:text-sidebar-primary!"
                 asChild
               >
-                <Link href={item.url as Route}>
-                  {item.icon}
+                <Link href={item.url}>
+                  {getSidebarIcon(item.icon)}
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

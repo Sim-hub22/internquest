@@ -1,87 +1,152 @@
 import { UserJSON } from "@clerk/nextjs/server";
-import { Validator, v } from "convex/values";
+import { ConvexError, Validator, v } from "convex/values";
 
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import {
   MutationCtx,
   QueryCtx,
   internalMutation,
+  mutation,
   query,
 } from "@/convex/_generated/server";
+import { getCurrentUser, requireUser } from "@/convex/lib/auth";
 
-type OnboardingRole = "candidate" | "recruiter";
+// ─── Public queries ───────────────────────────────────────────────────────────
 
+/** Get the current authenticated user's document. */
 export const current = query({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<Doc<"users"> | null> => {
     return await getCurrentUser(ctx);
   },
 });
 
+/** Get a user by their Convex ID (e.g., for viewing candidate profiles). */
+export const get = query({
+  args: { id: v.id("users") },
+  handler: async (ctx, args): Promise<Doc<"users"> | null> => {
+    return await ctx.db.get(args.id);
+  },
+});
+
+/** Get a user by their Clerk ID. */
+export const getByClerkId = query({
+  args: { clerkId: v.string() },
+  handler: async (ctx, args): Promise<Doc<"users"> | null> => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", args.clerkId))
+      .unique();
+  },
+});
+
+// ─── Public mutations ─────────────────────────────────────────────────────────
+
+/** Update the current user's mutable profile fields. */
+export const update = mutation({
+  args: {
+    bio: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const user = await requireUser(ctx);
+    await ctx.db.patch(user._id, {
+      ...args,
+      updatedAt: Date.now(),
+    });
+    return null;
+  },
+});
+
+// ─── Internal mutations (Clerk webhook) ──────────────────────────────────────
+
+/** Upsert a user from a Clerk webhook event (user.created / user.updated). */
 export const upsertFromClerk = internalMutation({
   args: {
-    data: v.any() as Validator<UserJSON>, // no runtime validation, trust Clerk
-    role: v.optional(v.union(v.literal("candidate"), v.literal("recruiter"))),
+    data: v.any() as Validator<UserJSON>,
+    role: v.optional(
+      v.union(
+        v.literal("candidate"),
+        v.literal("recruiter"),
+        v.literal("admin")
+      )
+    ),
     onboardingComplete: v.optional(v.boolean()),
   },
-  async handler(ctx, { data, role, onboardingComplete }) {
-    const userAttributes = {
-      name: `${data.first_name} ${data.last_name}`,
-      externalId: data.id,
-      ...(role ? { role } : {}),
-      ...(onboardingComplete !== undefined ? { onboardingComplete } : {}),
-    };
+  handler: async (ctx, { data, role, onboardingComplete }) => {
+    const now = Date.now();
+    const primaryEmail =
+      data.email_addresses?.find(
+        (e: { id: string; email_address: string }) =>
+          e.id === data.primary_email_address_id
+      )?.email_address ?? "";
 
-    const user = await userByExternalId(ctx, data.id);
-    if (user === null) {
-      await ctx.db.insert("users", userAttributes);
+    const existing = await userByClerkId(ctx, data.id);
+
+    if (!existing) {
+      await ctx.db.insert("users", {
+        clerkId: data.id,
+        username: data.username ?? data.id,
+        name: `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim(),
+        email: primaryEmail,
+        imageUrl: data.image_url ?? undefined,
+        role: role ?? undefined,
+        onboardingComplete: onboardingComplete ?? false,
+        createdAt: now,
+        updatedAt: now,
+      });
     } else {
-      await ctx.db.patch(user._id, userAttributes);
+      const patch: Partial<Doc<"users">> & { updatedAt: number } = {
+        username: data.username ?? existing.username,
+        name: `${data.first_name ?? ""} ${data.last_name ?? ""}`.trim(),
+        email: primaryEmail || existing.email,
+        imageUrl: data.image_url ?? existing.imageUrl,
+        updatedAt: now,
+      };
+      if (role !== undefined) patch.role = role;
+      if (onboardingComplete !== undefined)
+        patch.onboardingComplete = onboardingComplete;
+      await ctx.db.patch(existing._id, patch);
     }
   },
 });
 
+/** Delete a user from a Clerk webhook event (user.deleted). */
 export const deleteFromClerk = internalMutation({
   args: { clerkUserId: v.string() },
-  async handler(ctx, { clerkUserId }) {
-    const user = await userByExternalId(ctx, clerkUserId);
-
-    if (user !== null) {
+  handler: async (ctx, { clerkUserId }) => {
+    const user = await userByClerkId(ctx, clerkUserId);
+    if (user) {
       await ctx.db.delete(user._id);
     } else {
-      console.warn(
-        `Can't delete user, there is none for Clerk user ID: ${clerkUserId}`
-      );
+      console.warn(`No Convex user found for Clerk ID: ${clerkUserId}`);
     }
   },
 });
 
-export async function getCurrentUserOrThrow(ctx: QueryCtx) {
-  const userRecord = await getCurrentUser(ctx);
-  if (!userRecord) throw new Error("Can't get current user");
-  return userRecord;
-}
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
-export async function getCurrentUser(ctx: QueryCtx | MutationCtx) {
-  const identity = await ctx.auth.getUserIdentity();
-  if (identity === null) {
-    return null;
-  }
-  return await userByExternalId(ctx, identity.subject);
-}
-
-export function parseClerkRole(value: unknown): OnboardingRole | undefined {
-  if (value === "candidate" || value === "recruiter") {
-    return value;
-  }
-  return undefined;
-}
-
-async function userByExternalId(
+export async function userByClerkId(
   ctx: QueryCtx | MutationCtx,
-  externalId: string
-) {
+  clerkId: string
+): Promise<Doc<"users"> | null> {
   return await ctx.db
     .query("users")
-    .withIndex("byExternalId", (q) => q.eq("externalId", externalId))
+    .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkId))
     .unique();
 }
+
+/**
+ * @deprecated Use getCurrentUser from lib/auth.ts instead.
+ * Kept for backward compatibility during migration.
+ */
+export async function getCurrentUserOrThrow(
+  ctx: QueryCtx | MutationCtx
+): Promise<Doc<"users">> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new ConvexError("UNAUTHENTICATED");
+  const user = await userByClerkId(ctx, identity.subject);
+  if (!user) throw new ConvexError("User record not found");
+  return user;
+}
+
+export type { Id };

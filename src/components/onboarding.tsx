@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -77,7 +78,7 @@ export function Onboarding() {
     try {
       await completeOnboarding({ role: data.role });
       await user?.reload(); // Forces a token refresh and refreshes the User object
-      router.push("/dashboard");
+      router.push(`/${data.role}/dashboard` as Route);
     } catch (error) {
       console.error("Error completing onboarding:", error);
       toast.error("Failed to complete onboarding. Please try again.");

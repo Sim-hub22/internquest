@@ -1,5 +1,9 @@
 "use client";
 
+import type { Route } from "next";
+import Link from "next/link";
+
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import {
   BellIcon,
   BriefcaseBusinessIcon,
@@ -24,57 +28,44 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { api } from "@/convex/_generated/api";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
 
-type NotificationItem = {
-  id: string;
-  title: string;
-  description: string;
-  unread?: boolean;
-};
-
-const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
-  {
-    id: "application-shortlisted",
-    title: "Application shortlisted",
-    description: "ByteBridge shortlisted you for Frontend Intern.",
-    unread: true,
-  },
-  {
-    id: "new-message",
-    title: "New recruiter message",
-    description: "A recruiter replied to your application.",
-    unread: true,
-  },
-  {
-    id: "profile-reminder",
-    title: "Complete your profile",
-    description: "Add your skills to improve internship matches.",
-  },
-];
-
-function getNotificationIcon(notification: NotificationItem) {
-  if (notification.id.includes("message")) {
-    return <MailIcon />;
+function getNotificationIcon(notification: Doc<"notifications">) {
+  switch (notification.type) {
+    case "new_application":
+    case "application_status":
+      return <BriefcaseBusinessIcon />;
+    case "quiz_assigned":
+    case "quiz_graded":
+      return <MailIcon />;
+    default:
+      return <BellIcon />;
   }
-
-  if (notification.id.includes("application")) {
-    return <BriefcaseBusinessIcon />;
-  }
-
-  return <BellIcon />;
 }
 
 export function NotificationButton({
-  notifications = DEFAULT_NOTIFICATIONS,
   className,
   ...props
-}: React.ComponentPropsWithoutRef<typeof Button> & {
-  notifications?: NotificationItem[];
-}) {
-  const unreadCount = notifications.filter(
-    (notification) => notification.unread
-  ).length;
+}: React.ComponentPropsWithoutRef<typeof Button>) {
+  const { isAuthenticated } = useConvexAuth();
+  const notifications = useQuery(
+    api.notifications.listUnread,
+    isAuthenticated ? {} : "skip"
+  );
+  const markAllAsRead = useMutation(api.notifications.markAllAsRead);
+  const markAsRead = useMutation(api.notifications.markAsRead);
+
+  const unreadCount = notifications?.length ?? 0;
+
+  const handleMarkAllAsRead = () => {
+    void markAllAsRead();
+  };
+
+  const handleMarkAsRead = (id: Doc<"notifications">["_id"]) => {
+    void markAsRead({ notificationId: id });
+  };
 
   return (
     <DropdownMenu>
@@ -109,25 +100,46 @@ export function NotificationButton({
           ) : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {notifications.length > 0 ? (
+        {notifications === undefined ? (
+          <div className="flex items-center justify-center py-4">
+            <span className="text-xs text-muted-foreground">Loading…</span>
+          </div>
+        ) : notifications.length > 0 ? (
           <DropdownMenuGroup>
             {notifications.map((notification) => (
               <DropdownMenuItem
-                key={notification.id}
+                key={notification._id}
                 className="flex items-start gap-2 py-2"
+                onClick={() => handleMarkAsRead(notification._id)}
+                asChild={!!notification.link}
               >
-                {getNotificationIcon(notification)}
-                <div className="flex flex-1 flex-col gap-0.5">
-                  <span className="text-sm leading-tight">
-                    {notification.title}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    {notification.description}
-                  </span>
-                </div>
-                {notification.unread ? (
-                  <span className="mt-1 size-2 rounded-full bg-primary" />
-                ) : null}
+                {notification.link ? (
+                  <Link href={notification.link as Route}>
+                    {getNotificationIcon(notification)}
+                    <div className="flex flex-1 flex-col gap-0.5">
+                      <span className="text-sm leading-tight">
+                        {notification.title}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {notification.message}
+                      </span>
+                    </div>
+                    <span className="mt-1 size-2 rounded-full bg-primary" />
+                  </Link>
+                ) : (
+                  <>
+                    {getNotificationIcon(notification)}
+                    <div className="flex flex-1 flex-col gap-0.5">
+                      <span className="text-sm leading-tight">
+                        {notification.title}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {notification.message}
+                      </span>
+                    </div>
+                    <span className="mt-1 size-2 rounded-full bg-primary" />
+                  </>
+                )}
               </DropdownMenuItem>
             ))}
           </DropdownMenuGroup>
@@ -144,7 +156,10 @@ export function NotificationButton({
         )}
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={unreadCount === 0}
+            onClick={handleMarkAllAsRead}
+          >
             <CheckCheckIcon />
             Mark all as read
           </DropdownMenuItem>

@@ -1,21 +1,32 @@
-import { ChartAreaInteractive } from "@/components/chart-area-interactive";
-import { DataTable } from "@/components/data-table";
-import { SectionCards } from "@/components/section-cards";
+import type { Route } from "next";
+import { redirect } from "next/navigation";
 
-import data from "../data.json";
+import { auth } from "@clerk/nextjs/server";
 
-export default function Page() {
-  return (
-    <div className="flex flex-1 flex-col">
-      <div className="@container/main flex flex-1 flex-col gap-2">
-        <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-          <SectionCards />
-          <div className="px-4 lg:px-6">
-            <ChartAreaInteractive />
-          </div>
-          <DataTable data={data} />
-        </div>
-      </div>
-    </div>
-  );
+/**
+ * /dashboard is the Clerk sign-in fallback redirect target.
+ * This page reads the user's role from their session claims and
+ * immediately redirects them to the correct role-specific dashboard.
+ * If onboarding is not complete, the middleware will have already
+ * redirected to /onboarding before this page is reached.
+ */
+export default async function DashboardRedirectPage() {
+  const { sessionClaims } = await auth();
+  const role = sessionClaims?.metadata?.role as string | undefined;
+
+  if (role === "candidate") {
+    redirect("/candidate/dashboard" as Route);
+  }
+
+  if (role === "recruiter") {
+    redirect("/recruiter/dashboard" as Route);
+  }
+
+  if (role === "admin") {
+    redirect("/admin/dashboard" as Route);
+  }
+
+  // Fallback: onboarding not complete or role not set — middleware handles
+  // this, but redirect defensively just in case.
+  redirect("/onboarding" as Route);
 }

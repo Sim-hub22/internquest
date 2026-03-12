@@ -4,10 +4,16 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
   "/",
+  "/internships(.*)",
+  "/resources(.*)",
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/onboarding",
 ]);
+
+const isCandidateRoute = createRouteMatcher(["/candidate(.*)"]);
+const isRecruiterRoute = createRouteMatcher(["/recruiter(.*)"]);
+const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims, redirectToSignIn } = await auth();
@@ -18,7 +24,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // Catch users who do not have `onboardingComplete: true` in their publicMetadata
-  // Redirect them to the /onboading route to complete onboarding
+  // Redirect them to the /onboarding route to complete onboarding
   if (
     userId &&
     !sessionClaims?.metadata?.onboardingComplete &&
@@ -26,6 +32,26 @@ export default clerkMiddleware(async (auth, req) => {
   ) {
     const onboardingUrl = new URL("/onboarding", req.url);
     return NextResponse.redirect(onboardingUrl);
+  }
+
+  // Role-based route protection
+  if (userId && sessionClaims?.metadata?.onboardingComplete) {
+    const role = sessionClaims?.metadata?.role as string | undefined;
+
+    if (isCandidateRoute(req) && role !== "candidate") {
+      const homeUrl = new URL(`/${role ?? ""}/dashboard`, req.url);
+      return NextResponse.redirect(homeUrl);
+    }
+
+    if (isRecruiterRoute(req) && role !== "recruiter") {
+      const homeUrl = new URL(`/${role ?? ""}/dashboard`, req.url);
+      return NextResponse.redirect(homeUrl);
+    }
+
+    if (isAdminRoute(req) && role !== "admin") {
+      const homeUrl = new URL(`/${role ?? ""}/dashboard`, req.url);
+      return NextResponse.redirect(homeUrl);
+    }
   }
 
   // If the user is logged in and the route is protected, let them view.
