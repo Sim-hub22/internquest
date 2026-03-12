@@ -39,7 +39,7 @@ InternHub is a platform connecting students with internship opportunities. It di
 - **Integrated quiz assessments** -- Recruiters create quizzes for shortlisted candidates as part of the hiring pipeline.
 - **Learning resources** -- Admins publish blog posts and sample quizzes to help candidates prepare.
 - **Full application pipeline** -- Transparent, trackable status flow from application through acceptance.
-- **Dual-channel notifications** -- Real-time in-app notifications via Convex subscriptions + email via Resend.
+- **Dual-channel notifications** -- Real-time in-app notifications via Convex subscriptions + email via @convex-dev/resend (with built-in queuing and delivery guarantees).
 - **Recruiter analytics** -- Views, applications, conversion funnels, and trend charts.
 
 ### Core Value Proposition
@@ -58,12 +58,12 @@ InternHub is a platform connecting students with internship opportunities. It di
 | ---------------- | ---------------------- | ------------------ |
 | Framework        | Next.js (App Router)   | 16.x               |
 | Backend          | Convex                 | 1.31.x             |
-| Authentication   | Clerk                  | 6.x                |
+| Authentication   | Clerk                  | 7.x                |
 | Styling          | Tailwind CSS           | v4 (CSS-first)     |
 | UI Components    | shadcn/ui (radix-nova) | Latest             |
 | Rich Text Editor | TipTap                 | Latest             |
 | Charts           | Recharts               | 2.15.x (installed) |
-| Email            | Resend                 | Latest             |
+| Email            | @convex-dev/resend     | ^0.2.x (component) |
 | Package Manager  | pnpm                   | Latest             |
 | Language         | TypeScript (strict)    | 5.9.x              |
 
@@ -73,7 +73,7 @@ InternHub is a platform connecting students with internship opportunities. It di
 
 ### 3.1 Candidate (Student)
 
-- Selects "Candidate" role during sign-up.
+- Selects "Candidate" role during onboarding (post-sign-up).
 - Browses and searches internship listings.
 - Builds a detailed profile (education, skills, experience, links).
 - Applies to internships with resume upload.
@@ -83,7 +83,7 @@ InternHub is a platform connecting students with internship opportunities. It di
 
 ### 3.2 Recruiter
 
-- Selects "Recruiter" role during sign-up.
+- Selects "Recruiter" role during onboarding (post-sign-up).
 - Creates and manages internship listings.
 - Reviews applications, moves candidates through the pipeline.
 - Creates quizzes and assigns them to shortlisted candidates.
@@ -108,36 +108,43 @@ InternHub is a platform connecting students with internship opportunities. It di
 ### 4.1 Role Storage
 
 - **Primary source:** Clerk `publicMetadata.role` field.
-- **Synced to:** Convex `users` table via Clerk webhook.
-- Candidates and recruiters select their role at sign-up.
+- **Synced to:** Convex `users` table via Clerk webhook and onboarding mutation.
+- Candidates and recruiters select their role during onboarding (post-sign-up).
 - Admin role is assigned manually in the Clerk dashboard.
+- **Onboarding tracking:** `publicMetadata.onboardingComplete` (boolean) gates access via middleware. Added to the session token as a custom claim (`"metadata": "{{user.public_metadata}}"`).
 
-### 4.2 Sign-Up Flow
+### 4.2 Sign-Up & Onboarding Flow
 
-1. User visits `/sign-up`.
-2. Custom sign-up page shows a role selector: **Candidate** or **Recruiter**.
-3. Selected role is stored in Clerk `unsafeMetadata` during sign-up.
-4. Clerk webhook (`user.created`) fires to Convex HTTP endpoint.
-5. Convex action verifies webhook signature (svix), reads the role from metadata.
-6. Convex mutation creates user in `users` table and sets `publicMetadata.role` via Clerk Backend API.
+1. User visits `/sign-up` -- standard Clerk `<SignUp />` component (no custom page).
+2. Username is collected during sign-up (enabled in the Clerk dashboard).
+3. Clerk webhook (`user.created`) fires to Convex HTTP endpoint -- creates user record in Convex (syncs username, name, email, imageUrl). **No role yet.**
+4. After sign-up, Clerk force-redirects to `/onboarding` via `NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL=/onboarding`.
+5. Onboarding page shows a role selector: **Candidate** or **Recruiter**.
+6. On submit, Convex mutation sets `role` and `onboardingComplete: true` on the user document, then schedules an action to update Clerk `publicMetadata` with `{ role, onboardingComplete: true }` via the Clerk Backend API.
+7. Client calls `user.reload()` to force a session token refresh, then redirects to `/dashboard`.
+8. Middleware checks `sessionClaims.metadata.onboardingComplete` -- any authenticated user who hasn't completed onboarding is redirected back to `/onboarding`.
 
-### 4.3 Route Protection (Three Layers)
+### 4.3 Route Protection (Four Layers)
 
-| Layer                                 | Mechanism                | Purpose                                                                                                                                                                   |
-| ------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Middleware (`proxy.ts`)**           | Clerk `auth.protect()`   | Redirects unauthenticated users away from protected routes. Checks session claims for role-restricted routes (`/admin/*`).                                                |
-| **Layout (`(protected)/layout.tsx`)** | Auth check               | Renders role-aware sidebar, header with notification bell.                                                                                                                |
-| **Convex functions**                  | `requireRole(ctx, role)` | **Authoritative enforcement.** Every mutation/query validates the caller's role from the `users` table. Even if frontend is bypassed, backend rejects unauthorized calls. |
+| Layer                                 | Mechanism                                   | Purpose                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Middleware (`proxy.ts`)**           | Clerk `clerkMiddleware()`                   | Redirects unauthenticated users away from protected routes. Redirects users who haven't completed onboarding to `/onboarding`. Checks session claims for role-restricted routes (`/admin/*`). |
+| **Onboarding gate**                   | `sessionClaims.metadata.onboardingComplete` | Middleware checks this claim. Users without it are redirected to `/onboarding` regardless of the target route.                                                                                |
+| **Layout (`(protected)/layout.tsx`)** | Auth check                                  | Renders role-aware sidebar, header with notification bell.                                                                                                                                    |
+| **Convex functions**                  | `requireRole(ctx, role)`                    | **Authoritative enforcement.** Every mutation/query validates the caller's role from the `users` table. Even if frontend is bypassed, backend rejects unauthorized calls.                     |
 
 ### 4.4 Middleware Route Matchers
 
 ```
-Public (no auth):    /, /internships/*, /resources/*, /sign-in/*, /sign-up/*
+Public (no auth):     /, /internships/*, /resources/*, /sign-in/*, /sign-up/*, /onboarding
+Onboarding gate:      All authenticated routes -- if onboardingComplete is false, redirect to /onboarding
 Protected (any auth): /profile, /settings, /notifications
-Candidate only:      /candidate/*
-Recruiter only:      /recruiter/*
-Admin only:          /admin/*
+Candidate only:       /candidate/*
+Recruiter only:       /recruiter/*
+Admin only:           /admin/*
 ```
+
+> **Note:** `/onboarding` is public (so newly signed-up users can reach it before onboarding is complete) but the onboarding page itself checks for authentication and redirects unauthenticated users to sign-in.
 
 ### 4.5 Convex Auth Helpers
 
@@ -151,10 +158,10 @@ Located in `convex/lib/auth.ts`:
 
 - **Endpoint:** Convex HTTP action at `/webhooks/clerk`
 - **Events:** `user.created`, `user.updated`, `user.deleted`
-- **Verification:** svix signature validation in a Node.js action (`"use node"`)
+- **Verification:** svix signature validation (directly in the HTTP action handler, no `"use node"` needed since svix runs in Convex's default runtime)
 - **Processing:**
-  - `user.created` -- Creates user in Convex `users` table, sets `publicMetadata.role` in Clerk.
-  - `user.updated` -- Syncs name, email, imageUrl changes.
+  - `user.created` -- Creates user in Convex `users` table (syncs `username`, name, email, imageUrl). **Role is not set here** -- it defaults to `null` until the user completes onboarding.
+  - `user.updated` -- Syncs username, name, email, imageUrl, role, and `onboardingComplete` changes from Clerk `publicMetadata`.
   - `user.deleted` -- Soft-deletes or removes user record.
 
 ---
@@ -165,18 +172,20 @@ Located in `convex/lib/auth.ts`:
 
 #### `users`
 
-| Field       | Type                                    | Description                  |
-| ----------- | --------------------------------------- | ---------------------------- |
-| `clerkId`   | `string`                                | Clerk user ID (unique)       |
-| `name`      | `string`                                | Full name                    |
-| `email`     | `string`                                | Email address                |
-| `imageUrl`  | `optional string`                       | Profile image URL from Clerk |
-| `role`      | `"candidate" \| "recruiter" \| "admin"` | User role                    |
-| `bio`       | `optional string`                       | Short bio                    |
-| `createdAt` | `number`                                | Timestamp                    |
-| `updatedAt` | `number`                                | Timestamp                    |
+| Field                | Type              | Description                                                       |
+| -------------------- | ----------------- | ----------------------------------------------------------------- |
+| `clerkId`            | `string`          | Clerk user ID (unique)                                            |
+| `username`           | `string`          | Unique username (synced from Clerk)                               |
+| `name`               | `string`          | Full name                                                         |
+| `email`              | `string`          | Email address                                                     |
+| `imageUrl`           | `optional string` | Profile image URL from Clerk                                      |
+| `role`               | `optional string` | `"candidate" \| "recruiter" \| "admin"` -- null before onboarding |
+| `onboardingComplete` | `boolean`         | Whether user completed onboarding (role selection)                |
+| `bio`                | `optional string` | Short bio                                                         |
+| `createdAt`          | `number`          | Timestamp                                                         |
+| `updatedAt`          | `number`          | Timestamp                                                         |
 
-**Indexes:** `by_clerkId` (`clerkId`), `by_role` (`role`), `by_email` (`email`)
+**Indexes:** `by_clerkId` (`clerkId`), `by_username` (`username`), `by_role` (`role`), `by_email` (`email`)
 
 #### `candidateProfiles`
 
@@ -357,21 +366,9 @@ Located in `convex/lib/auth.ts`:
 - `by_user_and_read` (`userId`, `isRead`)
 - `by_user_and_type` (`userId`, `type`)
 
-#### `emailQueue`
+#### Email Delivery
 
-| Field            | Type                              | Description                       |
-| ---------------- | --------------------------------- | --------------------------------- |
-| `recipientEmail` | `string`                          | Email address                     |
-| `recipientName`  | `string`                          | Recipient name                    |
-| `subject`        | `string`                          | Email subject                     |
-| `type`           | enum                              | Same as notification types        |
-| `templateData`   | `any`                             | Data for email template rendering |
-| `status`         | `"pending" \| "sent" \| "failed"` | Send status                       |
-| `sentAt`         | `optional number`                 | When sent                         |
-| `error`          | `optional string`                 | Error message if failed           |
-| `createdAt`      | `number`                          | Timestamp                         |
-
-**Indexes:** `by_status` (`status`)
+Email queuing, batching, rate limiting, and retry logic are handled entirely by the `@convex-dev/resend` component. The component manages its own internal tables -- no custom `emailQueue` table is needed. See [Section 7.6.2](#762-email-notifications-convex-dev-resend) for integration details.
 
 ### 5.7 Analytics
 
@@ -423,7 +420,8 @@ app/
 ├── (auth)/                                       # Layout: centered, no header
 │   ├── layout.tsx
 │   ├── sign-in/[[...sign-in]]/page.tsx          # /sign-in
-│   └── sign-up/[[...sign-up]]/page.tsx          # /sign-up  (custom role selector)
+│   ├── sign-up/[[...sign-up]]/page.tsx          # /sign-up  (standard Clerk component)
+│   └── onboarding/page.tsx                      # /onboarding  (role selector, post-sign-up)
 │
 ├── (public)/                                     # Layout: header + footer, no auth
 │   ├── layout.tsx
@@ -501,6 +499,8 @@ app/
 ```
 Root layout (providers)
 ├── (auth)/layout.tsx           -> Centered, no chrome
+│   ├── sign-in, sign-up       -> Clerk components
+│   └── onboarding             -> Role selector (post-sign-up)
 ├── (public)/layout.tsx         -> Header + footer
 └── (protected)/layout.tsx      -> Auth check + header + notification bell
     ├── candidate/layout.tsx    -> Candidate sidebar nav
@@ -514,12 +514,18 @@ Root layout (providers)
 
 ### 7.1 User Management & Profiles
 
-#### 7.1.1 Custom Sign-Up
+#### 7.1.1 Sign-Up & Onboarding
 
-- Replace default Clerk sign-up with a custom page.
-- Two-step: (1) select role (Candidate/Recruiter), (2) Clerk sign-up form.
-- Role is passed to Clerk via `unsafeMetadata.role`.
-- Webhook syncs role to Convex and sets `publicMetadata.role` in Clerk.
+- **Sign-up page** (`/sign-up`) uses the default Clerk `<SignUp />` component -- no custom UI needed.
+- Username collection is enabled in the Clerk dashboard (appears in the sign-up form automatically).
+- After sign-up, Clerk force-redirects to `/onboarding` via env var `NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL=/onboarding`.
+- **Onboarding page** (`/onboarding`) presents a role selector (Candidate / Recruiter).
+- On submit, a Convex mutation:
+  1. Sets `role` and `onboardingComplete: true` on the user document.
+  2. Schedules an internal action to update Clerk `publicMetadata` with `{ role, onboardingComplete: true }` via the Clerk Backend API.
+- Client calls `user.reload()` to force a session token refresh, then redirects to `/dashboard`.
+- Middleware gate ensures users who haven't completed onboarding are always redirected back to `/onboarding`.
+- **Session token customization:** The Clerk dashboard session token template includes `"metadata": "{{user.public_metadata}}"` so middleware can read `onboardingComplete` from session claims.
 
 #### 7.1.2 Candidate Profile
 
@@ -528,9 +534,19 @@ Root layout (providers)
 - Profile completeness indicator on dashboard (percentage).
 - Profile viewable by recruiters when reviewing applications.
 
-#### 7.1.3 Onboarding Wizard
+#### 7.1.3 Onboarding Flow
 
-After first sign-up, candidates are redirected to a profile completion wizard:
+After first sign-up, users are force-redirected to `/onboarding`:
+
+**Step 1: Role Selection** (required, blocks all other routes via middleware)
+
+- Select **Candidate** or **Recruiter**.
+- Convex mutation sets `role` + `onboardingComplete: true`, schedules Clerk metadata sync.
+- Redirects to `/dashboard` after completion.
+
+**Step 2: Profile Completion** (candidates only, optional, prompted on dashboard)
+
+After onboarding, candidates are encouraged (but not forced) to complete their profile:
 
 ```
 Step 1: Basic info (name, headline, bio, location)
@@ -540,7 +556,7 @@ Step 4: Experience (add multiple entries, optional)
 Step 5: Links (GitHub, LinkedIn, portfolio)
 ```
 
-Can be skipped and completed later.
+Can be accessed anytime at `/candidate/profile/edit`. Profile completeness indicator on dashboard encourages completion.
 
 ### 7.2 Internship Listings
 
@@ -739,7 +755,7 @@ When an admin publishes a blog post, all users receive an in-app notification. E
 #### 7.6.1 In-App Notifications (Convex Realtime)
 
 - **Storage:** `notifications` table in Convex.
-- **Delivery:** Client subscribes via `useQuery(api.notifications.listUnread, { userId })`.
+- **Delivery:** Client subscribes via `useQuery(api.notifications.listUnread)` (user derived from auth context, not passed as arg).
 - **Display:**
   - Notification bell icon in the header with unread count badge.
   - Dropdown showing recent notifications.
@@ -747,12 +763,38 @@ When an admin publishes a blog post, all users receive an in-app notification. E
 - **Actions:** Mark as read (individual or all), click to navigate to relevant page.
 - **Reactivity:** New notifications appear instantly via Convex's real-time subscriptions -- no polling.
 
-#### 7.6.2 Email Notifications (Resend)
+#### 7.6.2 Email Notifications (@convex-dev/resend)
 
-- **Integration:** Resend SDK in a Convex Node.js action (`"use node"`).
-- **Queue:** `emailQueue` table stores pending emails.
-- **Processing:** `ctx.scheduler.runAfter(0, ...)` triggers email sending immediately after queue insertion. Failed emails can be retried via cron job.
-- **Templates:** Simple HTML templates built in the action (no external template engine for MVP).
+- **Integration:** `@convex-dev/resend` Convex component -- provides built-in queuing, batching, rate limiting, idempotency, and retry with durable execution.
+- **Setup:**
+  1. Register the component in `convex/convex.config.ts`:
+
+     ```typescript
+     import resend from "@convex-dev/resend/convex.config";
+     import { defineApp } from "convex/server";
+
+     const app = defineApp();
+     app.use(resend);
+     export default app;
+     ```
+
+  2. Initialize the `Resend` client in `convex/resend.ts`:
+
+     ```typescript
+     import { Resend } from "@convex-dev/resend";
+
+     import { components } from "./_generated/api";
+
+     export const resend = new Resend(components.resend, {});
+     ```
+
+  3. Send emails from any mutation (prefer internal mutations for security) using `resend.sendEmail(ctx, { ... })`.
+
+- **Delivery guarantees:** The component uses Convex workpools for durable execution, automatically retrying failed sends. Idempotency keys prevent duplicate emails.
+- **No custom queue needed:** Unlike a manual `emailQueue` table approach, the component manages its own internal state for pending/sent/failed emails.
+- **Test mode:** The component defaults to `testMode: true`, which only delivers to test addresses (e.g., `delivered@resend.dev`). Set `testMode: false` in the `Resend` constructor options for production delivery.
+- **Templates:** Simple HTML strings passed via the `html` parameter (no external template engine for MVP).
+- **Environment:** Requires `RESEND_API_KEY` set as a Convex environment variable (the component reads it automatically).
 
 #### 7.6.3 Notification Events
 
@@ -769,7 +811,7 @@ When an admin publishes a blog post, all users receive an in-app notification. E
 
 When an internship is published (status changes to `"open"`):
 
-1. A scheduled action queries `candidateProfiles` where:
+1. A scheduled mutation (or action delegating to a query) finds `candidateProfiles` where:
    - `preferredCategories` includes the internship's category, OR
    - `preferredLocationType` matches the internship's location type.
 2. For each matched candidate, creates a notification and queues an email.
@@ -870,12 +912,15 @@ convex/
 ├── _generated/                  # Auto-generated (DO NOT edit)
 ├── lib/
 │   ├── auth.ts                  # requireAuth, requireRole, getCurrentUser
-│   ├── notifications.ts         # createNotification + queueEmail helpers
+│   ├── notifications.ts         # createNotification + send email helpers
 │   └── utils.ts                 # slugify, pagination helpers
+├── convex.config.ts             # App definition: registers @convex-dev/resend component
 ├── schema.ts                    # Full schema (all tables from Section 5)
 ├── auth.config.ts               # Clerk JWT configuration
 ├── http.ts                      # HTTP router: /webhooks/clerk
+├── resend.ts                    # Resend client initialization + sendEmail helper
 ├── users.ts                     # User queries/mutations (get, getByClerkId, update)
+├── onboarding.ts                # Onboarding mutation (set role + onboardingComplete, sync to Clerk)
 ├── candidateProfiles.ts         # Profile CRUD (get, upsert)
 ├── internships.ts               # Listing CRUD, search, status changes
 ├── applications.ts              # Application CRUD, status transitions, pipeline
@@ -883,12 +928,11 @@ convex/
 ├── quizAttempts.ts              # Attempt lifecycle: start, saveAnswer, submit, grade
 ├── blogPosts.ts                 # Blog CRUD, publish/unpublish
 ├── notifications.ts             # List, markRead, markAllRead, unreadCount
-├── email.ts                     # Resend integration ("use node"), send email action
-├── clerk.ts                     # Webhook verification + processing ("use node")
+├── clerk.ts                     # Webhook processing helpers (event handlers for user.created/updated/deleted)
 ├── reports.ts                   # Report CRUD, admin review actions
 ├── analytics.ts                 # View tracking, aggregation queries
 ├── storage.ts                   # generateUploadUrl, getFileUrl
-└── crons.ts                     # Scheduled jobs (email retry, internship matching)
+└── crons.ts                     # Scheduled jobs (close expired internships)
 ```
 
 ### Function Patterns
@@ -915,7 +959,8 @@ export const _processWebhook = internalMutation({
 - Always include `returns` validators.
 - Use `ConvexError` for user-facing errors.
 - Role-restricted functions call `requireRole(ctx, "recruiter")` at the start.
-- Actions needing Node.js (`"use node"`) are isolated in their own files (e.g., `email.ts`, `clerk.ts`).
+- Actions needing Node.js (`"use node"`) are isolated in their own files (e.g., `onboarding.ts` for Clerk Backend API calls).
+- Email sending uses the `@convex-dev/resend` component via `resend.ts` -- no `"use node"` needed for email.
 
 ---
 
@@ -923,17 +968,17 @@ export const _processWebhook = internalMutation({
 
 ### New Dependencies to Install
 
-| Package                                 | Purpose                                                 | Phase | Runtime                |
-| --------------------------------------- | ------------------------------------------------------- | ----- | ---------------------- |
-| `svix`                                  | Clerk webhook signature verification                    | 1     | Server (Convex action) |
-| `resend`                                | Email sending via Resend API                            | 1     | Server (Convex action) |
-| `@tiptap/react`                         | Rich text editor core                                   | 2     | Client                 |
-| `@tiptap/starter-kit`                   | Basic editor extensions (bold, italic, headings, lists) | 2     | Client                 |
-| `@tiptap/extension-image`               | Image support in editor                                 | 2     | Client                 |
-| `@tiptap/extension-link`                | Link support in editor                                  | 2     | Client                 |
-| `@tiptap/extension-placeholder`         | Placeholder text in editor                              | 2     | Client                 |
-| `@tiptap/extension-code-block-lowlight` | Code block syntax highlighting                          | 5     | Client                 |
-| `lowlight`                              | Syntax highlighting engine for code blocks              | 5     | Client                 |
+| Package                                 | Purpose                                                                                    | Phase | Runtime                |
+| --------------------------------------- | ------------------------------------------------------------------------------------------ | ----- | ---------------------- |
+| `svix`                                  | Clerk webhook signature verification                                                       | 1     | Server (Convex action) |
+| `@convex-dev/resend`                    | Email sending with built-in queuing, batching, rate limiting, and retry (Convex component) | 1     | Server (Convex)        |
+| `@tiptap/react`                         | Rich text editor core                                                                      | 2     | Client                 |
+| `@tiptap/starter-kit`                   | Basic editor extensions (bold, italic, headings, lists)                                    | 2     | Client                 |
+| `@tiptap/extension-image`               | Image support in editor                                                                    | 2     | Client                 |
+| `@tiptap/extension-link`                | Link support in editor                                                                     | 2     | Client                 |
+| `@tiptap/extension-placeholder`         | Placeholder text in editor                                                                 | 2     | Client                 |
+| `@tiptap/extension-code-block-lowlight` | Code block syntax highlighting                                                             | 5     | Client                 |
+| `lowlight`                              | Syntax highlighting engine for code blocks                                                 | 5     | Client                 |
 
 ### Existing Dependencies (Already Installed)
 
@@ -949,10 +994,12 @@ export const _processWebhook = internalMutation({
 
 ### Environment Variables (New)
 
-| Variable               | Purpose                         | Where Set                  |
-| ---------------------- | ------------------------------- | -------------------------- |
-| `CLERK_WEBHOOK_SECRET` | Verify Clerk webhook signatures | Convex dashboard (env var) |
-| `RESEND_API_KEY`       | Authenticate with Resend API    | Convex dashboard (env var) |
+| Variable                                          | Purpose                                                                 | Where Set                  |
+| ------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------- |
+| `CLERK_WEBHOOK_SECRET`                            | Verify Clerk webhook signatures                                         | Convex dashboard (env var) |
+| `RESEND_API_KEY`                                  | Authenticate with Resend API (read automatically by @convex-dev/resend) | Convex dashboard (env var) |
+| `NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL` | Where to redirect after sign-in (e.g., `/dashboard`)                    | `.env` / Vercel env vars   |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_FORCE_REDIRECT_URL`    | Force redirect to `/onboarding` after sign-up                           | `.env` / Vercel env vars   |
 
 Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) remain unchanged.
 
@@ -964,20 +1011,21 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 
 **Goal:** Auth with roles, user sync, notification infrastructure, role-based layouts.
 
-| #    | Task                            | Details                                                                |
-| ---- | ------------------------------- | ---------------------------------------------------------------------- |
-| 1.1  | Design and deploy Convex schema | All tables from Section 5                                              |
-| 1.2  | Clerk webhook endpoint          | HTTP action at `/webhooks/clerk`, svix verification, user sync         |
-| 1.3  | Custom sign-up page             | Role selector (Candidate/Recruiter) + Clerk sign-up form               |
-| 1.4  | Auth helpers                    | `requireAuth`, `requireRole`, `getCurrentUser` in `convex/lib/auth.ts` |
-| 1.5  | Update middleware (`proxy.ts`)  | Route matchers for `/candidate/*`, `/recruiter/*`, `/admin/*`          |
-| 1.6  | Protected layout                | Auth check, header with notification bell, role-aware navigation       |
-| 1.7  | Role-specific layouts           | Candidate, recruiter, and admin sidebar layouts                        |
-| 1.8  | Notification infrastructure     | `notifications` table, queries, bell component, mark-as-read           |
-| 1.9  | Resend integration              | `email.ts` action, `emailQueue` table, scheduler-based sending         |
-| 1.10 | Basic user functions            | `users.ts` queries/mutations (get, getByClerkId, update)               |
+| #    | Task                            | Details                                                                                                   |
+| ---- | ------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| 1.1  | Design and deploy Convex schema | All tables from Section 5                                                                                 |
+| 1.2  | Clerk webhook endpoint          | HTTP action at `/webhooks/clerk`, svix verification, user sync                                            |
+| 1.3  | Onboarding page                 | `/onboarding` with role selector (Candidate/Recruiter), Convex mutation + Clerk metadata sync             |
+| 1.4  | Session token + middleware      | Custom session claim (`metadata`), onboarding gate in `proxy.ts`, force redirect env var                  |
+| 1.5  | Auth helpers                    | `requireAuth`, `requireRole`, `getCurrentUser` in `convex/lib/auth.ts`                                    |
+| 1.6  | Update middleware (`proxy.ts`)  | Route matchers for `/candidate/*`, `/recruiter/*`, `/admin/*`, onboarding redirect                        |
+| 1.7  | Protected layout                | Auth check, header with notification bell, role-aware navigation                                          |
+| 1.8  | Role-specific layouts           | Candidate, recruiter, and admin sidebar layouts                                                           |
+| 1.9  | Notification infrastructure     | `notifications` table, queries, bell component, mark-as-read                                              |
+| 1.10 | Resend integration              | Register `@convex-dev/resend` component in `convex.config.ts`, create `resend.ts` with `sendEmail` helper |
+| 1.11 | Basic user functions            | `users.ts` queries/mutations (get, getByClerkId, update)                                                  |
 
-**Deliverable:** Users can sign up with role selection, see role-appropriate navigation, and receive notifications.
+**Deliverable:** Users can sign up, complete onboarding with role selection, see role-appropriate navigation, and receive notifications.
 
 ### Phase 2: Internship Listings
 
@@ -1002,22 +1050,22 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 
 **Goal:** Candidates build profiles, apply with resumes, recruiters manage the pipeline.
 
-| #    | Task                              | Details                                                  |
-| ---- | --------------------------------- | -------------------------------------------------------- |
-| 3.1  | Candidate profile functions       | `convex/candidateProfiles.ts`: get, upsert               |
-| 3.2  | Profile edit page                 | `/candidate/profile/edit` with multi-section form        |
-| 3.3  | Onboarding wizard                 | Post-signup wizard (5 steps)                             |
-| 3.4  | Profile completeness indicator    | Percentage on candidate dashboard                        |
-| 3.5  | File storage functions            | `convex/storage.ts`: generateUploadUrl, getFileUrl       |
-| 3.6  | Application submit                | Apply form on `/internships/:id` with resume upload      |
-| 3.7  | Application CRUD functions        | `convex/applications.ts`: apply, updateStatus, list, get |
-| 3.8  | Candidate applications page       | `/candidate/applications` with status filters            |
-| 3.9  | Application detail page           | `/candidate/applications/:id` with status timeline       |
-| 3.10 | Recruiter application list        | `/recruiter/internships/:id/applications`                |
-| 3.11 | Recruiter application review      | `/recruiter/internships/:id/applications/:appId`         |
-| 3.12 | Status change notifications       | In-app + email on every status transition                |
-| 3.13 | New application notifications     | Notify recruiter on new applications                     |
-| 3.14 | Matching internship notifications | Notify candidates when matching internships are posted   |
+| #    | Task                              | Details                                                             |
+| ---- | --------------------------------- | ------------------------------------------------------------------- |
+| 3.1  | Candidate profile functions       | `convex/candidateProfiles.ts`: get, upsert                          |
+| 3.2  | Profile edit page                 | `/candidate/profile/edit` with multi-section form                   |
+| 3.3  | Profile completion wizard         | Optional 5-step profile form for candidates (prompted on dashboard) |
+| 3.4  | Profile completeness indicator    | Percentage on candidate dashboard                                   |
+| 3.5  | File storage functions            | `convex/storage.ts`: generateUploadUrl, getFileUrl                  |
+| 3.6  | Application submit                | Apply form on `/internships/:id` with resume upload                 |
+| 3.7  | Application CRUD functions        | `convex/applications.ts`: apply, updateStatus, list, get            |
+| 3.8  | Candidate applications page       | `/candidate/applications` with status filters                       |
+| 3.9  | Application detail page           | `/candidate/applications/:id` with status timeline                  |
+| 3.10 | Recruiter application list        | `/recruiter/internships/:id/applications`                           |
+| 3.11 | Recruiter application review      | `/recruiter/internships/:id/applications/:appId`                    |
+| 3.12 | Status change notifications       | In-app + email on every status transition                           |
+| 3.13 | New application notifications     | Notify recruiter on new applications                                |
+| 3.14 | Matching internship notifications | Notify candidates when matching internships are posted              |
 
 **Deliverable:** Full application pipeline from apply through acceptance, with notifications.
 
@@ -1091,21 +1139,22 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 
 ## 11. Key Design Decisions
 
-| #   | Decision                   | Choice                                                    | Reasoning                                                                                                                                                             |
-| --- | -------------------------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Role storage               | Clerk `publicMetadata` synced to Convex `users`           | Fast middleware checks (Clerk session claims) + fast DB queries (Convex). Dual enforcement.                                                                           |
-| 2   | Route structure            | Real folders for URL paths, route groups for layouts only | Next.js route groups are invisible in URLs. `/candidate/dashboard` needs a real `candidate/` folder inside `(protected)/`.                                            |
-| 3   | Quiz questions             | Embedded array in quiz document                           | Always loaded together, no joins needed, well within Convex document size limits for reasonable quiz lengths (< 100 questions).                                       |
-| 4   | Application status history | Embedded array in application document                    | Simple audit trail without a separate table. Status changes are append-only and infrequent.                                                                           |
-| 5   | File storage               | Convex built-in file storage                              | Same auth model, no external service config (S3, Cloudinary), simpler architecture.                                                                                   |
-| 6   | Rich text editor           | TipTap                                                    | Lightweight, extensible, React-native. Used for both blog posts (admin) and internship descriptions (recruiter). Single reusable component.                           |
-| 7   | Charts                     | Recharts (already installed)                              | No new dependency. shadcn `chart` component wraps Recharts with theme-aware styling.                                                                                  |
-| 8   | Email                      | Resend via Convex Node.js action                          | Well-supported with Convex, simple API, generous free tier (100 emails/day).                                                                                          |
-| 9   | In-app notifications       | Convex realtime subscription                              | Automatic push via `useQuery` -- no WebSocket setup, no polling. New notifications appear instantly.                                                                  |
-| 10  | Analytics storage          | Separate `internshipViews` table                          | Avoids write conflicts (OCC) on the main `internships` table. Views are high-frequency writes that should be isolated. `viewCount` is denormalized for quick display. |
-| 11  | Notification delivery      | Dual-channel (in-app + email)                             | In-app for instant awareness, email for when user is offline. Both fire on the same events.                                                                           |
-| 12  | Authorization              | Three-layer (middleware + layout + Convex)                | Defense in depth. Middleware = fast redirect. Layout = UI enforcement. Convex functions = authoritative backend check that cannot be bypassed.                        |
-| 13  | Incremental build          | 7 phases, MVP first                                       | Ship working auth + listings first. Each phase adds a complete feature. Enables early feedback and iteration.                                                         |
+| #   | Decision                   | Choice                                                      | Reasoning                                                                                                                                                                             |
+| --- | -------------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Role storage               | Clerk `publicMetadata` synced to Convex `users`             | Fast middleware checks (Clerk session claims) + fast DB queries (Convex). Dual enforcement.                                                                                           |
+| 2   | Route structure            | Real folders for URL paths, route groups for layouts only   | Next.js route groups are invisible in URLs. `/candidate/dashboard` needs a real `candidate/` folder inside `(protected)/`.                                                            |
+| 3   | Quiz questions             | Embedded array in quiz document                             | Always loaded together, no joins needed, well within Convex document size limits for reasonable quiz lengths (< 100 questions).                                                       |
+| 4   | Application status history | Embedded array in application document                      | Simple audit trail without a separate table. Status changes are append-only and infrequent.                                                                                           |
+| 5   | File storage               | Convex built-in file storage                                | Same auth model, no external service config (S3, Cloudinary), simpler architecture.                                                                                                   |
+| 6   | Rich text editor           | TipTap                                                      | Lightweight, extensible, React-native. Used for both blog posts (admin) and internship descriptions (recruiter). Single reusable component.                                           |
+| 7   | Charts                     | Recharts (already installed)                                | No new dependency. shadcn `chart` component wraps Recharts with theme-aware styling.                                                                                                  |
+| 8   | Email                      | @convex-dev/resend component                                | Built-in queuing, batching, rate limiting, and exactly-once delivery with idempotency. No custom email queue table or retry cron needed. Generous free tier (100 emails/day).         |
+| 9   | In-app notifications       | Convex realtime subscription                                | Automatic push via `useQuery` -- no WebSocket setup, no polling. New notifications appear instantly.                                                                                  |
+| 10  | Analytics storage          | Separate `internshipViews` table                            | Avoids write conflicts (OCC) on the main `internships` table. Views are high-frequency writes that should be isolated. `viewCount` is denormalized for quick display.                 |
+| 11  | Notification delivery      | Dual-channel (in-app + email)                               | In-app for instant awareness, email for when user is offline. Both fire on the same events.                                                                                           |
+| 12  | Authorization              | Four-layer (middleware + onboarding gate + layout + Convex) | Defense in depth. Middleware = fast redirect. Onboarding gate = ensures role is set. Layout = UI enforcement. Convex functions = authoritative backend check that cannot be bypassed. |
+| 13  | Onboarding flow            | Post-sign-up `/onboarding` page (Clerk guide pattern)       | Standard Clerk `<SignUp />` avoids custom auth UI. Role collected post-sign-up via dedicated page. `publicMetadata.onboardingComplete` gates access via session claims in middleware. |
+| 14  | Incremental build          | 7 phases, MVP first                                         | Ship working auth + listings first. Each phase adds a complete feature. Enables early feedback and iteration.                                                                         |
 
 ---
 
@@ -1113,13 +1162,13 @@ Existing env vars (`CONVEX_DEPLOYMENT`, `NEXT_PUBLIC_CONVEX_URL`, Clerk keys) re
 
 | Area             | Pages                                                                                                                                                                        | Priority  |
 | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| Auth             | 2 (sign-in, sign-up)                                                                                                                                                         | Phase 1   |
+| Auth             | 3 (sign-in, sign-up, onboarding)                                                                                                                                             | Phase 1   |
 | Public           | 6 (landing, internship browse, internship detail, resources, blog post, sample quizzes)                                                                                      | Phase 1-5 |
 | Shared Protected | 3 (profile, settings, notifications)                                                                                                                                         | Phase 1   |
 | Candidate        | 7 (dashboard, profile edit, applications list, application detail, quizzes list, quiz take, quiz result)                                                                     | Phase 3-4 |
 | Recruiter        | 11 (dashboard, internships list, new internship, internship detail, edit internship, analytics, applications list, application review, quizzes list, new quiz, quiz results) | Phase 2-6 |
 | Admin            | 9 (dashboard, users list, user detail, internships, blog list, new blog, edit blog, quizzes, reports)                                                                        | Phase 5-7 |
-| **Total**        | **~38 pages**                                                                                                                                                                |           |
+| **Total**        | **~39 pages**                                                                                                                                                                |           |
 
 ## Appendix B: Email Templates (MVP)
 
@@ -1136,5 +1185,4 @@ Simple HTML emails for each notification type:
 
 | Job                       | Schedule          | Purpose                                                           |
 | ------------------------- | ----------------- | ----------------------------------------------------------------- |
-| Email retry               | Every 5 minutes   | Retry failed emails in `emailQueue` (max 3 retries)               |
 | Close expired internships | Daily at midnight | Set `status: "closed"` for internships past `applicationDeadline` |
