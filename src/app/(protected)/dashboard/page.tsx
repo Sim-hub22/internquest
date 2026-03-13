@@ -11,6 +11,7 @@ import { auth } from "@clerk/nextjs/server";
  * redirected to /onboarding before this page is reached.
  */
 export default async function DashboardRedirectPage() {
+  "use no memo";
   const { sessionClaims } = await auth();
   const role = sessionClaims?.metadata?.role as string | undefined;
 
