@@ -41,7 +41,35 @@ export default function RecruiterApplicationReviewPage() {
   const params = useParams<{ id: string; appId: string }>();
   const internshipId = params.id as Id<"internships">;
   const applicationId = params.appId as Id<"applications">;
+  const currentUser = useQuery(api.users.current, {});
 
+  if (currentUser === undefined) {
+    return <div className="p-6">Loading application details...</div>;
+  }
+
+  if (currentUser === null) {
+    return <div className="p-6">Please sign in to review applications.</div>;
+  }
+
+  if (currentUser.role !== "recruiter") {
+    return <div className="p-6">You do not have access to this page.</div>;
+  }
+
+  return (
+    <RecruiterApplicationReviewContent
+      applicationId={applicationId}
+      internshipId={internshipId}
+    />
+  );
+}
+
+function RecruiterApplicationReviewContent({
+  applicationId,
+  internshipId,
+}: {
+  applicationId: Id<"applications">;
+  internshipId: Id<"internships">;
+}) {
   const detail = useQuery(api.applications.getRecruiterDetail, {
     applicationId,
   });

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
-import { usePaginatedQuery } from "convex/react";
+import { usePaginatedQuery, useQuery } from "convex/react";
 import { FileText, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,28 @@ function badgeClassForStatus(status: ApplicationStatus) {
 export default function RecruiterInternshipApplicationsPage() {
   const params = useParams<{ id: string }>();
   const internshipId = params.id as Id<"internships">;
+  const currentUser = useQuery(api.users.current, {});
+
+  if (currentUser === undefined) {
+    return <div className="p-6">Loading applications...</div>;
+  }
+
+  if (currentUser === null) {
+    return <div className="p-6">Please sign in to view applications.</div>;
+  }
+
+  if (currentUser.role !== "recruiter") {
+    return <div className="p-6">You do not have access to this page.</div>;
+  }
+
+  return <RecruiterApplicationsList internshipId={internshipId} />;
+}
+
+function RecruiterApplicationsList({
+  internshipId,
+}: {
+  internshipId: Id<"internships">;
+}) {
   const [statusFilter, setStatusFilter] = useState<"all" | ApplicationStatus>(
     "all"
   );

@@ -2,13 +2,17 @@ import { v } from "convex/values";
 
 import { Doc } from "@/convex/_generated/dataModel";
 import { mutation, query } from "@/convex/_generated/server";
-import { requireUser } from "@/convex/lib/auth";
+import { getCurrentUser, requireUser } from "@/convex/lib/auth";
 
 /** List the current user's unread notifications (most recent first, max 20). */
 export const listUnread = query({
   args: {},
   handler: async (ctx): Promise<Doc<"notifications">[]> => {
-    const user = await requireUser(ctx);
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return [];
+    }
+
     return await ctx.db
       .query("notifications")
       .withIndex("by_user_and_read", (q) =>
@@ -42,7 +46,11 @@ export const list = query({
 export const unreadCount = query({
   args: {},
   handler: async (ctx): Promise<number> => {
-    const user = await requireUser(ctx);
+    const user = await getCurrentUser(ctx);
+    if (!user) {
+      return 0;
+    }
+
     const unread = await ctx.db
       .query("notifications")
       .withIndex("by_user_and_read", (q) =>
