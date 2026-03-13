@@ -1,8 +1,15 @@
 import { ConvexError, v } from "convex/values";
 
+import { internal } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
-import { mutation, query } from "@/convex/_generated/server";
+import {
+  MutationCtx,
+  internalMutation,
+  mutation,
+  query,
+} from "@/convex/_generated/server";
 import { getCurrentUser, requireRole } from "@/convex/lib/auth";
+import { createNotification } from "@/convex/lib/notifications";
 
 const internshipCategoryValidator = v.union(
   v.literal("technology"),
@@ -29,12 +36,44 @@ const internshipStatusValidator = v.union(
 const paginationOptsValidator = v.object({
   numItems: v.number(),
   cursor: v.union(v.string(), v.null()),
+  id: v.optional(v.number()),
 });
+
+const APP_URL = process.env.APP_URL?.replace(/\/$/, "") ?? "";
 
 function ensureFutureDeadline(timestamp: number) {
   if (timestamp <= Date.now()) {
     throw new ConvexError("Application deadline must be in the future");
   }
+}
+
+function buildInternshipPath(internshipId: string) {
+  return `/internships/${internshipId}`;
+}
+
+function buildInternshipUrl(internshipId: string) {
+  const path = buildInternshipPath(internshipId);
+  return APP_URL ? `${APP_URL}${path}` : path;
+}
+
+function includesMatchingCategory(
+  preferredCategories: string[] | undefined,
+  internshipCategory: Doc<"internships">["category"]
+) {
+  return preferredCategories?.includes(internshipCategory) ?? false;
+}
+
+async function scheduleMatchingInternshipNotifications(
+  ctx: MutationCtx,
+  internshipId: Doc<"internships">["_id"]
+) {
+  await ctx.scheduler.runAfter(
+    0,
+    internal.internships.notifyMatchingCandidates,
+    {
+      internshipId,
+    }
+  );
 }
 
 export const create = mutation({
@@ -58,7 +97,7 @@ export const create = mutation({
     ensureFutureDeadline(args.applicationDeadline);
 
     const now = Date.now();
-    return await ctx.db.insert("internships", {
+    const internshipId = await ctx.db.insert("internships", {
       recruiterId: recruiter._id,
       title: args.title.trim(),
       company: args.company.trim(),
@@ -67,15 +106,23 @@ export const create = mutation({
       location: args.location.trim(),
       locationType: args.locationType,
       duration: args.duration.trim(),
-      stipend: args.stipend,
       requirements: args.requirements.map((requirement) => requirement.trim()),
       status: args.status,
       applicationDeadline: args.applicationDeadline,
-      maxApplications: args.maxApplications,
       viewCount: 0,
       createdAt: now,
       updatedAt: now,
+      ...(args.stipend === undefined ? {} : { stipend: args.stipend }),
+      ...(args.maxApplications === undefined
+        ? {}
+        : { maxApplications: args.maxApplications }),
     });
+
+    if (args.status === "open") {
+      await scheduleMatchingInternshipNotifications(ctx, internshipId);
+    }
+
+    return internshipId;
   },
 });
 
@@ -109,6 +156,9 @@ export const update = mutation({
 
     ensureFutureDeadline(args.applicationDeadline);
 
+    const shouldNotifyMatches =
+      internship.status !== "open" && args.status === "open";
+
     await ctx.db.patch(args.internshipId, {
       title: args.title.trim(),
       company: args.company.trim(),
@@ -117,13 +167,19 @@ export const update = mutation({
       location: args.location.trim(),
       locationType: args.locationType,
       duration: args.duration.trim(),
-      stipend: args.stipend,
       requirements: args.requirements.map((requirement) => requirement.trim()),
       status: args.status,
       applicationDeadline: args.applicationDeadline,
-      maxApplications: args.maxApplications,
       updatedAt: Date.now(),
+      ...(args.stipend === undefined ? {} : { stipend: args.stipend }),
+      ...(args.maxApplications === undefined
+        ? {}
+        : { maxApplications: args.maxApplications }),
     });
+
+    if (shouldNotifyMatches) {
+      await scheduleMatchingInternshipNotifications(ctx, args.internshipId);
+    }
 
     return null;
   },
@@ -146,10 +202,17 @@ export const updateStatus = mutation({
       throw new ConvexError("FORBIDDEN");
     }
 
+    const shouldNotifyMatches =
+      internship.status !== "open" && args.status === "open";
+
     await ctx.db.patch(args.internshipId, {
       status: args.status,
       updatedAt: Date.now(),
     });
+
+    if (shouldNotifyMatches) {
+      await scheduleMatchingInternshipNotifications(ctx, args.internshipId);
+    }
 
     return null;
   },
@@ -440,6 +503,69 @@ export const trackView = mutation({
       viewCount: internship.viewCount + 1,
       updatedAt: now,
     });
+
+    return null;
+  },
+});
+
+export const notifyMatchingCandidates = internalMutation({
+  args: {
+    internshipId: v.id("internships"),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const internship = await ctx.db.get(args.internshipId);
+
+    if (!internship || internship.status !== "open") {
+      return null;
+    }
+
+    const profiles = await ctx.db.query("candidateProfiles").collect();
+    const internshipPath = buildInternshipPath(internship._id);
+    const internshipUrl = buildInternshipUrl(internship._id);
+
+    for (const profile of profiles) {
+      const matchesCategory = includesMatchingCategory(
+        profile.preferredCategories,
+        internship.category
+      );
+      const matchesLocationType =
+        profile.preferredLocationType === internship.locationType;
+
+      if (!matchesCategory && !matchesLocationType) {
+        continue;
+      }
+
+      const candidate = await ctx.db.get(profile.userId);
+
+      if (!candidate) {
+        continue;
+      }
+
+      await createNotification(ctx, {
+        userId: candidate._id,
+        type: "new_internship",
+        title: `New internship: ${internship.title}`,
+        message: `${internship.company} just posted an internship matching your preferences.`,
+        link: internshipPath,
+        relatedId: internship._id,
+      });
+
+      if (!candidate.email) {
+        continue;
+      }
+
+      await ctx.scheduler.runAfter(
+        0,
+        internal.emailActions.sendNewInternshipEmail,
+        {
+          to: candidate.email,
+          name: candidate.name,
+          internshipTitle: internship.title,
+          company: internship.company,
+          internshipUrl,
+        }
+      );
+    }
 
     return null;
   },

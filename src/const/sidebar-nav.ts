@@ -30,7 +30,7 @@ const CANDIDATE_NAV: SidebarNavItem[] = [
     icon: "clipboard-list",
   },
   { title: "Quizzes", url: "/candidate/quizzes", icon: "book-open" },
-  { title: "Profile", url: "/profile", icon: "user" },
+  { title: "Profile", url: "/candidate/profile/edit", icon: "user" },
 ];
 
 const RECRUITER_NAV: SidebarNavItem[] = [

@@ -26,14 +26,18 @@ export async function createNotification(
   ctx: MutationCtx,
   args: CreateNotificationArgs
 ): Promise<void> {
-  await ctx.db.insert("notifications", {
+  const notification = {
     userId: args.userId,
     type: args.type,
     title: args.title,
     message: args.message,
-    link: args.link ?? undefined,
-    relatedId: args.relatedId ?? undefined,
     isRead: false,
     createdAt: Date.now(),
+  };
+
+  await ctx.db.insert("notifications", {
+    ...notification,
+    ...(args.link ? { link: args.link } : {}),
+    ...(args.relatedId ? { relatedId: args.relatedId } : {}),
   });
 }
