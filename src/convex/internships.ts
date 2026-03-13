@@ -175,7 +175,11 @@ export const getForRecruiter = query({
     internshipId: v.id("internships"),
   },
   handler: async (ctx, args): Promise<Doc<"internships"> | null> => {
-    const recruiter = await requireRole(ctx, "recruiter");
+    const recruiter = await getCurrentUser(ctx);
+    if (!recruiter || recruiter.role !== "recruiter") {
+      return null;
+    }
+
     const internship = await ctx.db.get(args.internshipId);
 
     if (!internship) {

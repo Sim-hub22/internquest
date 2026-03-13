@@ -23,12 +23,21 @@ type InternshipDetailPageProps = {
   preloadedInternship: Preloaded<typeof api.internships.getPublic>;
 };
 
+const DEADLINE_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "short",
+  timeStyle: "medium",
+  timeZone: "UTC",
+});
+
 export function InternshipDetailPage({
   preloadedInternship,
 }: InternshipDetailPageProps) {
   const internship = usePreloadedQuery(preloadedInternship);
   const currentUser = useQuery(api.users.current);
   const trackView = useMutation(api.internships.trackView);
+  const formattedDeadline = DEADLINE_DATE_TIME_FORMATTER.format(
+    internship ? new Date(internship.applicationDeadline) : new Date(0)
+  );
 
   useEffect(() => {
     if (!internship) {
@@ -78,7 +87,7 @@ export function InternshipDetailPage({
         />
         <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
           <CalendarClockIcon className="size-4" />
-          Apply by {new Date(internship.applicationDeadline).toLocaleString()}
+          Apply by {formattedDeadline} UTC
         </p>
       </div>
 

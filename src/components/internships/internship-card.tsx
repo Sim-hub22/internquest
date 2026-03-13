@@ -25,11 +25,20 @@ type InternshipCardProps = {
   actionLabel?: string;
 };
 
+const DEADLINE_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "short",
+  timeZone: "UTC",
+});
+
 export function InternshipCard({
   internship,
   href,
   actionLabel = "View Details",
 }: InternshipCardProps) {
+  const formattedDeadline = DEADLINE_DATE_FORMATTER.format(
+    new Date(internship.applicationDeadline)
+  );
+
   return (
     <Card className="flex h-full flex-col">
       <CardHeader className="space-y-3">
@@ -54,8 +63,7 @@ export function InternshipCard({
           duration={internship.duration}
         />
         <p className="text-sm text-muted-foreground">
-          Apply by{" "}
-          {new Date(internship.applicationDeadline).toLocaleDateString()}
+          Apply by {formattedDeadline} UTC
         </p>
         <p className="text-sm text-muted-foreground">
           {internship.stipend
