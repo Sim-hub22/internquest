@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
-import { BellIcon, Settings2Icon } from "lucide-react";
+import { BellIcon, LogOutIcon, Settings2Icon } from "lucide-react";
 
 import {
   SidebarGroup,
@@ -22,6 +22,8 @@ function getSidebarIcon(icon: SidebarIcon) {
       return <BellIcon />;
     case "settings":
       return <Settings2Icon />;
+    case "logout":
+      return <LogOutIcon />;
     default:
       return null;
   }
