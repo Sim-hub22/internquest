@@ -49,7 +49,7 @@ export const list = query({
       ? ctx.db
           .query("notifications")
           .withIndex("by_user_and_read_and_type", (q) =>
-            q.eq("userId", user._id).eq("isRead", false).eq("type", args.type)
+            q.eq("userId", user._id).eq("isRead", false).eq("type", args.type!)
           )
           .order("desc")
           .paginate(args.paginationOpts)
@@ -65,7 +65,7 @@ export const list = query({
           ? ctx.db
               .query("notifications")
               .withIndex("by_user_and_type", (q) =>
-                q.eq("userId", user._id).eq("type", args.type)
+                q.eq("userId", user._id).eq("type", args.type!)
               )
               .order("desc")
               .paginate(args.paginationOpts)
