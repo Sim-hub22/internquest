@@ -494,35 +494,31 @@ export const trackView = mutation({
     }
 
     const currentUser = await getCurrentUser(ctx);
-    const now = Date.now();
-
-    if (currentUser) {
-      const oneHourAgo = now - 60 * 60 * 1000;
-      const recentViews = await ctx.db
-        .query("internshipViews")
-        .withIndex("by_internship_and_viewer_and_viewedAt", (q) =>
-          q
-            .eq("internshipId", args.internshipId)
-            .eq("viewerId", currentUser._id)
-            .gte("viewedAt", oneHourAgo)
-        )
-        .take(1);
-
-      if (recentViews.length > 0) {
-        return null;
-      }
-
-      await ctx.db.insert("internshipViews", {
-        internshipId: args.internshipId,
-        viewerId: currentUser._id,
-        viewedAt: now,
-      });
-    } else {
-      await ctx.db.insert("internshipViews", {
-        internshipId: args.internshipId,
-        viewedAt: now,
-      });
+    if (!currentUser || currentUser.role !== "candidate") {
+      return null;
     }
+
+    const now = Date.now();
+    const oneHourAgo = now - 60 * 60 * 1000;
+    const recentViews = await ctx.db
+      .query("internshipViews")
+      .withIndex("by_internship_and_viewer_and_viewedAt", (q) =>
+        q
+          .eq("internshipId", args.internshipId)
+          .eq("viewerId", currentUser._id)
+          .gte("viewedAt", oneHourAgo)
+      )
+      .take(1);
+
+    if (recentViews.length > 0) {
+      return null;
+    }
+
+    await ctx.db.insert("internshipViews", {
+      internshipId: args.internshipId,
+      viewerId: currentUser._id,
+      viewedAt: now,
+    });
 
     await ctx.db.patch(args.internshipId, {
       viewCount: internship.viewCount + 1,

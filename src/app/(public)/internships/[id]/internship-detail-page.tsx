@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { Preloaded } from "convex/react";
 import { useMutation, usePreloadedQuery, useQuery } from "convex/react";
@@ -39,6 +39,7 @@ export function InternshipDetailPage({
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [isApplying, setIsApplying] = useState(false);
+  const trackedViewKeyRef = useRef<string | null>(null);
   const internship = usePreloadedQuery(preloadedInternship);
   const currentUser = useQuery(api.users.current);
   const existingApplication = useQuery(
@@ -65,12 +66,23 @@ export function InternshipDetailPage({
   }, [internship]);
 
   useEffect(() => {
-    if (!internship) {
+    if (!internship || currentUser === undefined || !currentUser) {
       return;
     }
 
-    void trackView({ internshipId: internship._id });
-  }, [internship, trackView]);
+    const trackedViewKey = `${internship._id}:${currentUser._id}`;
+    if (trackedViewKeyRef.current === trackedViewKey) {
+      return;
+    }
+
+    trackedViewKeyRef.current = trackedViewKey;
+
+    void trackView({ internshipId: internship._id }).catch(() => {
+      if (trackedViewKeyRef.current === trackedViewKey) {
+        trackedViewKeyRef.current = null;
+      }
+    });
+  }, [currentUser, internship, trackView]);
 
   if (!internship) {
     return (

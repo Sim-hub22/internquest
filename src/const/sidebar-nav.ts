@@ -9,7 +9,8 @@ export type SidebarIcon =
   | "settings"
   | "shield"
   | "user"
-  | "users";
+  | "users"
+  | "logout";
 
 export type SidebarNavItem = {
   title: string;
@@ -60,7 +61,7 @@ const ADMIN_NAV: SidebarNavItem[] = [
 ];
 
 export const SECONDARY_NAV: SidebarNavItem[] = [
-  { title: "Settings", url: "/settings", icon: "settings" },
+  { title: "Exit Portal", url: "/", icon: "logout" },
 ];
 
 export function getSidebarNavItems(role: SidebarRole): SidebarNavItem[] {
