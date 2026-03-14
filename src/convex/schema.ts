@@ -264,7 +264,8 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_read", ["userId", "isRead"])
-    .index("by_user_and_type", ["userId", "type"]),
+    .index("by_user_and_type", ["userId", "type"])
+    .index("by_user_and_read_and_type", ["userId", "isRead", "type"]),
 
   // ─── Analytics ───────────────────────────────────────────────────────────────
 

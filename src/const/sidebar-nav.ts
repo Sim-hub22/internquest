@@ -61,11 +61,6 @@ const ADMIN_NAV: SidebarNavItem[] = [
 ];
 
 export const SECONDARY_NAV: SidebarNavItem[] = [
-  {
-    title: "Notifications",
-    url: "/notifications",
-    icon: "bell",
-  },
   { title: "Settings", url: "/settings", icon: "settings" },
 ];
 
