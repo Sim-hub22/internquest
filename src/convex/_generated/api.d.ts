@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as applications from "../applications.js";
+import type * as candidateProfiles from "../candidateProfiles.js";
 import type * as emailActions from "../emailActions.js";
 import type * as emails_applicationStatus from "../emails/applicationStatus.js";
 import type * as emails_newApplication from "../emails/newApplication.js";
@@ -22,6 +24,8 @@ import type * as lib_notifications from "../lib/notifications.js";
 import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as resend from "../resend.js";
+import type * as storage from "../storage.js";
+import type * as testHelpers from "../testHelpers.js";
 import type * as users from "../users.js";
 
 import type {
@@ -31,6 +35,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  applications: typeof applications;
+  candidateProfiles: typeof candidateProfiles;
   emailActions: typeof emailActions;
   "emails/applicationStatus": typeof emails_applicationStatus;
   "emails/newApplication": typeof emails_newApplication;
@@ -45,6 +51,8 @@ declare const fullApi: ApiFromModules<{
   notifications: typeof notifications;
   onboarding: typeof onboarding;
   resend: typeof resend;
+  storage: typeof storage;
+  testHelpers: typeof testHelpers;
   users: typeof users;
 }>;
 

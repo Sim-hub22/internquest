@@ -146,6 +146,7 @@ export default defineSchema({
   })
     .index("by_internship", ["internshipId"])
     .index("by_candidate", ["candidateId"])
+    .index("by_candidate_and_internship", ["candidateId", "internshipId"])
     .index("by_internship_and_status", ["internshipId", "status"])
     .index("by_candidate_and_status", ["candidateId", "status"]),
 
@@ -263,7 +264,8 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_user_and_read", ["userId", "isRead"])
-    .index("by_user_and_type", ["userId", "type"]),
+    .index("by_user_and_type", ["userId", "type"])
+    .index("by_user_and_read_and_type", ["userId", "isRead", "type"]),
 
   // ─── Analytics ───────────────────────────────────────────────────────────────
 

@@ -90,6 +90,15 @@ export function RecruiterInternshipDetailPage({
             Edit Listing
           </Link>
         </Button>
+        <Button asChild variant="secondary">
+          <Link
+            href={
+              `/recruiter/internships/${internship._id}/applications` as Route
+            }
+          >
+            View Applications
+          </Link>
+        </Button>
         {STATUS_FLOW[internship.status].map((status) => (
           <Button
             key={`${internship._id}-${status}`}

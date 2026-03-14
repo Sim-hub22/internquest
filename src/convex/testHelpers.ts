@@ -1,0 +1,29 @@
+"use node";
+
+import { internalAction } from "@/convex/_generated/server";
+
+export const createTestPdfStorage = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const storageId = await ctx.storage.store(
+      new Blob(["%PDF-1.4\n% test file\n"], {
+        type: "application/pdf",
+      })
+    );
+
+    return storageId;
+  },
+});
+
+export const createTestTextStorage = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const storageId = await ctx.storage.store(
+      new Blob(["plain text"], {
+        type: "text/plain",
+      })
+    );
+
+    return storageId;
+  },
+});

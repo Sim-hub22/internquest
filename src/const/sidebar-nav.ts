@@ -23,14 +23,13 @@ const CANDIDATE_NAV: SidebarNavItem[] = [
     url: "/candidate/dashboard",
     icon: "dashboard",
   },
-  { title: "Internships", url: "/candidate/internships", icon: "briefcase" },
   {
     title: "Applications",
     url: "/candidate/applications",
     icon: "clipboard-list",
   },
   { title: "Quizzes", url: "/candidate/quizzes", icon: "book-open" },
-  { title: "Profile", url: "/profile", icon: "user" },
+  { title: "Profile", url: "/candidate/profile", icon: "user" },
 ];
 
 const RECRUITER_NAV: SidebarNavItem[] = [
@@ -61,11 +60,6 @@ const ADMIN_NAV: SidebarNavItem[] = [
 ];
 
 export const SECONDARY_NAV: SidebarNavItem[] = [
-  {
-    title: "Notifications",
-    url: "/notifications",
-    icon: "bell",
-  },
   { title: "Settings", url: "/settings", icon: "settings" },
 ];
 

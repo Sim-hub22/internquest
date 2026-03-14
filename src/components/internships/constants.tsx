@@ -1,6 +1,14 @@
-import { BriefcaseBusinessIcon, Building2Icon, Clock3Icon } from "lucide-react";
+import {
+  BriefcaseBusinessIcon,
+  Building2Icon,
+  CircleCheckIcon,
+  CircleDotIcon,
+  CircleXIcon,
+  Clock3Icon,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 export const INTERNSHIP_CATEGORIES = [
   "technology",
@@ -29,9 +37,24 @@ export function InternshipStatusBadge({ status }: { status: string }) {
       ? "default"
       : status === "draft"
         ? "secondary"
-        : "outline";
+        : "destructive";
 
-  return <Badge variant={variant}>{toDisplayLabel(status)}</Badge>;
+  const StatusIcon =
+    status === "open"
+      ? CircleCheckIcon
+      : status === "draft"
+        ? CircleDotIcon
+        : CircleXIcon;
+
+  return (
+    <Badge
+      variant={variant}
+      className={cn(status === "open" && "bg-emerald-500/20 text-emerald-500")}
+    >
+      <StatusIcon />
+      {toDisplayLabel(status)}
+    </Badge>
+  );
 }
 
 export function InternshipMeta({

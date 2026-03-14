@@ -2,11 +2,12 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { Preloaded } from "convex/react";
 import { useMutation, usePreloadedQuery, useQuery } from "convex/react";
 import { CalendarClockIcon, CircleAlertIcon, EyeIcon } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   InternshipMeta,
@@ -16,8 +17,11 @@ import { RichTextContent } from "@/components/rich-text-content";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 
 type InternshipDetailPageProps = {
   preloadedInternship: Preloaded<typeof api.internships.getPublic>;
@@ -32,12 +36,33 @@ const DEADLINE_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 export function InternshipDetailPage({
   preloadedInternship,
 }: InternshipDetailPageProps) {
+  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [coverLetter, setCoverLetter] = useState("");
+  const [isApplying, setIsApplying] = useState(false);
   const internship = usePreloadedQuery(preloadedInternship);
   const currentUser = useQuery(api.users.current);
+  const existingApplication = useQuery(
+    api.applications.getForCandidateByInternship,
+    currentUser && currentUser.role === "candidate" && internship
+      ? { internshipId: internship._id }
+      : "skip"
+  );
   const trackView = useMutation(api.internships.trackView);
+  const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
+  const applyToInternship = useMutation(api.applications.apply);
   const formattedDeadline = DEADLINE_DATE_TIME_FORMATTER.format(
     internship ? new Date(internship.applicationDeadline) : new Date(0)
   );
+  const canApply = useMemo(() => {
+    if (!internship) {
+      return false;
+    }
+
+    return (
+      internship.status === "open" &&
+      internship.applicationDeadline > Date.now()
+    );
+  }, [internship]);
 
   useEffect(() => {
     if (!internship) {
@@ -66,6 +91,64 @@ export function InternshipDetailPage({
       </div>
     );
   }
+
+  const handleApply = async () => {
+    if (!resumeFile) {
+      toast.error("Please upload your resume (PDF)");
+      return;
+    }
+
+    const fileType = resumeFile.type.toLowerCase();
+    if (!fileType.includes("pdf")) {
+      toast.error("Resume must be a PDF file");
+      return;
+    }
+
+    if (resumeFile.size > 5 * 1024 * 1024) {
+      toast.error("Resume must be 5MB or smaller");
+      return;
+    }
+
+    setIsApplying(true);
+
+    try {
+      const uploadUrl = await generateUploadUrl({});
+      const uploadResponse = await fetch(uploadUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": resumeFile.type || "application/pdf",
+        },
+        body: resumeFile,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error("Resume upload failed");
+      }
+
+      const uploadData = (await uploadResponse.json()) as {
+        storageId?: string;
+      };
+
+      if (!uploadData.storageId) {
+        throw new Error("Upload response missing storageId");
+      }
+
+      await applyToInternship({
+        internshipId: internship._id,
+        resumeStorageId: uploadData.storageId as Id<"_storage">,
+        coverLetter: coverLetter.trim() || undefined,
+      });
+
+      toast.success("Application submitted");
+      setCoverLetter("");
+      setResumeFile(null);
+    } catch (error) {
+      console.error(error);
+      toast.error("Unable to submit application");
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 lg:p-6">
@@ -119,14 +202,72 @@ export function InternshipDetailPage({
             <Link href={"/sign-up" as Route}>Sign up to apply</Link>
           </Button>
         ) : currentUser.role === "candidate" ? (
-          <>
-            <Button disabled>Apply Flow Opens In Phase 3</Button>
-            <Button asChild variant="outline">
-              <Link href={"/candidate/internships" as Route}>
-                View Candidate Dashboard
-              </Link>
-            </Button>
-          </>
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Apply now</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {existingApplication ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    You already applied to this internship.
+                  </p>
+                  <Button asChild variant="outline">
+                    <Link href={"/candidate/applications" as Route}>
+                      View my applications
+                    </Link>
+                  </Button>
+                </>
+              ) : !canApply ? (
+                <p className="text-sm text-muted-foreground">
+                  Applications are currently closed for this internship.
+                </p>
+              ) : (
+                <>
+                  <Field>
+                    <FieldLabel htmlFor="resume">
+                      Resume (PDF, max 5MB)
+                    </FieldLabel>
+                    <input
+                      id="resume"
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        setResumeFile(file);
+                      }}
+                    />
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor="cover-letter">
+                      Cover letter (optional)
+                    </FieldLabel>
+                    <Textarea
+                      id="cover-letter"
+                      placeholder="Share why you are a strong fit for this role."
+                      value={coverLetter}
+                      onChange={(event) => setCoverLetter(event.target.value)}
+                    />
+                  </Field>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      onClick={handleApply}
+                      disabled={isApplying || !resumeFile}
+                    >
+                      {isApplying ? "Submitting..." : "Apply now"}
+                    </Button>
+                    <Button asChild variant="outline">
+                      <Link href={"/candidate/dashboard" as Route}>
+                        View Candidate Dashboard
+                      </Link>
+                    </Button>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
         ) : currentUser.role === "recruiter" ? (
           <Button asChild variant="outline">
             <Link href={`/recruiter/internships/${internship._id}` as Route}>

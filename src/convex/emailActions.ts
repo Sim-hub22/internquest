@@ -12,7 +12,11 @@ import { QuizAssignedEmail } from "@/convex/emails/quizAssigned";
 import { QuizGradedEmail } from "@/convex/emails/quizGraded";
 import { resend } from "@/convex/resend";
 
-const FROM = "InternQuest <notifications@internquest.com>";
+const FROM = process.env.EMAIL_FROM;
+
+if (!FROM) {
+  throw new Error("EMAIL_FROM environment variable is not set");
+}
 
 export const sendApplicationStatusEmail = internalAction({
   args: {
