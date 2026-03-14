@@ -231,6 +231,7 @@ export function CandidateProfileForm() {
   }, [form, profile]);
 
   const isSubmitting = form.formState.isSubmitting;
+  const isDirty = form.formState.isDirty;
   const preferredCategories =
     useWatch({
       control: form.control,
@@ -659,7 +660,7 @@ export function CandidateProfileForm() {
           <Button type="button" variant="outline" asChild>
             <Link href={"/candidate/dashboard" as Route}>Cancel</Link>
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting || !isDirty}>
             {isSubmitting ? "Saving..." : "Save profile"}
           </Button>
         </div>
