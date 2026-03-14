@@ -69,6 +69,10 @@ export default function CandidateApplicationDetailPage() {
     );
   }
 
+  const showQuizCta =
+    detail.application.status === "quiz_assigned" ||
+    detail.application.status === "quiz_completed";
+
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -130,6 +134,28 @@ export default function CandidateApplicationDetailPage() {
           ))}
         </CardContent>
       </Card>
+
+      {showQuizCta ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Quiz</CardTitle>
+            <CardDescription>
+              Your application has a quiz step in the hiring pipeline.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Use your candidate dashboard to find and continue assigned
+              quizzes.
+            </p>
+            <Button asChild variant="outline">
+              <Link href={"/candidate/dashboard" as Route}>
+                Open candidate dashboard
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {detail.application.coverLetter ? (
         <Card>

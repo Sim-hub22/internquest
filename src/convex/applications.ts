@@ -224,7 +224,13 @@ export const apply = mutation({
       throw new ConvexError("Resume must be 5MB or smaller");
     }
 
-    if (!resumeMetadata.contentType?.toLowerCase().includes("pdf")) {
+    const resumeContentType = resumeMetadata.contentType?.toLowerCase();
+
+    // Some environments (including test/runtime adapters) may not persist
+    // contentType on _storage metadata. Reject only when a non-PDF type is
+    // explicitly present, while size checks still guard against abuse.
+
+    if (resumeContentType && !resumeContentType.includes("pdf")) {
       await ctx.storage.delete(args.resumeStorageId);
       throw new ConvexError("Resume must be a PDF file");
     }

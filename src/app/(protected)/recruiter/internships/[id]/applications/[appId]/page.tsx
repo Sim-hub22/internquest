@@ -148,12 +148,49 @@ function RecruiterApplicationReviewContent({
                   </div>
 
                   <div>
+                    <p className="mb-1 text-sm font-medium">Location</p>
+                    <p className="text-sm text-muted-foreground">
+                      {detail.candidateProfile.location ||
+                        "No location provided."}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-sm font-medium">Education</p>
+                    {detail.candidateProfile.education.length > 0 ? (
+                      <div className="space-y-2">
+                        {detail.candidateProfile.education.map(
+                          (entry, index) => (
+                            <div
+                              className="rounded-md border px-3 py-2 text-sm"
+                              key={`${entry.institution}-${entry.degree}-${index}`}
+                            >
+                              <p className="font-medium">{entry.institution}</p>
+                              <p className="text-muted-foreground">
+                                {entry.degree} • Graduates{" "}
+                                {entry.graduationYear}
+                                {entry.gpa !== undefined
+                                  ? ` • GPA ${entry.gpa}`
+                                  : ""}
+                              </p>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No education entries listed.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
                     <p className="mb-2 text-sm font-medium">Skills</p>
                     <div className="flex flex-wrap gap-2">
                       {detail.candidateProfile.skills.length > 0 ? (
                         detail.candidateProfile.skills.map((skill) => (
                           <Badge key={skill.name} variant="secondary">
-                            {skill.name}
+                            {skill.name} ({skill.proficiency})
                           </Badge>
                         ))
                       ) : (
@@ -161,6 +198,81 @@ function RecruiterApplicationReviewContent({
                           No skills listed.
                         </p>
                       )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-sm font-medium">Experience</p>
+                    {detail.candidateProfile.experience.length > 0 ? (
+                      <div className="space-y-2">
+                        {detail.candidateProfile.experience.map(
+                          (entry, index) => (
+                            <div
+                              className="rounded-md border px-3 py-2 text-sm"
+                              key={`${entry.company}-${entry.title}-${index}`}
+                            >
+                              <p className="font-medium">
+                                {entry.title} • {entry.company}
+                              </p>
+                              <p className="text-muted-foreground">
+                                {entry.startDate} - {entry.endDate || "Present"}
+                              </p>
+                              {entry.description ? (
+                                <p className="mt-1 text-muted-foreground">
+                                  {entry.description}
+                                </p>
+                              ) : null}
+                            </div>
+                          )
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No experience entries listed.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <p className="mb-2 text-sm font-medium">Links</p>
+                    <div className="space-y-1 text-sm">
+                      {detail.candidateProfile.links.github ? (
+                        <a
+                          className="block text-primary underline-offset-2 hover:underline"
+                          href={detail.candidateProfile.links.github}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          GitHub
+                        </a>
+                      ) : null}
+                      {detail.candidateProfile.links.linkedin ? (
+                        <a
+                          className="block text-primary underline-offset-2 hover:underline"
+                          href={detail.candidateProfile.links.linkedin}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          LinkedIn
+                        </a>
+                      ) : null}
+                      {detail.candidateProfile.links.portfolio ? (
+                        <a
+                          className="block text-primary underline-offset-2 hover:underline"
+                          href={detail.candidateProfile.links.portfolio}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          Portfolio
+                        </a>
+                      ) : null}
+                      {!detail.candidateProfile.links.github &&
+                      !detail.candidateProfile.links.linkedin &&
+                      !detail.candidateProfile.links.portfolio ? (
+                        <p className="text-muted-foreground">
+                          No links provided.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                 </div>

@@ -4,8 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
-import type { Preloaded } from "convex/react";
-import { useConvexAuth, usePreloadedQuery, useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { BriefcaseBusinessIcon } from "lucide-react";
 
 import {
@@ -40,25 +39,15 @@ import { api } from "@/convex/_generated/api";
 
 const PAGE_SIZE = 9;
 
-type RecruiterInternshipsPageProps = {
-  preloadedResults: Preloaded<typeof api.internships.listForRecruiter>;
-};
-
-export function RecruiterInternshipsPage({
-  preloadedResults,
-}: RecruiterInternshipsPageProps) {
+export function RecruiterInternshipsPage() {
   const { isAuthenticated } = useConvexAuth();
   const [status, setStatus] = useState<string>("all");
   const [cursor, setCursor] = useState<string | null>(null);
   const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([]);
 
-  const isDefaultState = status === "all" && cursor === null;
-
-  const ssrResults = usePreloadedQuery(preloadedResults);
-
   const dynamicResults = useQuery(
     api.internships.listForRecruiter,
-    isAuthenticated && !isDefaultState
+    isAuthenticated
       ? {
           status:
             status === "all"
@@ -72,7 +61,7 @@ export function RecruiterInternshipsPage({
       : "skip"
   );
 
-  const results = isDefaultState ? ssrResults : dynamicResults;
+  const results = dynamicResults;
 
   const goToNext = () => {
     if (!results?.continueCursor || results.isDone) {

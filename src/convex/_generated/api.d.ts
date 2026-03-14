@@ -25,6 +25,7 @@ import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as resend from "../resend.js";
 import type * as storage from "../storage.js";
+import type * as testHelpers from "../testHelpers.js";
 import type * as users from "../users.js";
 
 import type {
@@ -51,6 +52,7 @@ declare const fullApi: ApiFromModules<{
   onboarding: typeof onboarding;
   resend: typeof resend;
   storage: typeof storage;
+  testHelpers: typeof testHelpers;
   users: typeof users;
 }>;
 
