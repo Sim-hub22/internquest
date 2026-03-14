@@ -651,3 +651,44 @@ export const getResumeUrl = query({
     return await ctx.storage.getUrl(application.resumeStorageId);
   },
 });
+
+export const listAllForCandidateDetailed = query({
+  args: {
+    status: v.optional(applicationStatusValidator),
+  },
+  handler: async (ctx, args) => {
+    const candidate = await requireRole(ctx, "candidate");
+
+    const applications = args.status
+      ? await ctx.db
+          .query("applications")
+          .withIndex("by_candidate_and_status", (q) =>
+            q.eq("candidateId", candidate._id).eq("status", args.status!)
+          )
+          .order("desc")
+          .collect()
+      : await ctx.db
+          .query("applications")
+          .withIndex("by_candidate", (q) => q.eq("candidateId", candidate._id))
+          .order("desc")
+          .collect();
+
+    return Promise.all(
+      applications.map(async (application) => {
+        const internship = await ctx.db.get(application.internshipId);
+        return {
+          application,
+          internship: internship
+            ? {
+                _id: internship._id,
+                title: internship.title,
+                company: internship.company,
+                status: internship.status,
+                applicationDeadline: internship.applicationDeadline,
+              }
+            : null,
+        };
+      })
+    );
+  },
+});

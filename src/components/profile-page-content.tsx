@@ -106,8 +106,7 @@ export function ProfilePageContent() {
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      <Card className="relative overflow-hidden border-border/70 bg-linear-to-br from-background via-background to-muted/40">
-        <div className="pointer-events-none absolute -top-24 -right-24 size-56 rounded-full bg-primary/10 blur-3xl" />
+      <Card className="relative overflow-hidden">
         <CardContent className="relative p-6 lg:p-8">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex items-start gap-4">

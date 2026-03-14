@@ -23,7 +23,6 @@ const CANDIDATE_NAV: SidebarNavItem[] = [
     url: "/candidate/dashboard",
     icon: "dashboard",
   },
-  { title: "Internships", url: "/candidate/internships", icon: "briefcase" },
   {
     title: "Applications",
     url: "/candidate/applications",

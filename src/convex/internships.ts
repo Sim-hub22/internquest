@@ -283,6 +283,31 @@ export const listForRecruiter = query({
   },
 });
 
+export const listAllForRecruiter = query({
+  args: {
+    status: v.optional(internshipStatusValidator),
+  },
+  handler: async (ctx, args): Promise<Doc<"internships">[]> => {
+    const recruiter = await requireRole(ctx, "recruiter");
+
+    if (args.status) {
+      return await ctx.db
+        .query("internships")
+        .withIndex("by_recruiter_and_status", (q) =>
+          q.eq("recruiterId", recruiter._id).eq("status", args.status!)
+        )
+        .order("desc")
+        .collect();
+    }
+
+    return await ctx.db
+      .query("internships")
+      .withIndex("by_recruiter", (q) => q.eq("recruiterId", recruiter._id))
+      .order("desc")
+      .collect();
+  },
+});
+
 export const listPublic = query({
   args: {
     category: v.optional(internshipCategoryValidator),

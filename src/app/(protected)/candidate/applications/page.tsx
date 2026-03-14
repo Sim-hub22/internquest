@@ -4,37 +4,33 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
+import {
+  type ColumnDef,
+  type SortingFn,
+  createColumnHelper,
+} from "@tanstack/react-table";
 import { useQuery } from "convex/react";
+import { ArrowUpDownIcon, EyeIcon, MoreHorizontalIcon } from "lucide-react";
 
+import { DataTable } from "@/components/data-table";
+import { toDisplayLabel } from "@/components/internships/constants";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@/components/ui/empty";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 
 const APPLICATION_STATUSES = [
@@ -47,38 +43,142 @@ const APPLICATION_STATUSES = [
   "rejected",
 ] as const;
 
-const PAGE_SIZE = 10;
-
-function toDisplayLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
-const APPLICATION_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
 });
+
+function statusVariant(status: string) {
+  switch (status) {
+    case "accepted":
+      return "default";
+    case "rejected":
+      return "destructive";
+    case "shortlisted":
+    case "quiz_assigned":
+    case "quiz_completed":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
+
+type ApplicationRow = {
+  application: { _id: string; status: string; appliedAt: number };
+  internship: { title: string; company: string } | null;
+};
+
+const sortByTimestamp: SortingFn<ApplicationRow> = (rowA, rowB) =>
+  rowA.original.application.appliedAt - rowB.original.application.appliedAt;
+
+const columnHelper = createColumnHelper<ApplicationRow>();
+
+const columns = [
+  columnHelper.accessor(
+    (row) => row.internship?.title ?? "Internship removed",
+    {
+      id: "internship",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="-ml-3"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Internship
+          <ArrowUpDownIcon data-icon="inline-end" />
+        </Button>
+      ),
+      cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
+    }
+  ),
+  columnHelper.accessor((row) => row.internship?.company ?? "Unknown company", {
+    id: "company",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Company
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+  }),
+  columnHelper.accessor((row) => row.application.status, {
+    id: "status",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Status
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ getValue }) => {
+      const value = getValue();
+      return (
+        <Badge variant={statusVariant(value)}>{toDisplayLabel(value)}</Badge>
+      );
+    },
+  }),
+  columnHelper.accessor((row) => row.application.appliedAt, {
+    id: "applied",
+    sortingFn: sortByTimestamp,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Applied
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ getValue }) => DATE_FORMATTER.format(new Date(getValue())),
+  }),
+  columnHelper.display({
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontalIcon />
+            <span className="sr-only">Open actions menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Link
+                href={
+                  `/candidate/applications/${row.original.application._id}` as Route
+                }
+              >
+                <EyeIcon />
+                View details
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+  }),
+] as ColumnDef<ApplicationRow>[];
 
 export default function CandidateApplicationsPage() {
   const [status, setStatus] = useState<
     (typeof APPLICATION_STATUSES)[number] | "all"
   >("all");
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([]);
 
-  const results = useQuery(api.applications.listForCandidateDetailed, {
+  const results = useQuery(api.applications.listAllForCandidateDetailed, {
     status: status === "all" ? undefined : status,
-    paginationOpts: {
-      numItems: PAGE_SIZE,
-      cursor,
-    },
   });
-
-  const resetPagination = () => {
-    setCursor(null);
-    setCursorHistory([]);
-  };
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -92,123 +192,31 @@ export default function CandidateApplicationsPage() {
 
         <Select
           value={status}
-          onValueChange={(value) => {
-            setStatus(value as typeof status);
-            resetPagination();
-          }}
+          onValueChange={(value) => setStatus(value as typeof status)}
         >
-          <SelectTrigger className="w-[220px]">
+          <SelectTrigger className="w-55">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {APPLICATION_STATUSES.map((value) => (
-              <SelectItem key={value} value={value}>
-                {toDisplayLabel(value)}
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="all">All statuses</SelectItem>
+              {APPLICATION_STATUSES.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {toDisplayLabel(value)}
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
 
-      {results === undefined ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <Skeleton key={`app-skeleton-${index}`} className="h-28 w-full" />
-          ))}
-        </div>
-      ) : results.page.length === 0 ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyTitle>No applications yet</EmptyTitle>
-            <EmptyDescription>
-              Apply to internships and your pipeline updates will appear here.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <>
-          <div className="space-y-3">
-            {results.page.map((entry) => (
-              <Card key={entry.application._id}>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    {entry.internship?.title ?? "Internship removed"}
-                  </CardTitle>
-                  <CardDescription>
-                    {entry.internship?.company ?? "Unknown company"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>Status: {toDisplayLabel(entry.application.status)}</p>
-                    <p>
-                      Applied on{" "}
-                      {APPLICATION_DATE_FORMATTER.format(
-                        new Date(entry.application.appliedAt)
-                      )}
-                    </p>
-                  </div>
-
-                  <Button asChild variant="outline">
-                    <Link
-                      href={
-                        `/candidate/applications/${entry.application._id}` as Route
-                      }
-                    >
-                      View details
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    setCursorHistory((previous) => {
-                      const next = [...previous];
-                      const previousCursor = next.pop() ?? null;
-                      setCursor(previousCursor);
-                      return next;
-                    });
-                  }}
-                  aria-disabled={cursorHistory.length === 0}
-                  className={
-                    cursorHistory.length === 0
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault();
-
-                    if (!results.continueCursor || results.isDone) {
-                      return;
-                    }
-
-                    setCursorHistory((previous) => [...previous, cursor]);
-                    setCursor(results.continueCursor);
-                  }}
-                  aria-disabled={results.isDone}
-                  className={
-                    results.isDone ? "pointer-events-none opacity-50" : ""
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </>
-      )}
+      <DataTable
+        columns={columns}
+        data={(results ?? []) as ApplicationRow[]}
+        isLoading={results === undefined}
+        searchPlaceholder="Search internship or company…"
+        emptyMessage="No applications found."
+      />
     </div>
   );
 }

@@ -4,15 +4,36 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useState } from "react";
 
-import { useConvexAuth, useQuery } from "convex/react";
-import { BriefcaseBusinessIcon } from "lucide-react";
+import {
+  type ColumnDef,
+  type SortingFn,
+  createColumnHelper,
+} from "@tanstack/react-table";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import {
+  ArrowUpDownIcon,
+  BriefcaseBusinessIcon,
+  LayoutDashboardIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  UsersIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 
+import { DataTable } from "@/components/data-table";
 import {
   INTERNSHIP_STATUSES,
   InternshipStatusBadge,
+  toDisplayLabel,
 } from "@/components/internships/constants";
-import { InternshipCard } from "@/components/internships/internship-card";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -21,65 +42,249 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
-import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
+import type { Doc, Id } from "@/convex/_generated/dataModel";
 
-const PAGE_SIZE = 9;
+const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+});
+
+const sortByDeadline: SortingFn<Doc<"internships">> = (rowA, rowB) =>
+  rowA.original.applicationDeadline - rowB.original.applicationDeadline;
+
+const sortByStipend: SortingFn<Doc<"internships">> = (rowA, rowB) =>
+  (rowA.original.stipend ?? 0) - (rowB.original.stipend ?? 0);
+
+function InternshipStatusSelectCell({
+  internshipId,
+  status,
+}: {
+  internshipId: Id<"internships">;
+  status: "draft" | "open" | "closed";
+}) {
+  const updateStatus = useMutation(api.internships.updateStatus);
+  const [nextStatus, setNextStatus] = useState(status);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const onStatusChange = async (value: "draft" | "open" | "closed") => {
+    setNextStatus(value);
+    setIsSaving(true);
+
+    try {
+      await updateStatus({ internshipId, status: value });
+      toast.success(`Listing moved to ${toDisplayLabel(value)}`);
+    } catch (error) {
+      setNextStatus(status);
+      console.error(error);
+      toast.error("Failed to update listing status");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <Select value={nextStatus} onValueChange={onStatusChange}>
+      <SelectTrigger className="w-36" disabled={isSaving}>
+        <SelectValue>
+          <InternshipStatusBadge status={nextStatus} />
+        </SelectValue>
+      </SelectTrigger>
+      <SelectContent>
+        <SelectGroup>
+          {INTERNSHIP_STATUSES.map((value) => (
+            <SelectItem key={`${internshipId}-${value}`} value={value}>
+              <InternshipStatusBadge status={value} />
+            </SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
+  );
+}
+
+const columnHelper = createColumnHelper<Doc<"internships">>();
+
+const columns = [
+  columnHelper.accessor("title", {
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Title
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ getValue }) => <span className="font-medium">{getValue()}</span>,
+  }),
+  columnHelper.accessor("company", {
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Company
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+  }),
+  columnHelper.accessor("status", {
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Status
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ row }) => (
+      <InternshipStatusSelectCell
+        internshipId={row.original._id}
+        status={row.original.status}
+      />
+    ),
+  }),
+  columnHelper.accessor("locationType", {
+    id: "location",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Location
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ getValue }) => toDisplayLabel(getValue()),
+  }),
+  columnHelper.accessor("applicationDeadline", {
+    id: "deadline",
+    sortingFn: sortByDeadline,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Deadline
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ getValue }) => DATE_FORMATTER.format(new Date(getValue())),
+  }),
+  columnHelper.accessor("stipend", {
+    id: "stipend",
+    sortingFn: sortByStipend,
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Stipend
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+    cell: ({ getValue }) => {
+      const value = getValue();
+      return value != null ? `$${value} / mo` : "—";
+    },
+  }),
+  columnHelper.accessor("viewCount", {
+    id: "views",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-3"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Views
+        <ArrowUpDownIcon data-icon="inline-end" />
+      </Button>
+    ),
+  }),
+  columnHelper.display({
+    id: "actions",
+    enableHiding: false,
+    cell: ({ row }) => (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon">
+            <MoreHorizontalIcon />
+            <span className="sr-only">Open actions menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="min-w-fit" align="end">
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Link
+                href={`/recruiter/internships/${row.original._id}` as Route}
+              >
+                <LayoutDashboardIcon />
+                Manage listing
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href={
+                  `/recruiter/internships/${row.original._id}/edit` as Route
+                }
+              >
+                <PencilIcon />
+                Edit listing
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link
+                href={
+                  `/recruiter/internships/${row.original._id}/applications` as Route
+                }
+              >
+                <UsersIcon />
+                View applications
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+  }),
+] as ColumnDef<Doc<"internships">>[];
 
 export function RecruiterInternshipsPage() {
   const { isAuthenticated } = useConvexAuth();
   const [status, setStatus] = useState<string>("all");
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [cursorHistory, setCursorHistory] = useState<(string | null)[]>([]);
 
-  const dynamicResults = useQuery(
-    api.internships.listForRecruiter,
+  const results = useQuery(
+    api.internships.listAllForRecruiter,
     isAuthenticated
       ? {
           status:
             status === "all"
               ? undefined
               : (status as "draft" | "open" | "closed"),
-          paginationOpts: {
-            numItems: PAGE_SIZE,
-            cursor,
-          },
         }
       : "skip"
   );
-
-  const results = dynamicResults;
-
-  const goToNext = () => {
-    if (!results?.continueCursor || results.isDone) {
-      return;
-    }
-
-    setCursorHistory((previous) => [...previous, cursor]);
-    setCursor(results.continueCursor);
-  };
-
-  const goToPrevious = () => {
-    setCursorHistory((previous) => {
-      const updated = [...previous];
-      const previousCursor = updated.pop() ?? null;
-      setCursor(previousCursor);
-      return updated;
-    });
-  };
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -99,39 +304,25 @@ export function RecruiterInternshipsPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between gap-2">
-        <Select
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value);
-            setCursor(null);
-            setCursorHistory([]);
-          }}
-        >
-          <SelectTrigger>
+      <div className="flex items-center gap-2">
+        <Select value={status} onValueChange={(value) => setStatus(value)}>
+          <SelectTrigger className="w-45">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All statuses</SelectItem>
-            {INTERNSHIP_STATUSES.map((item) => (
-              <SelectItem key={item} value={item}>
-                <InternshipStatusBadge status={item} />
-              </SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectItem value="all">All statuses</SelectItem>
+              {INTERNSHIP_STATUSES.map((item) => (
+                <SelectItem key={item} value={item}>
+                  <InternshipStatusBadge status={item} />
+                </SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
       </div>
 
-      {results === undefined ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: PAGE_SIZE }).map((_, index) => (
-            <Skeleton
-              key={`recruiter-internship-skeleton-${index}`}
-              className="h-72 w-full"
-            />
-          ))}
-        </div>
-      ) : results.page.length === 0 ? (
+      {results?.length === 0 && status === "all" ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -149,51 +340,13 @@ export function RecruiterInternshipsPage() {
           </Button>
         </Empty>
       ) : (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {results.page.map((internship) => (
-              <InternshipCard
-                key={internship._id}
-                internship={internship}
-                href={`/recruiter/internships/${internship._id}`}
-                actionLabel="Manage Listing"
-              />
-            ))}
-          </div>
-
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    goToPrevious();
-                  }}
-                  aria-disabled={cursorHistory.length === 0}
-                  className={
-                    cursorHistory.length === 0
-                      ? "pointer-events-none opacity-50"
-                      : ""
-                  }
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    goToNext();
-                  }}
-                  aria-disabled={results.isDone}
-                  className={
-                    results.isDone ? "pointer-events-none opacity-50" : ""
-                  }
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </>
+        <DataTable
+          columns={columns}
+          data={results ?? []}
+          isLoading={results === undefined}
+          searchPlaceholder="Search title or company…"
+          emptyMessage="No internships found."
+        />
       )}
     </div>
   );
