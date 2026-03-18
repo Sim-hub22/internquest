@@ -199,9 +199,11 @@ export default function CandidateQuizTakingPage() {
     }
   };
 
-  const handleShortAnswerSave = async (questionId: string) => {
-    const value = answerDrafts[questionId] ?? "";
-
+  const persistShortAnswer = async (
+    questionId: string,
+    value: string,
+    showError = true
+  ) => {
     try {
       await saveAnswer({
         attemptId: session.attempt!._id,
@@ -209,6 +211,10 @@ export default function CandidateQuizTakingPage() {
         textAnswer: value,
       });
     } catch (error) {
+      if (!showError) {
+        return;
+      }
+
       const message =
         error instanceof Error ? error.message : "Failed to save answer";
       toast.error(message);
@@ -218,6 +224,15 @@ export default function CandidateQuizTakingPage() {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
+
+      await Promise.all(
+        session.quiz.questions
+          .filter((question) => question.type === "short_answer")
+          .map((question) =>
+            persistShortAnswer(question.id, answerDrafts[question.id] ?? "")
+          )
+      );
+
       await submitAttempt({ attemptId: session.attempt!._id });
       router.push(buildResultHref(quizId, applicationId) as Route);
     } catch (error) {
@@ -294,13 +309,22 @@ export default function CandidateQuizTakingPage() {
                   rows={6}
                   placeholder="Write your answer here."
                   value={answerDrafts[question.id] ?? ""}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    const value = event.target.value;
+
                     setAnswerDrafts((current) => ({
                       ...current,
-                      [question.id]: event.target.value,
-                    }))
+                      [question.id]: value,
+                    }));
+
+                    void persistShortAnswer(question.id, value, false);
+                  }}
+                  onBlur={() =>
+                    void persistShortAnswer(
+                      question.id,
+                      answerDrafts[question.id] ?? ""
+                    )
                   }
-                  onBlur={() => handleShortAnswerSave(question.id)}
                 />
               )}
             </CardContent>

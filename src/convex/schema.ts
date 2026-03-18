@@ -148,6 +148,7 @@ export default defineSchema({
   })
     .index("by_internship", ["internshipId"])
     .index("by_candidate", ["candidateId"])
+    .index("by_assigned_quiz", ["assignedQuizId"])
     .index("by_candidate_and_internship", ["candidateId", "internshipId"])
     .index("by_internship_and_status", ["internshipId", "status"])
     .index("by_candidate_and_status", ["candidateId", "status"]),

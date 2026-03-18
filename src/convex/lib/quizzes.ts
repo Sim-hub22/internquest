@@ -176,6 +176,58 @@ export function normalizeQuizQuestions(
   });
 }
 
+export function normalizeDraftQuizQuestions(
+  questions: QuizQuestion[]
+): QuizQuestion[] {
+  const seenQuestionIds = new Set<string>();
+
+  return questions.map((question, index) => {
+    const rawQuestionId = normalizeOptionalText(question.id);
+    let questionId = rawQuestionId ?? `draft-question-${index + 1}`;
+
+    while (seenQuestionIds.has(questionId)) {
+      questionId = `${questionId}-${index + 1}`;
+    }
+
+    seenQuestionIds.add(questionId);
+
+    if (question.type === "multiple_choice") {
+      const options =
+        question.options?.map((option, optionIndex) => ({
+          id:
+            normalizeOptionalText(option.id) ??
+            `draft-option-${index + 1}-${optionIndex + 1}`,
+          text: option.text.trim(),
+        })) ?? [];
+
+      const optionIds = new Set(options.map((option) => option.id));
+      const correctOptionId =
+        question.correctOptionId && optionIds.has(question.correctOptionId)
+          ? question.correctOptionId
+          : undefined;
+
+      return {
+        id: questionId,
+        type: question.type,
+        question: question.question.trim(),
+        points: question.points > 0 ? question.points : 1,
+        options,
+        ...(correctOptionId ? { correctOptionId } : {}),
+      };
+    }
+
+    const sampleAnswer = normalizeOptionalText(question.sampleAnswer);
+
+    return {
+      id: questionId,
+      type: question.type,
+      question: question.question.trim(),
+      points: question.points > 0 ? question.points : 1,
+      ...(sampleAnswer ? { sampleAnswer } : {}),
+    };
+  });
+}
+
 export function calculateMaxScore(questions: QuizQuestion[]) {
   return questions.reduce((total, question) => total + question.points, 0);
 }

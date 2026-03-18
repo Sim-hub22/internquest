@@ -106,8 +106,61 @@ type QuizBuilderFormProps =
       mode: "create";
     };
 
+function validateQuizForPublish(args: {
+  scope: QuizBuilderFormProps["scope"];
+  title: string;
+  timeLimit: string;
+  questions: QuestionDraft[];
+}) {
+  if (!args.title.trim()) {
+    return "Quiz title is required";
+  }
+
+  if (args.timeLimit && Number(args.timeLimit) <= 0) {
+    return "Time limit must be greater than zero";
+  }
+
+  if (args.questions.length === 0) {
+    return "A quiz must include at least one question";
+  }
+
+  for (const [index, question] of args.questions.entries()) {
+    if (!question.question.trim()) {
+      return `Question ${index + 1} must have text`;
+    }
+
+    if (question.points <= 0) {
+      return "Question points must be greater than zero";
+    }
+
+    if (question.type === "multiple_choice") {
+      if (question.options.length < 2) {
+        return "Multiple choice questions need at least two options";
+      }
+
+      if (question.options.some((option) => !option.text.trim())) {
+        return "Multiple choice options must include an id and label";
+      }
+
+      if (!question.correctOptionId) {
+        return "Multiple choice questions must include a valid correct answer";
+      }
+    }
+
+    if (args.scope === "admin" && question.type === "short_answer") {
+      return "Sample quizzes can only include multiple choice questions";
+    }
+  }
+
+  return null;
+}
+
 export function QuizBuilderForm(props: QuizBuilderFormProps) {
   const router = useRouter();
+  const questionTypes =
+    props.scope === "admin"
+      ? QUESTION_TYPES.filter((item) => item.value === "multiple_choice")
+      : QUESTION_TYPES;
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [timeLimit, setTimeLimit] = useState("");
@@ -162,6 +215,20 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
   const isSubmitting = submitIntent !== null;
 
   const save = async (intent: "draft" | "publish") => {
+    if (intent === "publish") {
+      const validationError = validateQuizForPublish({
+        scope: props.scope,
+        title,
+        timeLimit,
+        questions,
+      });
+
+      if (validationError) {
+        toast.error(validationError);
+        return;
+      }
+    }
+
     setSubmitIntent(intent);
 
     try {
@@ -193,11 +260,13 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
       if (props.mode === "edit") {
         await updateQuiz({
           quizId: props.quizId,
+          draft: intent === "draft",
           ...payload,
         });
         quizId = props.quizId;
       } else {
         quizId = await createQuiz({
+          draft: intent === "draft",
           ...payload,
           type: props.scope === "recruiter" ? "recruitment" : "sample",
         });
@@ -328,18 +397,20 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
           <PlusIcon data-icon="inline-start" />
           Add MCQ
         </Button>
-        <Button
-          variant="outline"
-          onClick={() =>
-            setQuestions((current) => [
-              ...current,
-              createQuestion("short_answer"),
-            ])
-          }
-        >
-          <PlusIcon data-icon="inline-start" />
-          Add Short Answer
-        </Button>
+        {props.scope === "recruiter" ? (
+          <Button
+            variant="outline"
+            onClick={() =>
+              setQuestions((current) => [
+                ...current,
+                createQuestion("short_answer"),
+              ])
+            }
+          >
+            <PlusIcon data-icon="inline-start" />
+            Add Short Answer
+          </Button>
+        ) : null}
       </div>
 
       {questions.map((question, index) => (
@@ -378,7 +449,7 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectGroup>
-                      {QUESTION_TYPES.map((item) => (
+                      {questionTypes.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
                         </SelectItem>

@@ -177,6 +177,83 @@ describe("convex/quizzes", () => {
     ).rejects.toThrow("FORBIDDEN");
   });
 
+  it("allows incomplete quizzes to be saved as drafts", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_quiz_draft_owner" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+    });
+
+    const quizId = await t
+      .withIdentity(recruiterIdentity)
+      .mutation(api.quizzes.create, {
+        title: "   ",
+        description: "   ",
+        draft: true,
+        type: "recruitment",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "   ",
+            points: 1,
+            options: [
+              { id: "a", text: "" },
+              { id: "b", text: "" },
+            ],
+            correctOptionId: "",
+          },
+        ],
+      });
+
+    const quiz = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.quizzes.getForRecruiter, {
+        quizId,
+      });
+
+    expect(quiz.title).toBe("Untitled quiz");
+    expect(quiz.isPublished).toBe(false);
+    expect(quiz.questions[0]?.question).toBe("");
+  });
+
+  it("still rejects publishing incomplete quizzes", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_quiz_publish_guard" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+    });
+
+    await expect(
+      t.withIdentity(recruiterIdentity).mutation(api.quizzes.create, {
+        title: "   ",
+        description: "   ",
+        type: "recruitment",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "   ",
+            points: 1,
+            options: [
+              { id: "a", text: "" },
+              { id: "b", text: "" },
+            ],
+            correctOptionId: "",
+          },
+        ],
+      })
+    ).rejects.toThrow("Question 1 must have text");
+  });
+
   it("assigns published quizzes only to shortlisted applications and notifies the candidate", async () => {
     const t = convexTest(schema, modules);
     const seeded = await seedShortlistedApplication(t);
@@ -238,6 +315,107 @@ describe("convex/quizzes", () => {
     expect(detail.assignedQuiz?._id).toBe(quizId);
     expect(notifications.some((item) => item.type === "quiz_assigned")).toBe(
       true
+    );
+  });
+
+  it("blocks editing quizzes after attempts exist", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "admin_quiz_update_guard" };
+    const candidateIdentity = { subject: "candidate_quiz_update_guard" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+    });
+
+    const quizId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Immutable Sample Quiz",
+        description: "Practice quiz",
+        type: "sample",
+        timeLimit: 15,
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "What is JSX?",
+            points: 5,
+            options: [
+              { id: "a", text: "Syntax extension" },
+              { id: "b", text: "Database" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.publish, { quizId });
+    await t.withIdentity(candidateIdentity).mutation(api.quizAttempts.start, {
+      quizId,
+    });
+
+    await expect(
+      t.withIdentity(adminIdentity).mutation(api.quizzes.update, {
+        quizId,
+        title: "Updated title",
+        description: "Updated description",
+        timeLimit: 20,
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Updated prompt",
+            points: 5,
+            options: [
+              { id: "a", text: "Syntax extension" },
+              { id: "b", text: "Database" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      })
+    ).rejects.toThrow(
+      "Quizzes cannot be edited after they have been assigned or attempted"
+    );
+  });
+
+  it("rejects sample quizzes with short answer questions", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "admin_sample_quiz_guard" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+    });
+
+    await expect(
+      t.withIdentity(adminIdentity).mutation(api.quizzes.create, {
+        title: "Ungradable sample quiz",
+        description: "Should be rejected",
+        type: "sample",
+        questions: [
+          {
+            id: "q1",
+            type: "short_answer",
+            question: "Explain closures.",
+            points: 5,
+            sampleAnswer: "A closure captures lexical scope.",
+          },
+        ],
+      })
+    ).rejects.toThrow(
+      "Sample quizzes can only include multiple choice questions"
     );
   });
 

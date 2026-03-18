@@ -500,6 +500,10 @@ export const saveAnswer = mutation({
       throw new ConvexError("Question not found");
     }
 
+    const remainingAnswers = attempt.answers.filter(
+      (answer) => answer.questionId !== args.questionId
+    );
+
     if (question.type === "multiple_choice") {
       const optionIds = new Set(
         question.options?.map((option) => option.id) ?? []
@@ -508,14 +512,17 @@ export const saveAnswer = mutation({
       if (!args.selectedOptionId || !optionIds.has(args.selectedOptionId)) {
         throw new ConvexError("Select a valid option");
       }
-    } else if (!normalizeOptionalText(args.textAnswer)) {
-      throw new ConvexError("Answer text is required");
+    } else {
+      const textAnswer = normalizeOptionalText(args.textAnswer);
+
+      if (!textAnswer) {
+        await ctx.db.patch(attempt._id, { answers: remainingAnswers });
+        return null;
+      }
     }
 
     const answers = [
-      ...attempt.answers.filter(
-        (answer) => answer.questionId !== args.questionId
-      ),
+      ...remainingAnswers,
       {
         questionId: args.questionId,
         type: question.type,
