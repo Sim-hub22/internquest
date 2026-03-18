@@ -182,6 +182,9 @@ describe("convex/quizAttempts", () => {
     const notifications = await t
       .withIdentity(seeded.candidateIdentity)
       .query(api.notifications.listUnread, {});
+    const recruiterNotifications = await t
+      .withIdentity(seeded.recruiterIdentity)
+      .query(api.notifications.listUnread, {});
 
     expect(result?.attempt.status).toBe("graded");
     expect(result?.attempt.score).toBe(5);
@@ -189,6 +192,9 @@ describe("convex/quizAttempts", () => {
     expect(notifications.some((item) => item.type === "quiz_graded")).toBe(
       true
     );
+    expect(
+      recruiterNotifications.some((item) => item.type === "quiz_submitted")
+    ).toBe(true);
   });
 
   it("keeps mixed quizzes pending until recruiter grading and then finalizes the score", async () => {
@@ -247,9 +253,15 @@ describe("convex/quizAttempts", () => {
         quizId: seeded.quizId,
         applicationId: seeded.applicationId,
       });
+    const recruiterNotifications = await t
+      .withIdentity(seeded.recruiterIdentity)
+      .query(api.notifications.listUnread, {});
 
     expect(pendingResult?.pendingManualReview).toBe(true);
     expect(pendingResult?.attempt.status).toBe("submitted");
+    expect(
+      recruiterNotifications.some((item) => item.type === "quiz_submitted")
+    ).toBe(true);
 
     await t
       .withIdentity(seeded.recruiterIdentity)

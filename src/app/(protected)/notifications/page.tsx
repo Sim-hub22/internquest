@@ -46,6 +46,7 @@ const PAGE_SIZE = 20;
 const NOTIFICATION_TYPES = [
   "application_status",
   "quiz_assigned",
+  "quiz_submitted",
   "quiz_graded",
   "new_internship",
   "new_application",
@@ -97,6 +98,7 @@ function getNotificationIcon(notification: Doc<"notifications">) {
     case "application_status":
       return <BriefcaseBusinessIcon className="size-4" />;
     case "quiz_assigned":
+    case "quiz_submitted":
     case "quiz_graded":
       return <MailIcon className="size-4" />;
     default:

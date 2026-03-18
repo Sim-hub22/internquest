@@ -20,8 +20,7 @@ import {
   toQuestionMap,
 } from "@/convex/lib/quizzes";
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, "") ?? "";
+const APP_URL = process.env.APP_URL?.replace(/\/$/, "") ?? "";
 
 const answerInputValidator = v.object({
   attemptId: v.id("quizAttempts"),
@@ -44,8 +43,12 @@ function buildCandidateResultPath(
   return applicationId ? `${path}?applicationId=${applicationId}` : path;
 }
 
+function buildRecruiterQuizResultsPath(quizId: Id<"quizzes">) {
+  return `/recruiter/quizzes/${quizId}/results`;
+}
+
 function buildAbsoluteUrl(path: string) {
-  return SITE_URL ? `${SITE_URL}${path}` : path;
+  return APP_URL ? `${APP_URL}${path}` : path;
 }
 
 function sanitizeQuizForTaker(quiz: Doc<"quizzes">) {
@@ -220,6 +223,49 @@ async function notifyCandidateAboutGrading(
   }
 }
 
+async function notifyRecruiterAboutSubmission(
+  ctx: MutationCtx,
+  attempt: Doc<"quizAttempts">,
+  quiz: Doc<"quizzes">,
+  submissionMode: "manual" | "timeout"
+) {
+  if (!attempt.applicationId || quiz.type !== "recruitment") {
+    return;
+  }
+
+  const application = await ctx.db.get(attempt.applicationId);
+
+  if (!application) {
+    return;
+  }
+
+  const internship = await ctx.db.get(application.internshipId);
+
+  if (!internship) {
+    return;
+  }
+
+  const recruiter = await ctx.db.get(internship.recruiterId);
+  const candidate = await ctx.db.get(attempt.candidateId);
+
+  if (!recruiter || !candidate) {
+    return;
+  }
+
+  const resultsPath = buildRecruiterQuizResultsPath(quiz._id);
+  const actionLabel =
+    submissionMode === "timeout" ? "timed out and submitted" : "submitted";
+
+  await createNotification(ctx, {
+    userId: recruiter._id,
+    type: "quiz_submitted",
+    title: `${candidate.name} ${actionLabel} ${quiz.title}`,
+    message: `A quiz attempt is ready for review for ${internship.title}.`,
+    link: resultsPath,
+    relatedId: attempt._id,
+  });
+}
+
 async function finalizeAttemptSubmission(
   ctx: MutationCtx,
   attempt: Doc<"quizAttempts">,
@@ -276,6 +322,7 @@ async function finalizeAttemptSubmission(
 
   await ctx.db.patch(attempt._id, patch);
   await transitionApplicationToQuizCompleted(ctx, attempt, now);
+  await notifyRecruiterAboutSubmission(ctx, attempt, quiz, submissionMode);
 
   if (!manualQuestions) {
     await notifyCandidateAboutGrading(ctx, attempt, quiz, autoScore);

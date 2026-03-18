@@ -20,8 +20,7 @@ import {
   quizTypeValidator,
 } from "@/convex/lib/quizzes";
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_CONVEX_SITE_URL?.replace(/\/$/, "") ?? "";
+const APP_URL = process.env.APP_URL?.replace(/\/$/, "") ?? "";
 
 function buildCandidateQuizPath(
   quizId: Id<"quizzes">,
@@ -31,7 +30,7 @@ function buildCandidateQuizPath(
 }
 
 function buildAbsoluteUrl(path: string) {
-  return SITE_URL ? `${SITE_URL}${path}` : path;
+  return APP_URL ? `${APP_URL}${path}` : path;
 }
 
 function sanitizeQuizForTaker(quiz: Doc<"quizzes">) {

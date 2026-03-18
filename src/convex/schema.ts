@@ -279,6 +279,7 @@ export default defineSchema({
     type: v.union(
       v.literal("application_status"),
       v.literal("quiz_assigned"),
+      v.literal("quiz_submitted"),
       v.literal("quiz_graded"),
       v.literal("new_internship"),
       v.literal("new_application"),
