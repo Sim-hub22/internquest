@@ -4,6 +4,7 @@ import { MutationCtx } from "@/convex/_generated/server";
 type NotificationType =
   | "application_status"
   | "quiz_assigned"
+  | "quiz_submitted"
   | "quiz_graded"
   | "new_internship"
   | "new_application"

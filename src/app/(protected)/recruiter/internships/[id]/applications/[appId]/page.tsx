@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
@@ -10,6 +10,14 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -26,14 +34,18 @@ type ApplicationStatus =
 const ALLOWED_TRANSITIONS: Record<ApplicationStatus, ApplicationStatus[]> = {
   applied: ["under_review", "rejected"],
   under_review: ["shortlisted", "accepted", "rejected"],
-  shortlisted: ["quiz_assigned", "accepted", "rejected"],
-  quiz_assigned: ["quiz_completed", "rejected"],
+  shortlisted: ["accepted", "rejected"],
+  quiz_assigned: ["rejected"],
   quiz_completed: ["accepted", "rejected"],
   accepted: [],
   rejected: [],
 };
 
 function formatStatus(status: ApplicationStatus) {
+  return status.replaceAll("_", " ");
+}
+
+function formatAttemptStatus(status: "in_progress" | "submitted" | "graded") {
   return status.replaceAll("_", " ");
 }
 
@@ -73,8 +85,21 @@ function RecruiterApplicationReviewContent({
   const detail = useQuery(api.applications.getRecruiterDetail, {
     applicationId,
   });
+  const availableQuizzes = useQuery(api.quizzes.listForRecruiter, {
+    publishedOnly: true,
+  });
   const updateStatus = useMutation(api.applications.updateStatus);
+  const assignQuiz = useMutation(api.quizzes.assignToApplication);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedQuizId, setSelectedQuizId] = useState<string>("");
+
+  useEffect(() => {
+    if (!availableQuizzes?.length || selectedQuizId) {
+      return;
+    }
+
+    setSelectedQuizId(availableQuizzes[0]!._id);
+  }, [availableQuizzes, selectedQuizId]);
 
   if (detail === undefined) {
     return <div className="p-6">Loading application details...</div>;
@@ -98,6 +123,28 @@ function RecruiterApplicationReviewContent({
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to update status.";
+      toast.error(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleAssignQuiz = async () => {
+    if (!selectedQuizId) {
+      toast.error("Select a quiz to assign");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await assignQuiz({
+        applicationId,
+        quizId: selectedQuizId as Id<"quizzes">,
+      });
+      toast.success("Quiz assigned successfully.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to assign quiz.";
       toast.error(message);
     } finally {
       setIsSaving(false);
@@ -300,6 +347,59 @@ function RecruiterApplicationReviewContent({
             ) : null}
 
             <Separator />
+
+            {detail.application.status === "shortlisted" &&
+            !detail.assignedQuiz &&
+            availableQuizzes &&
+            availableQuizzes.length > 0 ? (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Assign quiz</p>
+                  <Select
+                    value={selectedQuizId}
+                    onValueChange={(value) => setSelectedQuizId(value)}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select a published quiz" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        {availableQuizzes.map((quiz) => (
+                          <SelectItem key={quiz._id} value={quiz._id}>
+                            {quiz.title}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={isSaving}
+                  onClick={handleAssignQuiz}
+                >
+                  Assign Selected Quiz
+                </Button>
+              </div>
+            ) : null}
+
+            {detail.assignedQuiz ? (
+              <div className="rounded-lg border bg-muted/20 p-3 text-sm">
+                <p className="font-medium">{detail.assignedQuiz.title}</p>
+                <p className="text-muted-foreground">
+                  {detail.assignedQuiz.questionCount} questions
+                  {detail.assignedQuiz.timeLimit
+                    ? ` · ${detail.assignedQuiz.timeLimit} min`
+                    : ""}
+                </p>
+                {detail.quizAttempt ? (
+                  <p className="mt-2 text-muted-foreground">
+                    Attempt status:{" "}
+                    {formatAttemptStatus(detail.quizAttempt.status)}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="space-y-2">
               {nextStatuses.length > 0 ? (

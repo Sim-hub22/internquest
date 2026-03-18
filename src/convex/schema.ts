@@ -125,6 +125,8 @@ export default defineSchema({
     candidateId: v.id("users"),
     resumeStorageId: v.id("_storage"),
     coverLetter: v.optional(v.string()),
+    assignedQuizId: v.optional(v.id("quizzes")),
+    quizAssignedAt: v.optional(v.number()),
     status: v.union(
       v.literal("applied"),
       v.literal("under_review"),
@@ -178,10 +180,17 @@ export default defineSchema({
       })
     ),
     isPublished: v.boolean(),
+    publishedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_creator", ["creatorId"])
+    .index("by_creator_and_type", ["creatorId", "type"])
+    .index("by_creator_and_type_and_published", [
+      "creatorId",
+      "type",
+      "isPublished",
+    ])
     .index("by_type", ["type"])
     .index("by_internship", ["internshipId"])
     .index("by_type_and_published", ["type", "isPublished"]),
@@ -190,17 +199,31 @@ export default defineSchema({
     quizId: v.id("quizzes"),
     candidateId: v.id("users"),
     applicationId: v.optional(v.id("applications")),
+    attemptType: v.union(v.literal("application"), v.literal("sample")),
     answers: v.array(
       v.object({
         questionId: v.string(),
-        answer: v.string(),
+        type: v.union(v.literal("multiple_choice"), v.literal("short_answer")),
+        selectedOptionId: v.optional(v.string()),
+        textAnswer: v.optional(v.string()),
+        awardedPoints: v.optional(v.number()),
+        feedback: v.optional(v.string()),
+        isCorrect: v.optional(v.boolean()),
       })
     ),
     score: v.optional(v.number()),
+    autoScore: v.optional(v.number()),
+    manualScore: v.optional(v.number()),
     maxScore: v.number(),
     startedAt: v.number(),
     submittedAt: v.optional(v.number()),
+    deadlineAt: v.optional(v.number()),
     timeLimit: v.optional(v.number()),
+    submissionMode: v.optional(
+      v.union(v.literal("manual"), v.literal("timeout"))
+    ),
+    gradedAt: v.optional(v.number()),
+    gradedBy: v.optional(v.id("users")),
     status: v.union(
       v.literal("in_progress"),
       v.literal("submitted"),
@@ -210,7 +233,13 @@ export default defineSchema({
     .index("by_quiz", ["quizId"])
     .index("by_candidate", ["candidateId"])
     .index("by_application", ["applicationId"])
-    .index("by_quiz_and_candidate", ["quizId", "candidateId"]),
+    .index("by_quiz_and_status", ["quizId", "status"])
+    .index("by_candidate_and_status", ["candidateId", "status"])
+    .index("by_candidate_and_quiz_and_attemptType", [
+      "candidateId",
+      "quizId",
+      "attemptType",
+    ]),
 
   // ─── Blog / Resources ────────────────────────────────────────────────────────
 
@@ -250,6 +279,7 @@ export default defineSchema({
     type: v.union(
       v.literal("application_status"),
       v.literal("quiz_assigned"),
+      v.literal("quiz_submitted"),
       v.literal("quiz_graded"),
       v.literal("new_internship"),
       v.literal("new_application"),

@@ -72,6 +72,12 @@ export default function CandidateApplicationDetailPage() {
   const showQuizCta =
     detail.application.status === "quiz_assigned" ||
     detail.application.status === "quiz_completed";
+  const quizHref = detail.assignedQuiz
+    ? (`/candidate/quizzes/${detail.assignedQuiz._id}?applicationId=${applicationId}` as Route)
+    : ("/candidate/quizzes" as Route);
+  const quizResultHref = detail.assignedQuiz
+    ? (`/candidate/quizzes/${detail.assignedQuiz._id}/result?applicationId=${applicationId}` as Route)
+    : ("/candidate/quizzes" as Route);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -145,12 +151,23 @@ export default function CandidateApplicationDetailPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Use your candidate dashboard to find and continue assigned
-              quizzes.
+              {detail.quizNeedsManualReview
+                ? "Your quiz was submitted successfully and is waiting for final grading."
+                : detail.quizResultReady
+                  ? "Your final quiz result is ready to review."
+                  : "Your assigned quiz is ready to start or continue."}
             </p>
             <Button asChild variant="outline">
-              <Link href={"/candidate/dashboard" as Route}>
-                Open candidate dashboard
+              <Link
+                href={
+                  detail.quizResultReady || detail.quizNeedsManualReview
+                    ? quizResultHref
+                    : quizHref
+                }
+              >
+                {detail.quizResultReady || detail.quizNeedsManualReview
+                  ? "Open quiz result"
+                  : "Open assigned quiz"}
               </Link>
             </Button>
           </CardContent>
