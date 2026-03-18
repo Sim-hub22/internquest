@@ -165,6 +165,46 @@ async function applicationByCandidateAndInternship(
     .unique();
 }
 
+async function getQuizStateForApplication(
+  ctx: QueryCtx | MutationCtx,
+  application: Doc<"applications">
+) {
+  const assignedQuiz = application.assignedQuizId
+    ? await ctx.db.get(application.assignedQuizId)
+    : null;
+  const quizAttempt = await ctx.db
+    .query("quizAttempts")
+    .withIndex("by_application", (q) => q.eq("applicationId", application._id))
+    .unique();
+
+  return {
+    assignedQuiz: assignedQuiz
+      ? {
+          _id: assignedQuiz._id,
+          title: assignedQuiz.title,
+          description: assignedQuiz.description,
+          timeLimit: assignedQuiz.timeLimit,
+          isPublished: assignedQuiz.isPublished,
+          questionCount: assignedQuiz.questions.length,
+        }
+      : null,
+    quizAssignedAt: application.quizAssignedAt ?? null,
+    quizAttempt: quizAttempt
+      ? {
+          _id: quizAttempt._id,
+          status: quizAttempt.status,
+          score: quizAttempt.score,
+          maxScore: quizAttempt.maxScore,
+          deadlineAt: quizAttempt.deadlineAt,
+          submittedAt: quizAttempt.submittedAt,
+          gradedAt: quizAttempt.gradedAt,
+        }
+      : null,
+    quizResultReady: quizAttempt?.status === "graded",
+    quizNeedsManualReview: quizAttempt?.status === "submitted",
+  };
+}
+
 export const apply = mutation({
   args: {
     internshipId: v.id("internships"),
@@ -303,6 +343,14 @@ export const updateStatus = mutation({
       return null;
     }
 
+    if (args.status === "quiz_assigned") {
+      throw new ConvexError("Assign quizzes through the quiz assignment flow");
+    }
+
+    if (args.status === "quiz_completed") {
+      throw new ConvexError("Quiz completion is tracked automatically");
+    }
+
     assertAllowedTransition(application.status, args.status);
 
     const updatedAt = Date.now();
@@ -403,6 +451,7 @@ export const listForCandidateDetailed = query({
     const page = await Promise.all(
       paginated.page.map(async (application) => {
         const internship = await ctx.db.get(application.internshipId);
+        const quizState = await getQuizStateForApplication(ctx, application);
         return {
           application,
           internship: internship
@@ -414,6 +463,7 @@ export const listForCandidateDetailed = query({
                 applicationDeadline: internship.applicationDeadline,
               }
             : null,
+          ...quizState,
         };
       })
     );
@@ -479,11 +529,13 @@ export const getCandidateDetail = query({
 
     const internship = await ctx.db.get(application.internshipId);
     const resumeUrl = await ctx.storage.getUrl(application.resumeStorageId);
+    const quizState = await getQuizStateForApplication(ctx, application);
 
     return {
       application,
       internship,
       resumeUrl,
+      ...quizState,
     };
   },
 });
@@ -565,6 +617,7 @@ export const listForInternshipDetailed = query({
     const page = await Promise.all(
       paginated.page.map(async (application) => {
         const candidate = await ctx.db.get(application.candidateId);
+        const quizState = await getQuizStateForApplication(ctx, application);
         return {
           application,
           candidate: candidate
@@ -575,6 +628,7 @@ export const listForInternshipDetailed = query({
                 imageUrl: candidate.imageUrl,
               }
             : null,
+          ...quizState,
         };
       })
     );
@@ -626,6 +680,7 @@ export const getRecruiterDetail = query({
           .unique()
       : null;
     const resumeUrl = await ctx.storage.getUrl(application.resumeStorageId);
+    const quizState = await getQuizStateForApplication(ctx, application);
 
     return {
       application,
@@ -633,6 +688,7 @@ export const getRecruiterDetail = query({
       candidate,
       candidateProfile,
       resumeUrl,
+      ...quizState,
     };
   },
 });
@@ -676,6 +732,7 @@ export const listAllForCandidateDetailed = query({
     return Promise.all(
       applications.map(async (application) => {
         const internship = await ctx.db.get(application.internshipId);
+        const quizState = await getQuizStateForApplication(ctx, application);
         return {
           application,
           internship: internship
@@ -687,6 +744,7 @@ export const listAllForCandidateDetailed = query({
                 applicationDeadline: internship.applicationDeadline,
               }
             : null,
+          ...quizState,
         };
       })
     );
