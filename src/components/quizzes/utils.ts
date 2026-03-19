@@ -47,3 +47,25 @@ export function formatDate(value: number | null | undefined) {
     timeStyle: "short",
   }).format(new Date(value));
 }
+
+export function formatSubmissionMode(value: string | null | undefined) {
+  if (!value) {
+    return "Manual";
+  }
+
+  return value
+    .split("_")
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+export function formatPolicyViolationType(value: string | null | undefined) {
+  switch (value) {
+    case "tab_hidden":
+      return "Left quiz tab";
+    case "page_exit":
+      return "Exited quiz page";
+    default:
+      return null;
+  }
+}

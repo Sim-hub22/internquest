@@ -14,6 +14,8 @@ import {
   type QuizQuestion,
   type QuizType,
   calculateMaxScore,
+  hasManualQuestions,
+  normalizeDraftQuizQuestions,
   normalizeOptionalText,
   normalizeQuizQuestions,
   quizQuestionValidator,
@@ -133,11 +135,75 @@ function buildQuizDocument(args: {
   };
 }
 
+async function assertQuizUnused(
+  ctx: MutationCtx,
+  quizId: Id<"quizzes">,
+  action: "edit" | "delete"
+): Promise<null> {
+  const [assignedApplication] = await ctx.db
+    .query("applications")
+    .withIndex("by_assigned_quiz", (q) => q.eq("assignedQuizId", quizId))
+    .take(1);
+  const [attempt] = await ctx.db
+    .query("quizAttempts")
+    .withIndex("by_quiz", (q) => q.eq("quizId", quizId))
+    .take(1);
+
+  if (assignedApplication || attempt) {
+    throw new ConvexError(
+      action === "edit"
+        ? "Quizzes cannot be edited after they have been assigned or attempted"
+        : "Quizzes cannot be deleted after they have been assigned or attempted"
+    );
+  }
+
+  return null;
+}
+
+async function getQuizDeleteState(
+  ctx: QueryCtx | MutationCtx,
+  quizId: Id<"quizzes">
+) {
+  const [assignedApplication] = await ctx.db
+    .query("applications")
+    .withIndex("by_assigned_quiz", (q) => q.eq("assignedQuizId", quizId))
+    .take(1);
+  const [attempt] = await ctx.db
+    .query("quizAttempts")
+    .withIndex("by_quiz", (q) => q.eq("quizId", quizId))
+    .take(1);
+
+  const canDelete = !assignedApplication && !attempt;
+
+  return {
+    canDelete,
+    deleteDisabledReason: canDelete
+      ? null
+      : "This quiz has already been assigned or attempted, so it must stay in history.",
+  };
+}
+
+function assertQuizQuestionsSupported(
+  type: QuizType,
+  questions: QuizQuestion[]
+) {
+  if (type === "sample" && hasManualQuestions(questions)) {
+    throw new ConvexError(
+      "Sample quizzes can only include multiple choice questions"
+    );
+  }
+}
+
+function getDraftTitle(title: string) {
+  return normalizeOptionalText(title) ?? "Untitled quiz";
+}
+
 export const create = mutation({
   args: {
     title: v.string(),
     description: v.optional(v.string()),
     type: quizTypeValidator,
+    draft: v.optional(v.boolean()),
     internshipId: v.optional(v.id("internships")),
     timeLimit: v.optional(v.number()),
     questions: v.array(quizQuestionValidator),
@@ -164,11 +230,18 @@ export const create = mutation({
       }
     }
 
-    const title = args.title.trim();
+    const isDraft = args.draft ?? false;
+    const title = normalizeOptionalText(args.title);
     const description = normalizeOptionalText(args.description);
-    const questions = normalizeQuizQuestions(args.questions);
+    const questions = isDraft
+      ? normalizeDraftQuizQuestions(args.questions)
+      : normalizeQuizQuestions(args.questions);
 
-    if (!title) {
+    if (!isDraft) {
+      assertQuizQuestionsSupported(args.type, questions);
+    }
+
+    if (!title && !isDraft) {
       throw new ConvexError("Quiz title is required");
     }
 
@@ -182,7 +255,7 @@ export const create = mutation({
       "quizzes",
       buildQuizDocument({
         creatorId: owner._id,
-        title,
+        title: isDraft ? getDraftTitle(args.title) : title!,
         description,
         type: args.type,
         internshipId: args.internshipId,
@@ -200,6 +273,7 @@ export const update = mutation({
     quizId: v.id("quizzes"),
     title: v.string(),
     description: v.optional(v.string()),
+    draft: v.optional(v.boolean()),
     internshipId: v.optional(v.id("internships")),
     timeLimit: v.optional(v.number()),
     questions: v.array(quizQuestionValidator),
@@ -236,11 +310,19 @@ export const update = mutation({
       }
     }
 
-    const title = args.title.trim();
+    const isDraft = (args.draft ?? false) && !existing.isPublished;
+    const title = normalizeOptionalText(args.title);
     const description = normalizeOptionalText(args.description);
-    const questions = normalizeQuizQuestions(args.questions);
+    const questions = isDraft
+      ? normalizeDraftQuizQuestions(args.questions)
+      : normalizeQuizQuestions(args.questions);
 
-    if (!title) {
+    await assertQuizUnused(ctx, existing._id, "edit");
+    if (!isDraft) {
+      assertQuizQuestionsSupported(existing.type, questions);
+    }
+
+    if (!title && !isDraft) {
       throw new ConvexError("Quiz title is required");
     }
 
@@ -251,7 +333,7 @@ export const update = mutation({
     await ctx.db.replace("quizzes", args.quizId, {
       ...buildQuizDocument({
         creatorId: existing.creatorId,
-        title,
+        title: isDraft ? getDraftTitle(args.title) : title!,
         description,
         type: existing.type,
         internshipId: args.internshipId,
@@ -293,18 +375,61 @@ export const publish = mutation({
       }
     }
 
-    if (quiz.questions.length === 0 || calculateMaxScore(quiz.questions) <= 0) {
+    const title = normalizeOptionalText(quiz.title);
+    const questions = normalizeQuizQuestions(quiz.questions);
+
+    if (!title) {
+      throw new ConvexError("Quiz title is required");
+    }
+
+    if (questions.length === 0 || calculateMaxScore(questions) <= 0) {
       throw new ConvexError(
         "Published quizzes need at least one valid question"
       );
     }
 
+    assertQuizQuestionsSupported(quiz.type, questions);
+
     const now = Date.now();
     await ctx.db.patch(args.quizId, {
+      title,
+      questions,
       isPublished: true,
       publishedAt: now,
       updatedAt: now,
     });
+
+    return null;
+  },
+});
+
+export const remove = mutation({
+  args: {
+    quizId: v.id("quizzes"),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const quiz = await ctx.db.get(args.quizId);
+
+    if (!quiz) {
+      throw new ConvexError("Quiz not found");
+    }
+
+    if (quiz.type === "sample") {
+      const admin = await requireRole(ctx, "admin");
+
+      if (quiz.creatorId !== admin._id) {
+        throw new ConvexError("FORBIDDEN");
+      }
+    } else {
+      const recruiter = await requireRole(ctx, "recruiter");
+
+      if (quiz.creatorId !== recruiter._id) {
+        throw new ConvexError("FORBIDDEN");
+      }
+    }
+
+    await assertQuizUnused(ctx, quiz._id, "delete");
+    await ctx.db.delete(quiz._id);
 
     return null;
   },
@@ -341,6 +466,7 @@ export const listForRecruiter = query({
         const internship = quiz.internshipId
           ? await ctx.db.get(quiz.internshipId)
           : null;
+        const deleteState = await getQuizDeleteState(ctx, quiz._id);
 
         return {
           ...quiz,
@@ -353,6 +479,7 @@ export const listForRecruiter = query({
             : null,
           questionCount: quiz.questions.length,
           maxScore: calculateMaxScore(quiz.questions),
+          ...deleteState,
         };
       })
     );
@@ -409,11 +536,18 @@ export const listForAdmin = query({
           .order("desc")
           .collect();
 
-    return quizzes.map((quiz) => ({
-      ...quiz,
-      questionCount: quiz.questions.length,
-      maxScore: calculateMaxScore(quiz.questions),
-    }));
+    return Promise.all(
+      quizzes.map(async (quiz) => {
+        const deleteState = await getQuizDeleteState(ctx, quiz._id);
+
+        return {
+          ...quiz,
+          questionCount: quiz.questions.length,
+          maxScore: calculateMaxScore(quiz.questions),
+          ...deleteState,
+        };
+      })
+    );
   },
 });
 
@@ -427,6 +561,35 @@ export const getForAdmin = query({
 
     return {
       ...quiz,
+      maxScore: calculateMaxScore(quiz.questions),
+    };
+  },
+});
+
+export const getOwnerPreview = query({
+  args: {
+    quizId: v.id("quizzes"),
+  },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+
+    if (!quiz) {
+      return null;
+    }
+
+    const user = await requireAnyRole(ctx, ["admin", "recruiter"]);
+
+    if (quiz.type === "sample") {
+      if (user.role !== "admin" || quiz.creatorId !== user._id) {
+        throw new ConvexError("FORBIDDEN");
+      }
+    } else if (user.role !== "recruiter" || quiz.creatorId !== user._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    return {
+      quiz: sanitizeQuizForTaker(quiz),
+      questionCount: quiz.questions.length,
       maxScore: calculateMaxScore(quiz.questions),
     };
   },

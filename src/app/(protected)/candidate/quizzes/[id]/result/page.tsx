@@ -6,7 +6,12 @@ import { useParams, useSearchParams } from "next/navigation";
 
 import { useQuery } from "convex/react";
 
-import { formatDate, formatScore } from "@/components/quizzes/utils";
+import {
+  formatDate,
+  formatPolicyViolationType,
+  formatScore,
+  formatSubmissionMode,
+} from "@/components/quizzes/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -80,8 +85,26 @@ export default function CandidateQuizResultPage() {
           {result.attempt.gradedAt ? (
             <p>Graded {formatDate(result.attempt.gradedAt)}</p>
           ) : null}
+          <p>
+            Submission: {formatSubmissionMode(result.attempt.submissionMode)}
+          </p>
         </CardContent>
       </Card>
+
+      {result.attempt.submissionMode === "policy_violation" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Auto-submitted</CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm text-muted-foreground">
+            This quiz was submitted automatically because you{" "}
+            {formatPolicyViolationType(
+              result.attempt.policyViolationType
+            )?.toLowerCase() ?? "left the quiz"}
+            .
+          </CardContent>
+        </Card>
+      ) : null}
 
       {result.pendingManualReview ? (
         <Card>

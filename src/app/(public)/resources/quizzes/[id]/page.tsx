@@ -144,6 +144,29 @@ export default function PublicSampleQuizDetailPage() {
   const signInHref =
     `/sign-in?redirect_url=${encodeURIComponent(pathname)}` as Route;
 
+  const persistShortAnswer = async (
+    attemptId: Id<"quizAttempts">,
+    questionId: string,
+    value: string,
+    showError = true
+  ) => {
+    try {
+      await saveAnswer({
+        attemptId,
+        questionId,
+        textAnswer: value,
+      });
+    } catch (error) {
+      if (!showError) {
+        return;
+      }
+
+      const message =
+        error instanceof Error ? error.message : "Failed to save answer";
+      toast.error(message);
+    }
+  };
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 lg:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -317,27 +340,28 @@ export default function PublicSampleQuizDetailPage() {
                     rows={6}
                     placeholder="Write your answer here."
                     value={answerDrafts[question.id] ?? ""}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      const value = event.target.value;
+
                       setAnswerDrafts((current) => ({
                         ...current,
-                        [question.id]: event.target.value,
-                      }))
-                    }
-                    onBlur={async () => {
-                      try {
-                        await saveAnswer({
-                          attemptId: session.attempt!._id,
-                          questionId: question.id,
-                          textAnswer: answerDrafts[question.id] ?? "",
-                        });
-                      } catch (error) {
-                        const message =
-                          error instanceof Error
-                            ? error.message
-                            : "Failed to save answer";
-                        toast.error(message);
-                      }
+                        [question.id]: value,
+                      }));
+
+                      void persistShortAnswer(
+                        session.attempt!._id,
+                        question.id,
+                        value,
+                        false
+                      );
                     }}
+                    onBlur={() =>
+                      void persistShortAnswer(
+                        session.attempt!._id,
+                        question.id,
+                        answerDrafts[question.id] ?? ""
+                      )
+                    }
                   />
                 )}
               </CardContent>
@@ -350,6 +374,19 @@ export default function PublicSampleQuizDetailPage() {
               onClick={async () => {
                 try {
                   setIsSubmitting(true);
+
+                  await Promise.all(
+                    session.quiz.questions
+                      .filter((question) => question.type === "short_answer")
+                      .map((question) =>
+                        persistShortAnswer(
+                          session.attempt!._id,
+                          question.id,
+                          answerDrafts[question.id] ?? ""
+                        )
+                      )
+                  );
+
                   await submitAttempt({ attemptId: session.attempt!._id });
                   router.refresh();
                 } catch (error) {

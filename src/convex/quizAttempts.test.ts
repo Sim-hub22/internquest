@@ -285,6 +285,140 @@ describe("convex/quizAttempts", () => {
     expect(gradedResult?.questionBreakdown).toHaveLength(2);
   });
 
+  it("auto-submits recruitment quizzes for policy violations and exposes the violation to recruiters", async () => {
+    const t = convexTest(schema, modules);
+    const seeded = await seedRecruitmentQuizScenario(t, [
+      {
+        id: "q1",
+        type: "multiple_choice",
+        question: "Which API handles local component state?",
+        points: 5,
+        options: [
+          { id: "a", text: "useState" },
+          { id: "b", text: "cookies" },
+        ],
+        correctOptionId: "a",
+      },
+    ]);
+
+    const attemptId = await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.start, {
+        quizId: seeded.quizId,
+        applicationId: seeded.applicationId,
+      });
+
+    await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.saveAnswer, {
+        attemptId,
+        questionId: "q1",
+        selectedOptionId: "a",
+      });
+
+    await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.submitForPolicyViolation, {
+        attemptId,
+        policyViolationType: "tab_hidden",
+      });
+
+    const result = await t
+      .withIdentity(seeded.candidateIdentity)
+      .query(api.quizAttempts.getCandidateResult, {
+        quizId: seeded.quizId,
+        applicationId: seeded.applicationId,
+      });
+    const recruiterResults = await t
+      .withIdentity(seeded.recruiterIdentity)
+      .query(api.quizAttempts.listResultsForRecruiter, {
+        quizId: seeded.quizId,
+      });
+    const applicationDetail = await t
+      .withIdentity(seeded.recruiterIdentity)
+      .query(api.applications.getRecruiterDetail, {
+        applicationId: seeded.applicationId,
+      });
+
+    expect(result?.attempt.status).toBe("graded");
+    expect(result?.attempt.score).toBe(5);
+    expect(result?.attempt.submissionMode).toBe("policy_violation");
+    expect(result?.attempt.policyViolationType).toBe("tab_hidden");
+    expect(result?.attempt.policyViolationAt).toBeTypeOf("number");
+    expect(applicationDetail.application.status).toBe("quiz_completed");
+    expect(recruiterResults?.results[0]?.attempt.submissionMode).toBe(
+      "policy_violation"
+    );
+    expect(recruiterResults?.results[0]?.attempt.policyViolationType).toBe(
+      "tab_hidden"
+    );
+  });
+
+  it("keeps mixed policy-violation attempts pending manual review", async () => {
+    const t = convexTest(schema, modules);
+    const seeded = await seedRecruitmentQuizScenario(t, [
+      {
+        id: "q1",
+        type: "multiple_choice",
+        question: "What is JSX?",
+        points: 4,
+        options: [
+          { id: "a", text: "Syntax extension" },
+          { id: "b", text: "Database" },
+        ],
+        correctOptionId: "a",
+      },
+      {
+        id: "q2",
+        type: "short_answer",
+        question: "Explain reconciliation in React.",
+        points: 6,
+        sampleAnswer: "React compares tree updates efficiently.",
+      },
+    ]);
+
+    const attemptId = await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.start, {
+        quizId: seeded.quizId,
+        applicationId: seeded.applicationId,
+      });
+
+    await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.saveAnswer, {
+        attemptId,
+        questionId: "q1",
+        selectedOptionId: "a",
+      });
+    await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.saveAnswer, {
+        attemptId,
+        questionId: "q2",
+        textAnswer: "React reconciles trees to update only what changed.",
+      });
+
+    await t
+      .withIdentity(seeded.candidateIdentity)
+      .mutation(api.quizAttempts.submitForPolicyViolation, {
+        attemptId,
+        policyViolationType: "page_exit",
+      });
+
+    const result = await t
+      .withIdentity(seeded.candidateIdentity)
+      .query(api.quizAttempts.getCandidateResult, {
+        quizId: seeded.quizId,
+        applicationId: seeded.applicationId,
+      });
+
+    expect(result?.attempt.status).toBe("submitted");
+    expect(result?.pendingManualReview).toBe(true);
+    expect(result?.attempt.submissionMode).toBe("policy_violation");
+    expect(result?.attempt.policyViolationType).toBe("page_exit");
+  });
+
   it("allows signed-in users to take sample quizzes and auto-submits timed out attempts", async () => {
     const t = convexTest(schema, modules);
     const adminIdentity = { subject: "sample_admin" };

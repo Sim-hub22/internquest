@@ -4,6 +4,7 @@ import * as React from "react";
 
 import {
   type ColumnDef,
+  type Table as ReactTable,
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
@@ -44,6 +45,11 @@ interface DataTableProps<TData> {
   isLoading?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  isRowSelectable?: (row: TData) => boolean;
+  renderToolbarExtras?: (args: {
+    selectedRows: TData[];
+    table: ReactTable<TData>;
+  }) => React.ReactNode;
 }
 
 export function DataTable<TData>({
@@ -52,6 +58,8 @@ export function DataTable<TData>({
   isLoading = false,
   searchPlaceholder = "Search…",
   emptyMessage = "No results.",
+  isRowSelectable,
+  renderToolbarExtras,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -78,6 +86,7 @@ export function DataTable<TData>({
           aria-label="Select row"
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
+          disabled={!row.getCanSelect()}
         />
       ),
     },
@@ -92,13 +101,17 @@ export function DataTable<TData>({
     onGlobalFilterChange: setGlobalFilter,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    enableRowSelection: true,
+    enableRowSelection: (row) =>
+      isRowSelectable ? isRowSelectable(row.original) : true,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: { pagination: { pageSize: PAGE_SIZE } },
   });
+  const selectedRows = table
+    .getFilteredSelectedRowModel()
+    .rows.map((row) => row.original);
 
   return (
     <div className="space-y-4">
@@ -135,6 +148,11 @@ export function DataTable<TData>({
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        {renderToolbarExtras ? (
+          <div className="flex items-center gap-2">
+            {renderToolbarExtras({ selectedRows, table })}
+          </div>
+        ) : null}
       </div>
 
       {/* Table */}

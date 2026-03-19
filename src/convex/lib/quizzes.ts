@@ -48,14 +48,21 @@ export const attemptStatusValidator = v.union(
 
 export const submissionModeValidator = v.union(
   v.literal("manual"),
-  v.literal("timeout")
+  v.literal("timeout"),
+  v.literal("policy_violation")
+);
+
+export const policyViolationTypeValidator = v.union(
+  v.literal("tab_hidden"),
+  v.literal("page_exit")
 );
 
 export type QuizType = "recruitment" | "sample";
 export type QuizQuestionType = "multiple_choice" | "short_answer";
 export type AttemptType = "application" | "sample";
 export type AttemptStatus = "in_progress" | "submitted" | "graded";
-export type SubmissionMode = "manual" | "timeout";
+export type SubmissionMode = "manual" | "timeout" | "policy_violation";
+export type PolicyViolationType = "tab_hidden" | "page_exit";
 
 export type QuizOption = {
   id: string;
@@ -171,6 +178,58 @@ export function normalizeQuizQuestions(
       type: question.type,
       question: prompt,
       points: question.points,
+      ...(sampleAnswer ? { sampleAnswer } : {}),
+    };
+  });
+}
+
+export function normalizeDraftQuizQuestions(
+  questions: QuizQuestion[]
+): QuizQuestion[] {
+  const seenQuestionIds = new Set<string>();
+
+  return questions.map((question, index) => {
+    const rawQuestionId = normalizeOptionalText(question.id);
+    let questionId = rawQuestionId ?? `draft-question-${index + 1}`;
+
+    while (seenQuestionIds.has(questionId)) {
+      questionId = `${questionId}-${index + 1}`;
+    }
+
+    seenQuestionIds.add(questionId);
+
+    if (question.type === "multiple_choice") {
+      const options =
+        question.options?.map((option, optionIndex) => ({
+          id:
+            normalizeOptionalText(option.id) ??
+            `draft-option-${index + 1}-${optionIndex + 1}`,
+          text: option.text.trim(),
+        })) ?? [];
+
+      const optionIds = new Set(options.map((option) => option.id));
+      const correctOptionId =
+        question.correctOptionId && optionIds.has(question.correctOptionId)
+          ? question.correctOptionId
+          : undefined;
+
+      return {
+        id: questionId,
+        type: question.type,
+        question: question.question.trim(),
+        points: question.points > 0 ? question.points : 1,
+        options,
+        ...(correctOptionId ? { correctOptionId } : {}),
+      };
+    }
+
+    const sampleAnswer = normalizeOptionalText(question.sampleAnswer);
+
+    return {
+      id: questionId,
+      type: question.type,
+      question: question.question.trim(),
+      points: question.points > 0 ? question.points : 1,
       ...(sampleAnswer ? { sampleAnswer } : {}),
     };
   });

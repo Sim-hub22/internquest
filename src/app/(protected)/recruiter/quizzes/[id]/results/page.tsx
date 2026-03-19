@@ -11,7 +11,9 @@ import { toast } from "sonner";
 import {
   formatDate,
   formatMinutesLabel,
+  formatPolicyViolationType,
   formatScore,
+  formatSubmissionMode,
 } from "@/components/quizzes/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -173,22 +175,35 @@ export default function RecruiterQuizResultsPage() {
                   </div>
                   <Badge
                     variant={
-                      item.attempt.status === "submitted"
-                        ? "default"
-                        : "secondary"
+                      item.attempt.submissionMode === "policy_violation"
+                        ? "destructive"
+                        : item.attempt.status === "submitted"
+                          ? "default"
+                          : "secondary"
                     }
                   >
-                    {item.attempt.status === "submitted"
-                      ? "Needs grading"
-                      : "Complete"}
+                    {item.attempt.submissionMode === "policy_violation"
+                      ? "Policy violation"
+                      : item.attempt.status === "submitted"
+                        ? "Needs grading"
+                        : "Complete"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
                 <p>{formatScore(item.attempt.score, item.attempt.maxScore)}</p>
                 <p>
+                  Submission {formatSubmissionMode(item.attempt.submissionMode)}
+                </p>
+                <p>
                   Submitted {formatDate(item.attempt.submittedAt) ?? "just now"}
                 </p>
+                {item.attempt.policyViolationAt ? (
+                  <p>
+                    Violation{" "}
+                    {formatDate(item.attempt.policyViolationAt) ?? "just now"}
+                  </p>
+                ) : null}
                 <Button
                   variant="outline"
                   onClick={() => setSelectedAttemptId(item.attempt._id)}
@@ -213,11 +228,44 @@ export default function RecruiterQuizResultsPage() {
                 {selected.internship?.title ?? "Sample / standalone quiz"}
               </span>
               <span>
+                Submission{" "}
+                {formatSubmissionMode(selected.attempt.submissionMode)}
+              </span>
+              <span>
                 Submitted{" "}
                 {formatDate(selected.attempt.submittedAt) ?? "just now"}
               </span>
+              {selected.attempt.policyViolationType ? (
+                <span>
+                  Violation:{" "}
+                  {formatPolicyViolationType(
+                    selected.attempt.policyViolationType
+                  )}
+                </span>
+              ) : null}
             </CardContent>
           </Card>
+
+          {selected.attempt.submissionMode === "policy_violation" ? (
+            <Card className="border-destructive/30">
+              <CardHeader>
+                <CardTitle className="text-lg">Policy violation</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
+                <p>
+                  This attempt was auto-submitted because the candidate{" "}
+                  {formatPolicyViolationType(
+                    selected.attempt.policyViolationType
+                  )?.toLowerCase() ?? "left the quiz"}
+                  .
+                </p>
+                <p>
+                  Triggered{" "}
+                  {formatDate(selected.attempt.policyViolationAt) ?? "just now"}
+                </p>
+              </CardContent>
+            </Card>
+          ) : null}
 
           {results.quiz.questions.map((question, index) => {
             const answer =
