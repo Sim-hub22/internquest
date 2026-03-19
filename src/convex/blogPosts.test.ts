@@ -213,16 +213,30 @@ describe("convex/blogPosts", () => {
     const hiddenDraft = await t.query(api.blogPosts.getBySlug, {
       slug: "hidden-draft",
     });
+    const adminNotifications = await t
+      .withIdentity(adminIdentity)
+      .query(api.notifications.listUnread, {});
     const candidateNotifications = await t
       .withIdentity(candidateIdentity)
+      .query(api.notifications.listUnread, {});
+    const recruiterNotifications = await t
+      .withIdentity(recruiterIdentity)
       .query(api.notifications.listUnread, {});
 
     expect(publicList.page.map((post) => post._id)).toContain(publishedId);
     expect(publicList.page.map((post) => post._id)).not.toContain(draftId);
     expect(publicSearch.page.map((post) => post._id)).toContain(publishedId);
     expect(hiddenDraft).toBeNull();
+    expect(adminNotifications).toHaveLength(0);
     expect(
       candidateNotifications.some(
+        (item) =>
+          item.type === "new_resource" &&
+          item.link === "/resources/interview-day-blueprint"
+      )
+    ).toBe(true);
+    expect(
+      recruiterNotifications.some(
         (item) =>
           item.type === "new_resource" &&
           item.link === "/resources/interview-day-blueprint"

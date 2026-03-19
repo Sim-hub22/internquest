@@ -202,7 +202,17 @@ async function fanOutPublishedResourceNotifications(
   ctx: MutationCtx,
   post: Doc<"blogPosts">
 ) {
-  const users = await ctx.db.query("users").collect();
+  const [candidateUsers, recruiterUsers] = await Promise.all([
+    ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "candidate"))
+      .collect(),
+    ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", "recruiter"))
+      .collect(),
+  ]);
+  const users = [...candidateUsers, ...recruiterUsers];
   const postPath = buildPostPath(post.slug);
   const postUrl = buildPostUrl(post.slug);
 
