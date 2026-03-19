@@ -1,7 +1,8 @@
 import { convexTest } from "convex-test";
 import { describe, expect, it } from "vitest";
 
-import { api } from "@/convex/_generated/api";
+import { api, internal } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import schema from "@/convex/schema";
 import { modules } from "@/convex/test.setup";
 
@@ -227,5 +228,126 @@ describe("convex/blogPosts", () => {
           item.link === "/resources/interview-day-blueprint"
       )
     ).toBe(true);
+  });
+
+  it("lets admins delete their own draft and published posts, including cover image cleanup", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "admin_blog_delete_owner" };
+    const coverImageStorageId = (await t.action(
+      internal.testHelpers.createTestImageStorage,
+      {}
+    )) as Id<"_storage">;
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+    });
+
+    const draftPostId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.blogPosts.create, {
+        title: "Delete Me Draft",
+        slug: "Delete Me Draft",
+        excerpt: "Draft that should be removed cleanly.",
+        content: "<p>Draft content</p>",
+        category: "general",
+        tags: ["cleanup"],
+        draft: true,
+      });
+
+    await t.withIdentity(adminIdentity).mutation(api.blogPosts.remove, {
+      postId: draftPostId,
+    });
+
+    const postsAfterDraftDelete = await t
+      .withIdentity(adminIdentity)
+      .query(api.blogPosts.listForAdmin, {});
+    expect(postsAfterDraftDelete.map((post) => post._id)).not.toContain(
+      draftPostId
+    );
+
+    const publishedPostId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.blogPosts.create, {
+        title: "Published Delete Target",
+        slug: "Published Delete Target",
+        excerpt: "Published resource slated for deletion.",
+        content: "<p>Live content</p>",
+        category: "career_tips",
+        tags: ["published"],
+        coverImageStorageId,
+      });
+
+    await t.withIdentity(adminIdentity).mutation(api.blogPosts.publish, {
+      postId: publishedPostId,
+    });
+
+    await t.withIdentity(adminIdentity).mutation(api.blogPosts.remove, {
+      postId: publishedPostId,
+    });
+
+    const hiddenPublishedPost = await t.query(api.blogPosts.getBySlug, {
+      slug: "published-delete-target",
+    });
+    const publicListAfterDelete = await t.query(api.blogPosts.listPublic, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    const deletedCoverImageMetadata = await t.run(async (ctx) => {
+      return await ctx.db.system.get("_storage", coverImageStorageId);
+    });
+
+    expect(hiddenPublishedPost).toBeNull();
+    expect(publicListAfterDelete.page.map((post) => post._id)).not.toContain(
+      publishedPostId
+    );
+    expect(deletedCoverImageMetadata).toBeNull();
+  });
+
+  it("blocks deleting another admin's post and rejects non-admin delete attempts", async () => {
+    const t = convexTest(schema, modules);
+    const ownerIdentity = { subject: "admin_blog_delete_owner_only" };
+    const otherAdminIdentity = { subject: "admin_blog_delete_other" };
+    const recruiterIdentity = { subject: "recruiter_blog_delete_denied" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(ownerIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(otherAdminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+    });
+
+    const postId = await t
+      .withIdentity(ownerIdentity)
+      .mutation(api.blogPosts.create, {
+        title: "Protected Delete Target",
+        slug: "Protected Delete Target",
+        excerpt: "Only the owner should be able to remove this.",
+        content: "<p>Protected content</p>",
+        category: "general",
+        tags: [],
+        draft: true,
+      });
+
+    await expect(
+      t.withIdentity(otherAdminIdentity).mutation(api.blogPosts.remove, {
+        postId,
+      })
+    ).rejects.toThrow("FORBIDDEN");
+
+    await expect(
+      t.withIdentity(recruiterIdentity).mutation(api.blogPosts.remove, {
+        postId,
+      })
+    ).rejects.toThrow("FORBIDDEN");
   });
 });

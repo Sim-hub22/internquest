@@ -204,16 +204,16 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
         ) : (
           <>
             {featuredPost ? (
-              <section className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-                <div className="overflow-hidden rounded-[2rem] border bg-card shadow-sm">
+              <section className="grid items-stretch gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+                <div className="overflow-hidden rounded-[2rem] border bg-card shadow-sm lg:h-full">
                   {featuredPost.coverImageUrl ? (
                     <img
                       src={featuredPost.coverImageUrl}
                       alt={featuredPost.title}
-                      className="aspect-[16/9] w-full object-cover"
+                      className="h-full min-h-[18rem] w-full object-cover lg:min-h-full"
                     />
                   ) : (
-                    <div className="aspect-[16/9] bg-[linear-gradient(135deg,_rgba(249,115,22,0.18),_rgba(250,204,21,0.12),_rgba(255,255,255,0.04))]" />
+                    <div className="h-full min-h-[18rem] bg-[linear-gradient(135deg,_rgba(249,115,22,0.18),_rgba(250,204,21,0.12),_rgba(255,255,255,0.04))]" />
                   )}
                 </div>
 
@@ -235,7 +235,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
                       <h2 className="text-3xl font-semibold tracking-tight">
                         {featuredPost.title}
                       </h2>
-                      <p className="text-base leading-7 text-muted-foreground">
+                      <p className="line-clamp-8 text-base leading-7 text-muted-foreground">
                         {featuredPost.excerpt}
                       </p>
                     </div>

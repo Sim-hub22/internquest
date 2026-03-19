@@ -36,6 +36,7 @@ type RichTextEditorProps = {
   onChangeAction: (value: string) => void;
   placeholder?: string;
   className?: string;
+  ariaInvalid?: boolean;
   mode?: "default" | "blog";
   onImageUploadAction?: () => Promise<string | null>;
 };
@@ -45,6 +46,7 @@ export function RichTextEditor({
   onChangeAction,
   placeholder,
   className,
+  ariaInvalid = false,
   mode = "default",
   onImageUploadAction,
 }: RichTextEditorProps) {
@@ -147,8 +149,9 @@ export function RichTextEditor({
 
   return (
     <div
+      aria-invalid={ariaInvalid || undefined}
       className={cn(
-        "overflow-hidden rounded-lg border border-input",
+        "overflow-hidden rounded-lg border border-input aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40",
         className
       )}
     >

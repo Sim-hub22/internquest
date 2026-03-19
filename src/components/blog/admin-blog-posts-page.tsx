@@ -2,15 +2,41 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useState, useTransition } from "react";
 
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { useQuery } from "convex/react";
-import { ArrowUpDownIcon, EyeIcon, PencilIcon } from "lucide-react";
+import { useMutation, useQuery } from "convex/react";
+import {
+  ArrowUpDownIcon,
+  EyeIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  Trash2Icon,
+  TriangleAlertIcon,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Empty,
   EmptyDescription,
@@ -31,6 +57,13 @@ import { toBlogCategoryLabel } from "@/lib/blog";
 
 type StatusFilter = "all" | "draft" | "published";
 
+type BlogDeleteTarget = {
+  ids: Id<"blogPosts">[];
+  label: string;
+  count: number;
+  hasPublished: boolean;
+};
+
 type BlogPostRow = {
   _id: Id<"blogPosts">;
   title: string;
@@ -48,19 +81,15 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 
 export function AdminBlogPostsPage() {
   const posts = useQuery(api.blogPosts.listForAdmin, {});
+  const removePost = useMutation(api.blogPosts.remove);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-
-  const filteredPosts = useMemo(() => {
-    if (!posts) {
-      return [];
-    }
-
-    if (statusFilter === "all") {
-      return posts;
-    }
-
-    return posts.filter((post) => post.status === statusFilter);
-  }, [posts, statusFilter]);
+  const [postPendingDelete, setPostPendingDelete] =
+    useState<BlogDeleteTarget | null>(null);
+  const [isDeleting, startDeleteTransition] = useTransition();
+  const filteredPosts =
+    posts?.filter(
+      (post) => statusFilter === "all" || post.status === statusFilter
+    ) ?? [];
 
   const columns = [
     columnHelper.accessor("title", {
@@ -76,9 +105,14 @@ export function AdminBlogPostsPage() {
         </Button>
       ),
       cell: ({ row }) => (
-        <div className="space-y-1">
-          <div className="font-medium">{row.original.title}</div>
-          <div className="text-xs text-muted-foreground">
+        <div className="flex max-w-[20rem] min-w-0 flex-col gap-1 lg:max-w-[24rem]">
+          <div className="truncate font-medium" title={row.original.title}>
+            {row.original.title}
+          </div>
+          <div
+            className="truncate text-xs text-muted-foreground"
+            title={`/${row.original.slug}`}
+          >
             /{row.original.slug}
           </div>
         </div>
@@ -125,20 +159,44 @@ export function AdminBlogPostsPage() {
       id: "actions",
       enableHiding: false,
       cell: ({ row }) => (
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/admin/blog/${row.original._id}/edit` as Route}>
-              <PencilIcon />
-              Edit
-            </Link>
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link href={`/admin/blog/${row.original._id}/preview` as Route}>
-              <EyeIcon />
-              Preview
-            </Link>
-          </Button>
-        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontalIcon />
+              <span className="sr-only">Open actions menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuGroup>
+              <DropdownMenuItem asChild>
+                <Link href={`/admin/blog/${row.original._id}/edit` as Route}>
+                  <PencilIcon />
+                  Edit
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href={`/admin/blog/${row.original._id}` as Route}>
+                  <EyeIcon />
+                  Preview
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() =>
+                  setPostPendingDelete({
+                    ids: [row.original._id],
+                    label: row.original.title,
+                    count: 1,
+                    hasPublished: row.original.status === "published",
+                  })
+                }
+                variant="destructive"
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ),
     }),
   ] as ColumnDef<BlogPostRow>[];
@@ -191,8 +249,100 @@ export function AdminBlogPostsPage() {
           isLoading={posts === undefined}
           searchPlaceholder="Search resource title..."
           emptyMessage="No resources match that filter."
+          renderToolbarExtras={({ selectedRows }) =>
+            selectedRows.length > 0 ? (
+              <Button
+                onClick={() =>
+                  setPostPendingDelete({
+                    ids: selectedRows.map((row) => row._id),
+                    label:
+                      selectedRows.length === 1
+                        ? selectedRows[0]!.title
+                        : `${selectedRows.length} resources`,
+                    count: selectedRows.length,
+                    hasPublished: selectedRows.some(
+                      (row) => row.status === "published"
+                    ),
+                  })
+                }
+                variant="destructive"
+              >
+                <Trash2Icon data-icon="inline-start" />
+                Delete Selected
+              </Button>
+            ) : null
+          }
         />
       )}
+      <AlertDialog
+        open={postPendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPostPendingDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <TriangleAlertIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {postPendingDelete?.count === 1
+                ? "Delete this resource?"
+                : "Delete selected resources?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {postPendingDelete
+                ? postPendingDelete.count === 1
+                  ? `This will permanently remove "${postPendingDelete.label}".`
+                  : `This will permanently remove ${postPendingDelete.count} selected resources.`
+                : "This action permanently removes the selected resources."}{" "}
+              {postPendingDelete?.hasPublished
+                ? "Published resources will disappear from the public resources hub immediately."
+                : "This action cannot be undone."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting || postPendingDelete === null}
+              onClick={() => {
+                if (!postPendingDelete) {
+                  return;
+                }
+
+                startDeleteTransition(async () => {
+                  try {
+                    await Promise.all(
+                      postPendingDelete.ids.map((postId) =>
+                        removePost({ postId })
+                      )
+                    );
+                    toast.success(
+                      postPendingDelete.count === 1
+                        ? "Resource deleted"
+                        : `${postPendingDelete.count} resources deleted`
+                    );
+                    setPostPendingDelete(null);
+                  } catch (error) {
+                    const message =
+                      error instanceof Error
+                        ? error.message
+                        : "Failed to delete resource";
+                    toast.error(message);
+                  }
+                });
+              }}
+              variant="destructive"
+            >
+              {postPendingDelete?.count === 1
+                ? "Delete resource"
+                : "Delete resources"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

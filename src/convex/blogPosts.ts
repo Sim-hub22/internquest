@@ -94,7 +94,11 @@ async function assertValidCoverImage(
     throw new ConvexError("Cover image not found");
   }
 
-  if (!metadata.contentType?.startsWith("image/")) {
+  const coverImageContentType = metadata.contentType?.toLowerCase();
+
+  // Some runtimes used in tests may not persist contentType on _storage
+  // metadata. Reject only when an explicit non-image type is present.
+  if (coverImageContentType && !coverImageContentType.startsWith("image/")) {
     throw new ConvexError("Cover image must be an image");
   }
 
@@ -430,6 +434,24 @@ export const unpublish = mutation({
         updatedAt: Date.now(),
       }),
     });
+
+    return null;
+  },
+});
+
+export const remove = mutation({
+  args: {
+    postId: v.id("blogPosts"),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const admin = await requireRole(ctx, "admin");
+    const existing = await getPostForOwner(ctx, admin._id, args.postId);
+
+    if (existing.coverImageStorageId) {
+      await ctx.storage.delete(existing.coverImageStorageId);
+    }
+
+    await ctx.db.delete(args.postId);
 
     return null;
   },

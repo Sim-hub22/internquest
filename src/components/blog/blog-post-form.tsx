@@ -13,7 +13,7 @@ import {
   SendIcon,
   SquarePenIcon,
 } from "lucide-react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { RichTextContent } from "@/components/rich-text-content";
@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Field,
-  FieldContent,
   FieldDescription,
   FieldError,
   FieldGroup,
@@ -33,6 +32,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
@@ -290,7 +290,7 @@ export function BlogPostForm(props: BlogPostFormProps) {
 
       if (intent === "preview") {
         toast.success("Draft saved for preview");
-        router.push(`/admin/blog/${postId}/preview` as Route);
+        router.push(`/admin/blog/${postId}` as Route);
         router.refresh();
         return;
       }
@@ -337,7 +337,7 @@ export function BlogPostForm(props: BlogPostFormProps) {
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 lg:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={status === "published" ? "default" : "secondary"}>
               {status === "published" ? "Published" : "Draft"}
@@ -446,56 +446,81 @@ export function BlogPostForm(props: BlogPostFormProps) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Post Details</CardTitle>
             </CardHeader>
             <CardContent>
               <FieldGroup>
-                <Field data-invalid={!!form.formState.errors.title}>
-                  <FieldLabel htmlFor="post-title">Title</FieldLabel>
-                  <Input
-                    id="post-title"
-                    placeholder="How to stand out in internship interviews"
-                    {...form.register("title")}
-                  />
-                  <FieldError errors={[form.formState.errors.title]} />
-                </Field>
+                <Controller
+                  name="title"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="post-title">Title</FieldLabel>
+                      <Input
+                        {...field}
+                        id="post-title"
+                        placeholder="How to stand out in internship interviews"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
 
-                <Field data-invalid={!!form.formState.errors.slug}>
-                  <FieldLabel htmlFor="post-slug">Slug</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id="post-slug"
-                      placeholder="how-to-stand-out-in-internship-interviews"
-                      {...form.register("slug", {
-                        onChange: () => setSlugManuallyEdited(true),
-                      })}
-                    />
-                    <FieldDescription>
-                      Auto-filled from the title until you edit it manually.
-                    </FieldDescription>
-                    <FieldError errors={[form.formState.errors.slug]} />
-                  </FieldContent>
-                </Field>
+                <Controller
+                  name="slug"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="post-slug">Slug</FieldLabel>
+                      <Input
+                        {...field}
+                        id="post-slug"
+                        placeholder="how-to-stand-out-in-internship-interviews"
+                        aria-invalid={fieldState.invalid}
+                        onChange={(event) => {
+                          setSlugManuallyEdited(true);
+                          field.onChange(event);
+                        }}
+                      />
+                      <FieldDescription>
+                        Auto-filled from the title until you edit it manually.
+                      </FieldDescription>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
 
-                <Field data-invalid={!!form.formState.errors.excerpt}>
-                  <FieldLabel htmlFor="post-excerpt">Excerpt</FieldLabel>
-                  <FieldContent>
-                    <Textarea
-                      id="post-excerpt"
-                      rows={4}
-                      placeholder="A concise teaser that appears on resource cards and notifications."
-                      {...form.register("excerpt")}
-                    />
-                    <FieldDescription>
-                      Keep it sharp and scannable. This doubles as the publish
-                      notification body.
-                    </FieldDescription>
-                    <FieldError errors={[form.formState.errors.excerpt]} />
-                  </FieldContent>
-                </Field>
+                <Controller
+                  name="excerpt"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="post-excerpt">Excerpt</FieldLabel>
+                      <Textarea
+                        {...field}
+                        id="post-excerpt"
+                        rows={4}
+                        placeholder="A concise teaser that appears on resource cards and notifications."
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <FieldDescription>
+                        Keep it sharp and scannable. This doubles as the publish
+                        notification body.
+                      </FieldDescription>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
               </FieldGroup>
             </CardContent>
           </Card>
@@ -504,17 +529,22 @@ export function BlogPostForm(props: BlogPostFormProps) {
             <CardHeader>
               <CardTitle>Article Body</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="flex flex-col gap-3">
               <Field data-invalid={!!form.formState.errors.content}>
                 <FieldLabel>Content</FieldLabel>
-                <RichTextEditor
-                  mode="blog"
-                  value={form.watch("content")}
-                  onChangeAction={(value) =>
-                    form.setValue("content", value, { shouldDirty: true })
-                  }
-                  placeholder="Write the article, drop in examples, and add code blocks where they help."
-                  onImageUploadAction={handleInlineImageUpload}
+                <Controller
+                  name="content"
+                  control={form.control}
+                  render={({ field }) => (
+                    <RichTextEditor
+                      mode="blog"
+                      value={field.value}
+                      ariaInvalid={!!form.formState.errors.content}
+                      onChangeAction={field.onChange}
+                      placeholder="Write the article, drop in examples, and add code blocks where they help."
+                      onImageUploadAction={handleInlineImageUpload}
+                    />
+                  )}
                 />
                 <FieldDescription>
                   Blog mode supports inline uploads, formatting, quotes, and
@@ -526,7 +556,7 @@ export function BlogPostForm(props: BlogPostFormProps) {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex flex-col gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Publishing Settings</CardTitle>
@@ -535,43 +565,57 @@ export function BlogPostForm(props: BlogPostFormProps) {
               <FieldGroup>
                 <Field>
                   <FieldLabel>Category</FieldLabel>
-                  <Select
-                    value={form.watch("category")}
-                    onValueChange={(value) =>
-                      form.setValue(
-                        "category",
-                        value as BlogPostFormValues["category"],
-                        { shouldDirty: true }
-                      )
-                    }
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BLOG_CATEGORIES.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {toBlogCategoryLabel(category)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="category"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={(value) =>
+                          field.onChange(
+                            value as BlogPostFormValues["category"]
+                          )
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            {BLOG_CATEGORIES.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {toBlogCategoryLabel(category)}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </Field>
 
-                <Field>
-                  <FieldLabel htmlFor="post-tags">Tags</FieldLabel>
-                  <FieldContent>
-                    <Input
-                      id="post-tags"
-                      placeholder="resume, networking, interviews"
-                      {...form.register("tagsText")}
-                    />
-                    <FieldDescription>
-                      Comma-separated tags for quick scanning and future
-                      discovery features.
-                    </FieldDescription>
-                  </FieldContent>
-                </Field>
+                <Controller
+                  name="tagsText"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="post-tags">Tags</FieldLabel>
+                      <Input
+                        {...field}
+                        id="post-tags"
+                        placeholder="resume, networking, interviews"
+                        aria-invalid={fieldState.invalid}
+                      />
+                      <FieldDescription>
+                        Comma-separated tags for quick scanning and future
+                        discovery features.
+                      </FieldDescription>
+                      {fieldState.invalid && (
+                        <FieldError errors={[fieldState.error]} />
+                      )}
+                    </Field>
+                  )}
+                />
               </FieldGroup>
             </CardContent>
           </Card>
@@ -580,7 +624,7 @@ export function BlogPostForm(props: BlogPostFormProps) {
             <CardHeader>
               <CardTitle>Cover Image</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="flex flex-col gap-4">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -588,13 +632,12 @@ export function BlogPostForm(props: BlogPostFormProps) {
                 className="hidden"
                 onChange={handleCoverImageSelection}
               />
-
               {coverImagePreviewUrl ? (
                 <div className="overflow-hidden rounded-3xl border bg-muted/30">
                   <img
                     src={coverImagePreviewUrl}
                     alt="Blog cover preview"
-                    className="aspect-[16/10] w-full object-cover"
+                    className="aspect-16/10 w-full object-cover"
                   />
                 </div>
               ) : (
@@ -635,8 +678,8 @@ export function BlogPostForm(props: BlogPostFormProps) {
             <CardHeader className="border-b bg-muted/30">
               <CardTitle>Live Excerpt Preview</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4 pt-6">
-              <div className="space-y-3">
+            <CardContent className="flex flex-col gap-4 pt-6">
+              <div className="flex flex-col gap-3">
                 <Badge variant="outline">
                   {toBlogCategoryLabel(form.watch("category"))}
                 </Badge>
