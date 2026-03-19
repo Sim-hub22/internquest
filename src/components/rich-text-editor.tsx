@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useReducer } from "react";
+import { useEffect, useReducer, useState } from "react";
 
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import Underline from "@tiptap/extension-underline";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import { common, createLowlight } from "lowlight";
 import {
   BoldIcon,
+  Code2Icon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
@@ -18,16 +22,22 @@ import {
   ListIcon,
   ListOrderedIcon,
   QuoteIcon,
+  StrikethroughIcon,
+  UnderlineIcon,
 } from "lucide-react";
 
 import { Toggle } from "@/components/ui/toggle";
 import { cn } from "@/lib/utils";
+
+const lowlight = createLowlight(common);
 
 type RichTextEditorProps = {
   value: string;
   onChangeAction: (value: string) => void;
   placeholder?: string;
   className?: string;
+  mode?: "default" | "blog";
+  onImageUploadAction?: () => Promise<string | null>;
 };
 
 export function RichTextEditor({
@@ -35,18 +45,32 @@ export function RichTextEditor({
   onChangeAction,
   placeholder,
   className,
+  mode = "default",
+  onImageUploadAction,
 }: RichTextEditorProps) {
   const [, forceToolbarUpdate] = useReducer((count: number) => count + 1, 0);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const isBlogEditor = mode === "blog";
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        codeBlock: false,
+      }),
       Image,
       Link.configure({
         openOnClick: true,
         autolink: true,
       }),
+      ...(isBlogEditor
+        ? [
+            Underline,
+            CodeBlockLowlight.configure({
+              lowlight,
+            }),
+          ]
+        : []),
       Placeholder.configure({
         placeholder:
           placeholder ??
@@ -57,7 +81,7 @@ export function RichTextEditor({
     editorProps: {
       attributes: {
         class:
-          "prose prose-sm min-h-56 max-w-none px-4 py-3 outline-none dark:prose-invert",
+          "prose prose-sm min-h-56 max-w-none px-4 py-3 outline-none prose-img:rounded-2xl prose-pre:rounded-2xl prose-pre:border prose-pre:border-slate-800 prose-pre:bg-slate-950 prose-pre:text-slate-50 dark:prose-invert",
       },
     },
     onTransaction: () => {
@@ -100,6 +124,20 @@ export function RichTextEditor({
   };
 
   const addImage = () => {
+    if (onImageUploadAction) {
+      setIsUploadingImage(true);
+      void onImageUploadAction()
+        .then((url) => {
+          if (!url) {
+            return;
+          }
+
+          editor.chain().focus().setImage({ src: url }).run();
+        })
+        .finally(() => setIsUploadingImage(false));
+      return;
+    }
+
     const url = window.prompt("Enter image URL", "https://");
     if (!url) {
       return;
@@ -135,6 +173,34 @@ export function RichTextEditor({
           <ItalicIcon />
           <span className="sr-only">Italic</span>
         </Toggle>
+        {isBlogEditor ? (
+          <>
+            <Toggle
+              type="button"
+              size="sm"
+              pressed={editor.isActive("underline")}
+              variant={editor.isActive("underline") ? "outline" : "default"}
+              onPressedChange={() =>
+                editor.chain().focus().toggleUnderline().run()
+              }
+            >
+              <UnderlineIcon />
+              <span className="sr-only">Underline</span>
+            </Toggle>
+            <Toggle
+              type="button"
+              size="sm"
+              pressed={editor.isActive("strike")}
+              variant={editor.isActive("strike") ? "outline" : "default"}
+              onPressedChange={() =>
+                editor.chain().focus().toggleStrike().run()
+              }
+            >
+              <StrikethroughIcon />
+              <span className="sr-only">Strikethrough</span>
+            </Toggle>
+          </>
+        ) : null}
         <Toggle
           type="button"
           size="sm"
@@ -213,6 +279,20 @@ export function RichTextEditor({
           <QuoteIcon />
           <span className="sr-only">Quote</span>
         </Toggle>
+        {isBlogEditor ? (
+          <Toggle
+            type="button"
+            size="sm"
+            pressed={editor.isActive("codeBlock")}
+            variant={editor.isActive("codeBlock") ? "outline" : "default"}
+            onPressedChange={() =>
+              editor.chain().focus().toggleCodeBlock().run()
+            }
+          >
+            <Code2Icon />
+            <span className="sr-only">Code block</span>
+          </Toggle>
+        ) : null}
         <Toggle
           type="button"
           size="sm"
@@ -227,10 +307,13 @@ export function RichTextEditor({
           type="button"
           size="sm"
           pressed={false}
+          disabled={isUploadingImage}
           onPressedChange={addImage}
         >
           <ImageIcon />
-          <span className="sr-only">Image</span>
+          <span className="sr-only">
+            {isUploadingImage ? "Uploading image" : "Image"}
+          </span>
         </Toggle>
       </div>
       <EditorContent editor={editor} />

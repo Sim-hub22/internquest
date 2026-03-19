@@ -9,6 +9,7 @@
  */
 
 import type * as applications from "../applications.js";
+import type * as blogPosts from "../blogPosts.js";
 import type * as candidateProfiles from "../candidateProfiles.js";
 import type * as emailActions from "../emailActions.js";
 import type * as emails_applicationStatus from "../emails/applicationStatus.js";
@@ -39,6 +40,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   applications: typeof applications;
+  blogPosts: typeof blogPosts;
   candidateProfiles: typeof candidateProfiles;
   emailActions: typeof emailActions;
   "emails/applicationStatus": typeof emails_applicationStatus;

@@ -27,3 +27,16 @@ export const createTestTextStorage = internalAction({
     return storageId;
   },
 });
+
+export const createTestImageStorage = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const storageId = await ctx.storage.store(
+      new Blob(["fake image"], {
+        type: "image/png",
+      })
+    );
+
+    return storageId;
+  },
+});

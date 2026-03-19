@@ -274,7 +274,13 @@ export default defineSchema({
   })
     .index("by_slug", ["slug"])
     .index("by_status", ["status"])
+    .index("by_status_and_publishedAt", ["status", "publishedAt"])
     .index("by_category_and_status", ["category", "status"])
+    .index("by_category_and_status_and_publishedAt", [
+      "category",
+      "status",
+      "publishedAt",
+    ])
     .index("by_author", ["authorId"])
     .searchIndex("search_posts", {
       searchField: "title",
