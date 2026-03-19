@@ -3,15 +3,17 @@
 import type { Route } from "next";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { useMutation, useQuery } from "convex/react";
+import { TriangleAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   formatMinutesLabel,
   formatTimeRemaining,
 } from "@/components/quizzes/utils";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,10 +43,14 @@ export default function CandidateQuizTakingPage() {
   const startAttempt = useMutation(api.quizAttempts.start);
   const saveAnswer = useMutation(api.quizAttempts.saveAnswer);
   const submitAttempt = useMutation(api.quizAttempts.submit);
+  const submitForPolicyViolation = useMutation(
+    api.quizAttempts.submitForPolicyViolation
+  );
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
   const [hasRequestedStart, setHasRequestedStart] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tick, setTick] = useState(Date.now());
+  const hasTriggeredPolicySubmissionRef = useRef(false);
 
   useEffect(() => {
     const intervalId = window.setInterval(() => setTick(Date.now()), 1000);
@@ -117,6 +123,70 @@ export default function CandidateQuizTakingPage() {
     submitAttempt,
     tick,
   ]);
+
+  const handlePolicyViolation = useEffectEvent(
+    (policyViolationType: "page_exit" | "tab_hidden") => {
+      if (
+        !session?.attempt ||
+        session.attempt.status !== "in_progress" ||
+        session.quiz.type !== "recruitment" ||
+        isSubmitting ||
+        hasTriggeredPolicySubmissionRef.current
+      ) {
+        return;
+      }
+
+      hasTriggeredPolicySubmissionRef.current = true;
+      setIsSubmitting(true);
+
+      submitForPolicyViolation({
+        attemptId: session.attempt._id,
+        policyViolationType,
+      })
+        .then(() => {
+          router.push(buildResultHref(quizId, applicationId) as Route);
+        })
+        .catch((error) => {
+          hasTriggeredPolicySubmissionRef.current = false;
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Failed to auto-submit quiz";
+          toast.error(message);
+        })
+        .finally(() => setIsSubmitting(false));
+    }
+  );
+
+  useEffect(() => {
+    const attempt = session?.attempt;
+
+    if (
+      !attempt ||
+      attempt.status !== "in_progress" ||
+      session.quiz.type !== "recruitment"
+    ) {
+      hasTriggeredPolicySubmissionRef.current = false;
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        handlePolicyViolation("tab_hidden");
+      }
+    };
+    const handlePageHide = () => {
+      handlePolicyViolation("page_exit");
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("pagehide", handlePageHide);
+    };
+  }, [session?.attempt, session?.quiz.type]);
 
   if (session === undefined) {
     return (
@@ -273,6 +343,15 @@ export default function CandidateQuizTakingPage() {
         </Card>
       ) : null}
 
+      <Alert className="border-destructive/30 bg-destructive/5 text-foreground">
+        <TriangleAlertIcon />
+        <AlertTitle>Stay on this quiz tab</AlertTitle>
+        <AlertDescription>
+          Leaving this tab or page will automatically submit your quiz and flag
+          the attempt for recruiter review.
+        </AlertDescription>
+      </Alert>
+
       <div className="flex flex-col gap-4">
         {session.quiz.questions.map((question, index) => (
           <Card key={question.id}>
@@ -333,8 +412,8 @@ export default function CandidateQuizTakingPage() {
       </div>
 
       <div className="flex flex-wrap justify-end gap-3">
-        <Button asChild variant="outline">
-          <Link href={"/candidate/quizzes" as Route}>Back to quizzes</Link>
+        <Button disabled variant="outline">
+          Back to quizzes
         </Button>
         <Button disabled={isSubmitting} onClick={handleSubmit}>
           Submit Quiz

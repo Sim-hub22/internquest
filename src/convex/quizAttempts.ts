@@ -11,12 +11,13 @@ import {
 import { requireRole, requireUser } from "@/convex/lib/auth";
 import { createNotification } from "@/convex/lib/notifications";
 import {
+  type PolicyViolationType,
   type QuizAnswer,
   calculateMaxScore,
   getAnswerMap,
   hasManualQuestions,
   normalizeOptionalText,
-  submissionModeValidator,
+  policyViolationTypeValidator,
   toQuestionMap,
 } from "@/convex/lib/quizzes";
 
@@ -227,7 +228,7 @@ async function notifyRecruiterAboutSubmission(
   ctx: MutationCtx,
   attempt: Doc<"quizAttempts">,
   quiz: Doc<"quizzes">,
-  submissionMode: "manual" | "timeout"
+  submissionMode: "manual" | "timeout" | "policy_violation"
 ) {
   if (!attempt.applicationId || quiz.type !== "recruitment") {
     return;
@@ -254,7 +255,11 @@ async function notifyRecruiterAboutSubmission(
 
   const resultsPath = buildRecruiterQuizResultsPath(quiz._id);
   const actionLabel =
-    submissionMode === "timeout" ? "timed out and submitted" : "submitted";
+    submissionMode === "timeout"
+      ? "timed out and submitted"
+      : submissionMode === "policy_violation"
+        ? "left the quiz and was auto-submitted"
+        : "submitted";
 
   await createNotification(ctx, {
     userId: recruiter._id,
@@ -270,7 +275,10 @@ async function finalizeAttemptSubmission(
   ctx: MutationCtx,
   attempt: Doc<"quizAttempts">,
   quiz: Doc<"quizzes">,
-  submissionMode: "manual" | "timeout"
+  options: {
+    submissionMode: "manual" | "timeout" | "policy_violation";
+    policyViolationType?: PolicyViolationType;
+  }
 ) {
   const answerMap = getAnswerMap(attempt.answers);
   const now = Date.now();
@@ -316,13 +324,24 @@ async function finalizeAttemptSubmission(
       ? {}
       : { manualScore: 0, score: autoScore, gradedAt: now }),
     submittedAt: now,
-    submissionMode,
+    submissionMode: options.submissionMode,
+    ...(options.submissionMode === "policy_violation"
+      ? {
+          policyViolationType: options.policyViolationType!,
+          policyViolationAt: now,
+        }
+      : {}),
     status,
   } as const;
 
   await ctx.db.patch(attempt._id, patch);
   await transitionApplicationToQuizCompleted(ctx, attempt, now);
-  await notifyRecruiterAboutSubmission(ctx, attempt, quiz, submissionMode);
+  await notifyRecruiterAboutSubmission(
+    ctx,
+    attempt,
+    quiz,
+    options.submissionMode
+  );
 
   if (!manualQuestions) {
     await notifyCandidateAboutGrading(ctx, attempt, quiz, autoScore);
@@ -355,7 +374,9 @@ export const submitTimedOutAttempt = internalMutation({
       return null;
     }
 
-    await finalizeAttemptSubmission(ctx, attempt, quiz, "timeout");
+    await finalizeAttemptSubmission(ctx, attempt, quiz, {
+      submissionMode: "timeout",
+    });
     return null;
   },
 });
@@ -490,7 +511,9 @@ export const saveAnswer = mutation({
     }
 
     if (attempt.deadlineAt && attempt.deadlineAt <= Date.now()) {
-      await finalizeAttemptSubmission(ctx, attempt, quiz, "timeout");
+      await finalizeAttemptSubmission(ctx, attempt, quiz, {
+        submissionMode: "timeout",
+      });
       throw new ConvexError("Quiz time has expired");
     }
 
@@ -540,7 +563,9 @@ export const saveAnswer = mutation({
 export const submit = mutation({
   args: {
     attemptId: v.id("quizAttempts"),
-    submissionMode: v.optional(submissionModeValidator),
+    submissionMode: v.optional(
+      v.union(v.literal("manual"), v.literal("timeout"))
+    ),
   },
   handler: async (ctx, args): Promise<null> => {
     const user = await requireUser(ctx);
@@ -559,7 +584,38 @@ export const submit = mutation({
         ? "timeout"
         : (args.submissionMode ?? "manual");
 
-    await finalizeAttemptSubmission(ctx, attempt, quiz, submissionMode);
+    await finalizeAttemptSubmission(ctx, attempt, quiz, { submissionMode });
+    return null;
+  },
+});
+
+export const submitForPolicyViolation = mutation({
+  args: {
+    attemptId: v.id("quizAttempts"),
+    policyViolationType: policyViolationTypeValidator,
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const candidate = await requireRole(ctx, "candidate");
+    const { attempt, quiz } = await getAttemptOrThrow(ctx, args.attemptId);
+
+    if (attempt.candidateId !== candidate._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    if (quiz.type !== "recruitment") {
+      throw new ConvexError(
+        "Policy violations can only be recorded for recruitment quizzes"
+      );
+    }
+
+    if (attempt.status !== "in_progress") {
+      return null;
+    }
+
+    await finalizeAttemptSubmission(ctx, attempt, quiz, {
+      submissionMode: "policy_violation",
+      policyViolationType: args.policyViolationType,
+    });
     return null;
   },
 });

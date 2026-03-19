@@ -135,9 +135,10 @@ function buildQuizDocument(args: {
   };
 }
 
-async function assertQuizCanBeUpdated(
+async function assertQuizUnused(
   ctx: MutationCtx,
-  quizId: Id<"quizzes">
+  quizId: Id<"quizzes">,
+  action: "edit" | "delete"
 ): Promise<null> {
   const [assignedApplication] = await ctx.db
     .query("applications")
@@ -150,11 +151,36 @@ async function assertQuizCanBeUpdated(
 
   if (assignedApplication || attempt) {
     throw new ConvexError(
-      "Quizzes cannot be edited after they have been assigned or attempted"
+      action === "edit"
+        ? "Quizzes cannot be edited after they have been assigned or attempted"
+        : "Quizzes cannot be deleted after they have been assigned or attempted"
     );
   }
 
   return null;
+}
+
+async function getQuizDeleteState(
+  ctx: QueryCtx | MutationCtx,
+  quizId: Id<"quizzes">
+) {
+  const [assignedApplication] = await ctx.db
+    .query("applications")
+    .withIndex("by_assigned_quiz", (q) => q.eq("assignedQuizId", quizId))
+    .take(1);
+  const [attempt] = await ctx.db
+    .query("quizAttempts")
+    .withIndex("by_quiz", (q) => q.eq("quizId", quizId))
+    .take(1);
+
+  const canDelete = !assignedApplication && !attempt;
+
+  return {
+    canDelete,
+    deleteDisabledReason: canDelete
+      ? null
+      : "This quiz has already been assigned or attempted, so it must stay in history.",
+  };
 }
 
 function assertQuizQuestionsSupported(
@@ -291,7 +317,7 @@ export const update = mutation({
       ? normalizeDraftQuizQuestions(args.questions)
       : normalizeQuizQuestions(args.questions);
 
-    await assertQuizCanBeUpdated(ctx, existing._id);
+    await assertQuizUnused(ctx, existing._id, "edit");
     if (!isDraft) {
       assertQuizQuestionsSupported(existing.type, questions);
     }
@@ -377,6 +403,38 @@ export const publish = mutation({
   },
 });
 
+export const remove = mutation({
+  args: {
+    quizId: v.id("quizzes"),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const quiz = await ctx.db.get(args.quizId);
+
+    if (!quiz) {
+      throw new ConvexError("Quiz not found");
+    }
+
+    if (quiz.type === "sample") {
+      const admin = await requireRole(ctx, "admin");
+
+      if (quiz.creatorId !== admin._id) {
+        throw new ConvexError("FORBIDDEN");
+      }
+    } else {
+      const recruiter = await requireRole(ctx, "recruiter");
+
+      if (quiz.creatorId !== recruiter._id) {
+        throw new ConvexError("FORBIDDEN");
+      }
+    }
+
+    await assertQuizUnused(ctx, quiz._id, "delete");
+    await ctx.db.delete(quiz._id);
+
+    return null;
+  },
+});
+
 export const listForRecruiter = query({
   args: {
     publishedOnly: v.optional(v.boolean()),
@@ -408,6 +466,7 @@ export const listForRecruiter = query({
         const internship = quiz.internshipId
           ? await ctx.db.get(quiz.internshipId)
           : null;
+        const deleteState = await getQuizDeleteState(ctx, quiz._id);
 
         return {
           ...quiz,
@@ -420,6 +479,7 @@ export const listForRecruiter = query({
             : null,
           questionCount: quiz.questions.length,
           maxScore: calculateMaxScore(quiz.questions),
+          ...deleteState,
         };
       })
     );
@@ -476,11 +536,18 @@ export const listForAdmin = query({
           .order("desc")
           .collect();
 
-    return quizzes.map((quiz) => ({
-      ...quiz,
-      questionCount: quiz.questions.length,
-      maxScore: calculateMaxScore(quiz.questions),
-    }));
+    return Promise.all(
+      quizzes.map(async (quiz) => {
+        const deleteState = await getQuizDeleteState(ctx, quiz._id);
+
+        return {
+          ...quiz,
+          questionCount: quiz.questions.length,
+          maxScore: calculateMaxScore(quiz.questions),
+          ...deleteState,
+        };
+      })
+    );
   },
 });
 
@@ -494,6 +561,35 @@ export const getForAdmin = query({
 
     return {
       ...quiz,
+      maxScore: calculateMaxScore(quiz.questions),
+    };
+  },
+});
+
+export const getOwnerPreview = query({
+  args: {
+    quizId: v.id("quizzes"),
+  },
+  handler: async (ctx, args) => {
+    const quiz = await ctx.db.get(args.quizId);
+
+    if (!quiz) {
+      return null;
+    }
+
+    const user = await requireAnyRole(ctx, ["admin", "recruiter"]);
+
+    if (quiz.type === "sample") {
+      if (user.role !== "admin" || quiz.creatorId !== user._id) {
+        throw new ConvexError("FORBIDDEN");
+      }
+    } else if (user.role !== "recruiter" || quiz.creatorId !== user._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    return {
+      quiz: sanitizeQuizForTaker(quiz),
+      questionCount: quiz.questions.length,
       maxScore: calculateMaxScore(quiz.questions),
     };
   },

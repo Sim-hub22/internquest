@@ -221,8 +221,16 @@ export default defineSchema({
     deadlineAt: v.optional(v.number()),
     timeLimit: v.optional(v.number()),
     submissionMode: v.optional(
-      v.union(v.literal("manual"), v.literal("timeout"))
+      v.union(
+        v.literal("manual"),
+        v.literal("timeout"),
+        v.literal("policy_violation")
+      )
     ),
+    policyViolationType: v.optional(
+      v.union(v.literal("tab_hidden"), v.literal("page_exit"))
+    ),
+    policyViolationAt: v.optional(v.number()),
     gradedAt: v.optional(v.number()),
     gradedBy: v.optional(v.id("users")),
     status: v.union(

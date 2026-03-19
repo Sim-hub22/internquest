@@ -48,14 +48,21 @@ export const attemptStatusValidator = v.union(
 
 export const submissionModeValidator = v.union(
   v.literal("manual"),
-  v.literal("timeout")
+  v.literal("timeout"),
+  v.literal("policy_violation")
+);
+
+export const policyViolationTypeValidator = v.union(
+  v.literal("tab_hidden"),
+  v.literal("page_exit")
 );
 
 export type QuizType = "recruitment" | "sample";
 export type QuizQuestionType = "multiple_choice" | "short_answer";
 export type AttemptType = "application" | "sample";
 export type AttemptStatus = "in_progress" | "submitted" | "graded";
-export type SubmissionMode = "manual" | "timeout";
+export type SubmissionMode = "manual" | "timeout" | "policy_violation";
+export type PolicyViolationType = "tab_hidden" | "page_exit";
 
 export type QuizOption = {
   id: string;
