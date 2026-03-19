@@ -16,7 +16,10 @@ export function RichTextContent({ html, className }: RichTextContentProps) {
 
   return (
     <div
-      className={cn("prose prose-sm max-w-none dark:prose-invert", className)}
+      className={cn(
+        "prose prose-sm max-w-none dark:prose-invert prose-code:font-medium prose-pre:overflow-x-auto prose-pre:rounded-2xl prose-pre:border prose-pre:border-slate-800 prose-pre:bg-slate-950 prose-pre:text-slate-50 prose-img:rounded-2xl",
+        className
+      )}
       dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
     />
   );
