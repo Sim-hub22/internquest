@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useQuery } from "convex/react";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 
+import { ReportContentButton } from "@/components/report-content-button";
 import { RichTextContent } from "@/components/rich-text-content";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,12 +55,15 @@ export function ResourcePostPage({ slug }: { slug: string }) {
     <main className="bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(248,250,252,1))] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,1),_rgba(3,7,18,1))]">
       <article className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 lg:px-6 lg:py-14">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button asChild variant="ghost">
-            <Link href={"/resources" as Route}>
-              <ArrowLeftIcon />
-              Back to resources
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button asChild variant="ghost">
+              <Link href={"/resources" as Route}>
+                <ArrowLeftIcon />
+                Back to resources
+              </Link>
+            </Button>
+            <ReportContentButton targetId={post._id} targetType="blog_post" />
+          </div>
           <Button asChild variant="outline">
             <Link href={"/resources/quizzes" as Route}>
               Try sample quizzes

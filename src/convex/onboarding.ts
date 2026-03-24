@@ -22,24 +22,34 @@ export const complete = mutation({
     await ctx.db.patch(user._id, {
       role: args.role,
       onboardingComplete: true,
+      updatedAt: Date.now(),
     });
 
-    await ctx.scheduler.runAfter(0, internal.onboarding.applyClerkMetadata, {
+    await ctx.scheduler.runAfter(0, internal.onboarding.syncClerkMetadata, {
       clerkUserId: identity.subject,
       role: args.role,
+      onboardingComplete: true,
     });
 
     return null;
   },
 });
 
-export const applyClerkMetadata = internalAction({
+export const syncClerkMetadata = internalAction({
   args: {
     clerkUserId: v.string(),
-    role: v.union(v.literal("candidate"), v.literal("recruiter")),
+    role: v.optional(
+      v.union(
+        v.literal("candidate"),
+        v.literal("recruiter"),
+        v.literal("admin")
+      )
+    ),
+    onboardingComplete: v.optional(v.boolean()),
+    isSuspended: v.optional(v.boolean()),
   },
   handler: async (_ctx, args) => {
-    const { clerkUserId, role } = args;
+    const { clerkUserId, role, onboardingComplete, isSuspended } = args;
 
     const clerkSecretKey = process.env.CLERK_SECRET_KEY;
     if (!clerkSecretKey) {
@@ -56,8 +66,9 @@ export const applyClerkMetadata = internalAction({
         },
         body: JSON.stringify({
           public_metadata: {
-            onboardingComplete: true,
-            role,
+            ...(onboardingComplete === undefined ? {} : { onboardingComplete }),
+            ...(role === undefined ? {} : { role }),
+            ...(isSuspended === undefined ? {} : { isSuspended }),
           },
         }),
       }

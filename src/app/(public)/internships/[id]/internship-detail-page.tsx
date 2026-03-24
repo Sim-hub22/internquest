@@ -13,6 +13,7 @@ import {
   InternshipMeta,
   toDisplayLabel,
 } from "@/components/internships/constants";
+import { ReportContentButton } from "@/components/report-content-button";
 import { RichTextContent } from "@/components/rich-text-content";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +50,10 @@ export function InternshipDetailPage({
   const currentUser = useQuery(api.users.current);
   const existingApplication = useQuery(
     api.applications.getForCandidateByInternship,
-    currentUser && currentUser.role === "candidate" && internship
+    currentUser &&
+      currentUser.role === "candidate" &&
+      currentUser.isSuspended !== true &&
+      internship
       ? { internshipId: internship._id }
       : "skip"
   );
@@ -240,6 +244,10 @@ export function InternshipDetailPage({
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
+        <ReportContentButton
+          targetId={internship._id}
+          targetType="internship"
+        />
         {currentUser === undefined ? (
           <Skeleton className="h-9 w-36" />
         ) : currentUser === null ? (
@@ -266,6 +274,11 @@ export function InternshipDetailPage({
               ) : !canApply ? (
                 <p className="text-sm text-muted-foreground">
                   Applications are currently closed for this internship.
+                </p>
+              ) : currentUser.isSuspended ? (
+                <p className="text-sm text-muted-foreground">
+                  Your account is suspended, so applications are currently
+                  disabled.
                 </p>
               ) : (
                 <>

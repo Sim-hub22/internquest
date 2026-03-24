@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as admin from "../admin.js";
 import type * as analytics from "../analytics.js";
 import type * as applications from "../applications.js";
 import type * as blogPosts from "../blogPosts.js";
@@ -23,12 +24,14 @@ import type * as emails_quizGraded from "../emails/quizGraded.js";
 import type * as http from "../http.js";
 import type * as internships from "../internships.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_moderation from "../lib/moderation.js";
 import type * as lib_notifications from "../lib/notifications.js";
 import type * as lib_quizzes from "../lib/quizzes.js";
 import type * as notifications from "../notifications.js";
 import type * as onboarding from "../onboarding.js";
 import type * as quizAttempts from "../quizAttempts.js";
 import type * as quizzes from "../quizzes.js";
+import type * as reports from "../reports.js";
 import type * as resend from "../resend.js";
 import type * as storage from "../storage.js";
 import type * as testHelpers from "../testHelpers.js";
@@ -41,6 +44,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  admin: typeof admin;
   analytics: typeof analytics;
   applications: typeof applications;
   blogPosts: typeof blogPosts;
@@ -56,12 +60,14 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   internships: typeof internships;
   "lib/auth": typeof lib_auth;
+  "lib/moderation": typeof lib_moderation;
   "lib/notifications": typeof lib_notifications;
   "lib/quizzes": typeof lib_quizzes;
   notifications: typeof notifications;
   onboarding: typeof onboarding;
   quizAttempts: typeof quizAttempts;
   quizzes: typeof quizzes;
+  reports: typeof reports;
   resend: typeof resend;
   storage: typeof storage;
   testHelpers: typeof testHelpers;

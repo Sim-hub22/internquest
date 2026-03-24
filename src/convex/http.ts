@@ -25,11 +25,16 @@ http.route({
           typeof metadata?.onboardingComplete === "boolean"
             ? metadata.onboardingComplete
             : undefined;
+        const isSuspended =
+          typeof metadata?.isSuspended === "boolean"
+            ? metadata.isSuspended
+            : undefined;
 
         await ctx.runMutation(internal.users.upsertFromClerk, {
           data: event.data,
           role,
           onboardingComplete,
+          isSuspended,
         });
         break;
       }

@@ -71,8 +71,9 @@ export const upsertFromClerk = internalMutation({
       )
     ),
     onboardingComplete: v.optional(v.boolean()),
+    isSuspended: v.optional(v.boolean()),
   },
-  handler: async (ctx, { data, role, onboardingComplete }) => {
+  handler: async (ctx, { data, role, onboardingComplete, isSuspended }) => {
     const now = Date.now();
     const primaryEmail =
       data.email_addresses?.find(
@@ -91,6 +92,7 @@ export const upsertFromClerk = internalMutation({
         imageUrl: data.image_url ?? undefined,
         role: role ?? undefined,
         onboardingComplete: onboardingComplete ?? false,
+        isSuspended: isSuspended ?? false,
         createdAt: now,
         updatedAt: now,
       });
@@ -105,6 +107,7 @@ export const upsertFromClerk = internalMutation({
       if (role !== undefined) patch.role = role;
       if (onboardingComplete !== undefined)
         patch.onboardingComplete = onboardingComplete;
+      if (isSuspended !== undefined) patch.isSuspended = isSuspended;
       await ctx.db.patch(existing._id, patch);
     }
   },

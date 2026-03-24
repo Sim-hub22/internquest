@@ -5,6 +5,10 @@ import { MutationCtx, QueryCtx } from "@/convex/_generated/server";
 
 type UserRole = "candidate" | "recruiter" | "admin";
 
+function isSuspendedUser(user: Doc<"users">) {
+  return user.role !== "admin" && user.isSuspended === true;
+}
+
 /**
  * Returns the current user's Convex document, or null if not authenticated
  * or no user record exists.
@@ -42,6 +46,9 @@ export async function requireUser(
   const user = await getCurrentUser(ctx);
   if (!user) {
     throw new ConvexError("User record not found");
+  }
+  if (isSuspendedUser(user)) {
+    throw new ConvexError("ACCOUNT_SUSPENDED");
   }
   return user;
 }
