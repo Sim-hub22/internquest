@@ -551,68 +551,6 @@ export const trackView = mutation({
   },
 });
 
-export const backfillInternshipViewViewerKeys = internalMutation({
-  args: {
-    batchSize: v.optional(v.number()),
-    dryRun: v.optional(v.boolean()),
-  },
-  handler: async (
-    ctx,
-    args
-  ): Promise<{
-    scannedCount: number;
-    updatedCount: number;
-    hasMore: boolean;
-    dryRun: boolean;
-  }> => {
-    const batchSize = Math.min(Math.max(args.batchSize ?? 100, 1), 500);
-    const dryRun = args.dryRun ?? false;
-    const pendingUpdates: Array<{
-      id: Doc<"internshipViews">["_id"];
-      viewerKey: string;
-    }> = [];
-    let scannedCount = 0;
-    let hasMore = false;
-
-    for await (const view of ctx.db.query("internshipViews")) {
-      scannedCount += 1;
-
-      if (view.viewerKey?.trim()) {
-        continue;
-      }
-
-      pendingUpdates.push({
-        id: view._id,
-        viewerKey: view.viewerId
-          ? `user:${view.viewerId}`
-          : `legacy:${view._id}`,
-      });
-
-      if (pendingUpdates.length > batchSize) {
-        hasMore = true;
-        break;
-      }
-    }
-
-    const updates = pendingUpdates.slice(0, batchSize);
-
-    if (!dryRun) {
-      for (const update of updates) {
-        await ctx.db.patch(update.id, {
-          viewerKey: update.viewerKey,
-        });
-      }
-    }
-
-    return {
-      scannedCount,
-      updatedCount: updates.length,
-      hasMore,
-      dryRun,
-    };
-  },
-});
-
 export const notifyMatchingCandidates = internalMutation({
   args: {
     internshipId: v.id("internships"),

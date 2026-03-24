@@ -326,8 +326,7 @@ export default defineSchema({
   internshipViews: defineTable({
     internshipId: v.id("internships"),
     viewerId: v.optional(v.id("users")),
-    // Temporarily optional to allow production backfill of legacy rows.
-    viewerKey: v.optional(v.string()),
+    viewerKey: v.string(),
     viewedAt: v.number(),
   })
     .index("by_internship", ["internshipId"])
