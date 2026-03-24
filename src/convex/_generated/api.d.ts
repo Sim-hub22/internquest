@@ -8,9 +8,11 @@
  * @module
  */
 
+import type * as analytics from "../analytics.js";
 import type * as applications from "../applications.js";
 import type * as blogPosts from "../blogPosts.js";
 import type * as candidateProfiles from "../candidateProfiles.js";
+import type * as devSeed from "../devSeed.js";
 import type * as emailActions from "../emailActions.js";
 import type * as emails_applicationStatus from "../emails/applicationStatus.js";
 import type * as emails_newApplication from "../emails/newApplication.js";
@@ -39,9 +41,11 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  analytics: typeof analytics;
   applications: typeof applications;
   blogPosts: typeof blogPosts;
   candidateProfiles: typeof candidateProfiles;
+  devSeed: typeof devSeed;
   emailActions: typeof emailActions;
   "emails/applicationStatus": typeof emails_applicationStatus;
   "emails/newApplication": typeof emails_newApplication;

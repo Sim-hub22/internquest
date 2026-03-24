@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import {
+  BarChart3Icon,
   BookOpenIcon,
   BriefcaseIcon,
   ClipboardListIcon,
@@ -30,6 +31,8 @@ function getSidebarIcon(icon: SidebarIcon) {
       return <BookOpenIcon />;
     case "briefcase":
       return <BriefcaseIcon />;
+    case "chart":
+      return <BarChart3Icon />;
     case "clipboard-list":
       return <ClipboardListIcon />;
     case "dashboard":

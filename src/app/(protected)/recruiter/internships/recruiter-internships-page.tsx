@@ -297,11 +297,16 @@ export function RecruiterInternshipsPage() {
             Manage drafts and open roles from one place.
           </p>
         </div>
-        <Button asChild>
-          <Link href={"/recruiter/internships/new" as Route}>
-            Create Internship
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={"/recruiter/analytics" as Route}>View Analytics</Link>
+          </Button>
+          <Button asChild>
+            <Link href={"/recruiter/internships/new" as Route}>
+              Create Internship
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

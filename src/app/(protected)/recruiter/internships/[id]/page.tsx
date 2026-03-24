@@ -1,3 +1,5 @@
+import { notFound } from "next/navigation";
+
 import { auth } from "@clerk/nextjs/server";
 import { preloadQuery } from "convex/nextjs";
 
@@ -15,11 +17,24 @@ export default async function Page({
   const { getToken } = await auth();
   const token = (await getToken({ template: "convex" })) ?? undefined;
 
-  const preloadedInternship = await preloadQuery(
-    api.internships.getForRecruiter,
-    { internshipId: id as Id<"internships"> },
-    { token }
-  );
+  let preloadedInternship;
+
+  try {
+    preloadedInternship = await preloadQuery(
+      api.internships.getForRecruiter,
+      { internshipId: id as Id<"internships"> },
+      { token }
+    );
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("ArgumentValidationError")
+    ) {
+      notFound();
+    }
+
+    throw error;
+  }
 
   return (
     <RecruiterInternshipDetailPage preloadedInternship={preloadedInternship} />

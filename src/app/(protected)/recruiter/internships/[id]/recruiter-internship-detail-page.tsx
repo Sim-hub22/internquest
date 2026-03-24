@@ -7,6 +7,7 @@ import type { Preloaded } from "convex/react";
 import { useMutation, usePreloadedQuery } from "convex/react";
 import { toast } from "sonner";
 
+import { InternshipAnalyticsSection } from "@/components/analytics/internship-analytics-section";
 import {
   InternshipMeta,
   InternshipStatusBadge,
@@ -111,6 +112,8 @@ export function RecruiterInternshipDetailPage({
       </div>
 
       <Separator />
+
+      <InternshipAnalyticsSection internshipId={internship._id} />
 
       <Card>
         <CardHeader>

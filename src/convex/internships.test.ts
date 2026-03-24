@@ -415,16 +415,17 @@ describe("convex/internships", () => {
     expect(results.page[0]?.title).toBe("Frontend Engineering Internship");
   });
 
-  it("tracks candidate views only, deduplicates them for one hour, and skips closed listings", async () => {
+  it("tracks anonymous and signed-in public views, excludes owners, and deduplicates within one hour", async () => {
     const t = convexTest(schema, modules);
     const candidateIdentity = { subject: "candidate_viewer" };
     const recruiterIdentity = { subject: "recruiter_viewer" };
+    const ownerIdentity = { subject: "recruiter_views" };
 
     const { openInternshipId, closedInternshipId } = await t.run(
       async (ctx) => {
         const recruiterId = await ctx.db.insert(
           "users",
-          createTestUser("recruiter_views", "recruiter")
+          createTestUser(ownerIdentity.subject, "recruiter")
         );
         await ctx.db.insert(
           "users",
@@ -458,6 +459,11 @@ describe("convex/internships", () => {
 
     await t.mutation(api.internships.trackView, {
       internshipId: openInternshipId,
+      viewerKey: "anon-browser-1",
+    });
+    await t.mutation(api.internships.trackView, {
+      internshipId: openInternshipId,
+      viewerKey: "anon-browser-1",
     });
 
     let snapshot = await t.run(async (ctx) => {
@@ -472,13 +478,14 @@ describe("convex/internships", () => {
       return { internship, viewsCount: views.length };
     });
 
-    expect(snapshot.internship?.viewCount).toBe(0);
-    expect(snapshot.viewsCount).toBe(0);
+    expect(snapshot.internship?.viewCount).toBe(1);
+    expect(snapshot.viewsCount).toBe(1);
 
     await t
       .withIdentity(recruiterIdentity)
       .mutation(api.internships.trackView, {
         internshipId: openInternshipId,
+        viewerKey: "ignored-for-signed-in-users",
       });
 
     snapshot = await t.run(async (ctx) => {
@@ -493,8 +500,27 @@ describe("convex/internships", () => {
       return { internship, viewsCount: views.length };
     });
 
-    expect(snapshot.internship?.viewCount).toBe(0);
-    expect(snapshot.viewsCount).toBe(0);
+    expect(snapshot.internship?.viewCount).toBe(2);
+    expect(snapshot.viewsCount).toBe(2);
+
+    await t.withIdentity(ownerIdentity).mutation(api.internships.trackView, {
+      internshipId: openInternshipId,
+    });
+
+    snapshot = await t.run(async (ctx) => {
+      const internship = await ctx.db.get(openInternshipId);
+      const views = await ctx.db
+        .query("internshipViews")
+        .withIndex("by_internship", (q) =>
+          q.eq("internshipId", openInternshipId)
+        )
+        .collect();
+
+      return { internship, viewsCount: views.length };
+    });
+
+    expect(snapshot.internship?.viewCount).toBe(2);
+    expect(snapshot.viewsCount).toBe(2);
 
     await t
       .withIdentity(candidateIdentity)
@@ -519,8 +545,8 @@ describe("convex/internships", () => {
       return { internship, viewsCount: views.length };
     });
 
-    expect(snapshot.internship?.viewCount).toBe(1);
-    expect(snapshot.viewsCount).toBe(1);
+    expect(snapshot.internship?.viewCount).toBe(3);
+    expect(snapshot.viewsCount).toBe(3);
 
     vi.setSystemTime(new Date("2026-03-13T01:01:00.000Z"));
 
@@ -542,11 +568,12 @@ describe("convex/internships", () => {
       return { internship, viewsCount: views.length };
     });
 
-    expect(snapshot.internship?.viewCount).toBe(2);
-    expect(snapshot.viewsCount).toBe(2);
+    expect(snapshot.internship?.viewCount).toBe(4);
+    expect(snapshot.viewsCount).toBe(4);
 
     await t.mutation(api.internships.trackView, {
       internshipId: closedInternshipId,
+      viewerKey: "anon-browser-1",
     });
 
     const closedSnapshot = await t.run(async (ctx) => {

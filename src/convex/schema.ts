@@ -147,6 +147,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_internship", ["internshipId"])
+    .index("by_internship_and_appliedAt", ["internshipId", "appliedAt"])
     .index("by_candidate", ["candidateId"])
     .index("by_assigned_quiz", ["assignedQuizId"])
     .index("by_candidate_and_internship", ["candidateId", "internshipId"])
@@ -317,12 +318,13 @@ export default defineSchema({
   internshipViews: defineTable({
     internshipId: v.id("internships"),
     viewerId: v.optional(v.id("users")),
+    viewerKey: v.string(),
     viewedAt: v.number(),
   })
     .index("by_internship", ["internshipId"])
-    .index("by_internship_and_viewer_and_viewedAt", [
+    .index("by_internship_and_viewerKey_and_viewedAt", [
       "internshipId",
-      "viewerId",
+      "viewerKey",
       "viewedAt",
     ])
     .index("by_internship_and_date", ["internshipId", "viewedAt"]),
