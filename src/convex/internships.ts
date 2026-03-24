@@ -486,6 +486,7 @@ export const searchPublic = query({
 export const trackView = mutation({
   args: {
     internshipId: v.id("internships"),
+    viewerKey: v.optional(v.string()),
   },
   handler: async (ctx, args): Promise<null> => {
     const internship = await ctx.db.get(args.internshipId);
@@ -494,7 +495,15 @@ export const trackView = mutation({
     }
 
     const currentUser = await getCurrentUser(ctx);
-    if (!currentUser || currentUser.role !== "candidate") {
+    if (currentUser && currentUser._id === internship.recruiterId) {
+      return null;
+    }
+
+    const viewerKey = currentUser
+      ? `user:${currentUser._id}`
+      : args.viewerKey?.trim();
+
+    if (!viewerKey) {
       return null;
     }
 
@@ -502,10 +511,10 @@ export const trackView = mutation({
     const oneHourAgo = now - 60 * 60 * 1000;
     const recentViews = await ctx.db
       .query("internshipViews")
-      .withIndex("by_internship_and_viewer_and_viewedAt", (q) =>
+      .withIndex("by_internship_and_viewerKey_and_viewedAt", (q) =>
         q
           .eq("internshipId", args.internshipId)
-          .eq("viewerId", currentUser._id)
+          .eq("viewerKey", viewerKey)
           .gte("viewedAt", oneHourAgo)
       )
       .take(1);
@@ -516,7 +525,8 @@ export const trackView = mutation({
 
     await ctx.db.insert("internshipViews", {
       internshipId: args.internshipId,
-      viewerId: currentUser._id,
+      viewerId: currentUser?._id,
+      viewerKey,
       viewedAt: now,
     });
 

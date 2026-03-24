@@ -4,6 +4,7 @@ export type SidebarIcon =
   | "bell"
   | "book-open"
   | "briefcase"
+  | "chart"
   | "clipboard-list"
   | "dashboard"
   | "settings"
@@ -43,6 +44,11 @@ const RECRUITER_NAV: SidebarNavItem[] = [
     title: "Internships",
     url: "/recruiter/internships",
     icon: "briefcase",
+  },
+  {
+    title: "Analytics",
+    url: "/recruiter/analytics",
+    icon: "chart",
   },
   { title: "Quizzes", url: "/recruiter/quizzes", icon: "book-open" },
 ];

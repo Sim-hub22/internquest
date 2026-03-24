@@ -1,0 +1,435 @@
+import { ConvexError, v } from "convex/values";
+
+import { Doc, Id } from "@/convex/_generated/dataModel";
+import { QueryCtx, query } from "@/convex/_generated/server";
+import { requireRole } from "@/convex/lib/auth";
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const TREND_DAY_COUNT = 30;
+
+const APPLICATION_STATUSES = [
+  "applied",
+  "under_review",
+  "shortlisted",
+  "quiz_assigned",
+  "quiz_completed",
+  "accepted",
+  "rejected",
+] as const;
+
+const FUNNEL_SHORTLISTED_STATUSES = new Set([
+  "shortlisted",
+  "quiz_assigned",
+  "quiz_completed",
+  "accepted",
+]);
+
+const INTERNSHIP_CATEGORIES = [
+  "technology",
+  "business",
+  "design",
+  "marketing",
+  "finance",
+  "healthcare",
+  "other",
+] as const;
+
+type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
+type InternshipCategory = (typeof INTERNSHIP_CATEGORIES)[number];
+
+function toDisplayLabel(value: string) {
+  return value
+    .split("_")
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+function getUtcDayStart(timestamp: number) {
+  const date = new Date(timestamp);
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+}
+
+function getTrendRangeStart() {
+  return getUtcDayStart(Date.now()) - (TREND_DAY_COUNT - 1) * DAY_MS;
+}
+
+function formatDayKey(timestamp: number) {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function formatDayLabel(timestamp: number) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(timestamp));
+}
+
+function createDailySeries() {
+  const start = getTrendRangeStart();
+
+  return Array.from({ length: TREND_DAY_COUNT }, (_, index) => {
+    const timestamp = start + index * DAY_MS;
+
+    return {
+      date: formatDayKey(timestamp),
+      label: formatDayLabel(timestamp),
+      views: 0,
+      applications: 0,
+    };
+  });
+}
+
+function calculateRate(numerator: number, denominator: number) {
+  if (denominator === 0) {
+    return 0;
+  }
+
+  return Number(((numerator / denominator) * 100).toFixed(1));
+}
+
+async function getInternshipForRecruiter(
+  ctx: QueryCtx,
+  recruiterId: Id<"users">,
+  internshipId: Id<"internships">
+) {
+  const internship = await ctx.db.get(internshipId);
+
+  if (!internship) {
+    throw new ConvexError("Internship not found");
+  }
+
+  if (internship.recruiterId !== recruiterId) {
+    throw new ConvexError("FORBIDDEN");
+  }
+
+  return internship;
+}
+
+async function listRecruiterInternships(
+  ctx: QueryCtx,
+  recruiterId: Id<"users">
+) {
+  return await ctx.db
+    .query("internships")
+    .withIndex("by_recruiter", (q) => q.eq("recruiterId", recruiterId))
+    .collect();
+}
+
+async function listInternshipApplications(
+  ctx: QueryCtx,
+  internshipId: Id<"internships">
+) {
+  return await ctx.db
+    .query("applications")
+    .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+    .collect();
+}
+
+async function listRecentInternshipApplications(
+  ctx: QueryCtx,
+  internshipId: Id<"internships">,
+  startTimestamp: number
+) {
+  return await ctx.db
+    .query("applications")
+    .withIndex("by_internship_and_appliedAt", (q) =>
+      q.eq("internshipId", internshipId).gte("appliedAt", startTimestamp)
+    )
+    .collect();
+}
+
+async function listRecentInternshipViews(
+  ctx: QueryCtx,
+  internshipId: Id<"internships">,
+  startTimestamp: number
+) {
+  return await ctx.db
+    .query("internshipViews")
+    .withIndex("by_internship_and_date", (q) =>
+      q.eq("internshipId", internshipId).gte("viewedAt", startTimestamp)
+    )
+    .collect();
+}
+
+function buildStatusBreakdown(applications: Doc<"applications">[]) {
+  const counts = new Map<ApplicationStatus, number>(
+    APPLICATION_STATUSES.map((status) => [status, 0])
+  );
+
+  for (const application of applications) {
+    counts.set(
+      application.status,
+      (counts.get(application.status as ApplicationStatus) ?? 0) + 1
+    );
+  }
+
+  return APPLICATION_STATUSES.map((status) => ({
+    status,
+    label: toDisplayLabel(status),
+    count: counts.get(status) ?? 0,
+  }));
+}
+
+function buildViewsSeries(views: Doc<"internshipViews">[]) {
+  const series = createDailySeries();
+  const seriesIndex = new Map(series.map((item) => [item.date, item]));
+
+  for (const view of views) {
+    const dayKey = formatDayKey(getUtcDayStart(view.viewedAt));
+    const entry = seriesIndex.get(dayKey);
+
+    if (entry) {
+      entry.views += 1;
+    }
+  }
+
+  return series.map(({ date, label, views: count }) => ({
+    date,
+    label,
+    views: count,
+  }));
+}
+
+function buildApplicationsSeries(applications: Doc<"applications">[]) {
+  const series = createDailySeries();
+  const seriesIndex = new Map(series.map((item) => [item.date, item]));
+
+  for (const application of applications) {
+    const dayKey = formatDayKey(getUtcDayStart(application.appliedAt));
+    const entry = seriesIndex.get(dayKey);
+
+    if (entry) {
+      entry.applications += 1;
+    }
+  }
+
+  return series.map(({ date, label, applications: count }) => ({
+    date,
+    label,
+    applications: count,
+  }));
+}
+
+function hasReachedShortlisted(application: Doc<"applications">) {
+  return application.statusHistory.some((entry) =>
+    FUNNEL_SHORTLISTED_STATUSES.has(entry.status)
+  );
+}
+
+function hasReachedAccepted(application: Doc<"applications">) {
+  return application.statusHistory.some((entry) => entry.status === "accepted");
+}
+
+export const getInternshipAnalytics = query({
+  args: {
+    internshipId: v.id("internships"),
+  },
+  handler: async (ctx, args) => {
+    const recruiter = await requireRole(ctx, "recruiter");
+    const internship = await getInternshipForRecruiter(
+      ctx,
+      recruiter._id,
+      args.internshipId
+    );
+    const startTimestamp = getTrendRangeStart();
+    const [applications, recentApplications, recentViews] = await Promise.all([
+      listInternshipApplications(ctx, internship._id),
+      listRecentInternshipApplications(ctx, internship._id, startTimestamp),
+      listRecentInternshipViews(ctx, internship._id, startTimestamp),
+    ]);
+
+    const totalViews = internship.viewCount;
+    const totalApplications = applications.length;
+
+    return {
+      internship: {
+        _id: internship._id,
+        title: internship.title,
+      },
+      summary: {
+        totalViews,
+        totalApplications,
+        applicationRate: calculateRate(totalApplications, totalViews),
+      },
+      statusBreakdown: buildStatusBreakdown(applications),
+      viewsSeries: buildViewsSeries(recentViews),
+      applicationsSeries: buildApplicationsSeries(recentApplications),
+    };
+  },
+});
+
+export const getRecruiterAnalyticsDashboard = query({
+  args: {},
+  handler: async (ctx) => {
+    const recruiter = await requireRole(ctx, "recruiter");
+    const internships = await listRecruiterInternships(ctx, recruiter._id);
+
+    if (internships.length === 0) {
+      return {
+        summary: {
+          totalViews: 0,
+          totalApplications: 0,
+          acceptanceRate: 0,
+        },
+        topPerformingInternships: [],
+        applicationTrend: createDailySeries().map(
+          ({ date, label, applications }) => ({
+            date,
+            label,
+            applications,
+          })
+        ),
+        categoryPerformance: INTERNSHIP_CATEGORIES.map((category) => ({
+          category,
+          label: toDisplayLabel(category),
+          views: 0,
+          applications: 0,
+          acceptedApplications: 0,
+          acceptanceRate: 0,
+        })),
+        conversionFunnel: [
+          { stage: "Views", count: 0 },
+          { stage: "Applications", count: 0 },
+          { stage: "Shortlisted", count: 0 },
+          { stage: "Accepted", count: 0 },
+        ],
+      };
+    }
+
+    const startTimestamp = getTrendRangeStart();
+    const internshipStats = await Promise.all(
+      internships.map(async (internship) => {
+        const [applications, recentApplications] = await Promise.all([
+          listInternshipApplications(ctx, internship._id),
+          listRecentInternshipApplications(ctx, internship._id, startTimestamp),
+        ]);
+
+        const acceptedApplications = applications.filter(hasReachedAccepted);
+
+        return {
+          internship,
+          applications,
+          recentApplications,
+          acceptedApplications,
+        };
+      })
+    );
+
+    const totalViews = internships.reduce(
+      (sum, internship) => sum + internship.viewCount,
+      0
+    );
+    const allApplications = internshipStats.flatMap(
+      (item) => item.applications
+    );
+    const totalApplications = allApplications.length;
+    const acceptedApplications = allApplications.filter(hasReachedAccepted);
+    const shortlistedApplications = allApplications.filter(
+      hasReachedShortlisted
+    );
+
+    const trendSeries = createDailySeries();
+    const trendIndex = new Map(trendSeries.map((item) => [item.date, item]));
+
+    for (const stat of internshipStats) {
+      for (const application of stat.recentApplications) {
+        const dayKey = formatDayKey(getUtcDayStart(application.appliedAt));
+        const entry = trendIndex.get(dayKey);
+
+        if (entry) {
+          entry.applications += 1;
+        }
+      }
+    }
+
+    const categoryMap = new Map<
+      InternshipCategory,
+      {
+        category: InternshipCategory;
+        label: string;
+        views: number;
+        applications: number;
+        acceptedApplications: number;
+      }
+    >(
+      INTERNSHIP_CATEGORIES.map((category) => [
+        category,
+        {
+          category,
+          label: toDisplayLabel(category),
+          views: 0,
+          applications: 0,
+          acceptedApplications: 0,
+        },
+      ])
+    );
+
+    for (const stat of internshipStats) {
+      const categoryEntry = categoryMap.get(stat.internship.category);
+
+      if (!categoryEntry) {
+        continue;
+      }
+
+      categoryEntry.views += stat.internship.viewCount;
+      categoryEntry.applications += stat.applications.length;
+      categoryEntry.acceptedApplications += stat.acceptedApplications.length;
+    }
+
+    const topPerformingInternships = internshipStats
+      .map((stat) => ({
+        internshipId: stat.internship._id,
+        title: stat.internship.title,
+        company: stat.internship.company,
+        views: stat.internship.viewCount,
+        applications: stat.applications.length,
+        applicationRate: calculateRate(
+          stat.applications.length,
+          stat.internship.viewCount
+        ),
+      }))
+      .sort((left, right) => {
+        if (right.applications !== left.applications) {
+          return right.applications - left.applications;
+        }
+
+        if (right.applicationRate !== left.applicationRate) {
+          return right.applicationRate - left.applicationRate;
+        }
+
+        return left.title.localeCompare(right.title);
+      })
+      .slice(0, 5);
+
+    return {
+      summary: {
+        totalViews,
+        totalApplications,
+        acceptanceRate: calculateRate(
+          acceptedApplications.length,
+          totalApplications
+        ),
+      },
+      topPerformingInternships,
+      applicationTrend: trendSeries.map(({ date, label, applications }) => ({
+        date,
+        label,
+        applications,
+      })),
+      categoryPerformance: Array.from(categoryMap.values()).map((entry) => ({
+        ...entry,
+        acceptanceRate: calculateRate(
+          entry.acceptedApplications,
+          entry.applications
+        ),
+      })),
+      conversionFunnel: [
+        { stage: "Views", count: totalViews },
+        { stage: "Applications", count: totalApplications },
+        { stage: "Shortlisted", count: shortlistedApplications.length },
+        { stage: "Accepted", count: acceptedApplications.length },
+      ],
+    };
+  },
+});

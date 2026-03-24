@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Preloaded } from "convex/react";
 import { useMutation, usePreloadedQuery, useQuery } from "convex/react";
@@ -27,6 +27,8 @@ type InternshipDetailPageProps = {
   preloadedInternship: Preloaded<typeof api.internships.getPublic>;
 };
 
+const ANONYMOUS_VIEWER_STORAGE_KEY = "internquest-anonymous-viewer-key";
+
 const DEADLINE_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "short",
   timeStyle: "medium",
@@ -36,6 +38,9 @@ const DEADLINE_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 export function InternshipDetailPage({
   preloadedInternship,
 }: InternshipDetailPageProps) {
+  const [anonymousViewerKey, setAnonymousViewerKey] = useState<string | null>(
+    null
+  );
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [isApplying, setIsApplying] = useState(false);
@@ -54,35 +59,63 @@ export function InternshipDetailPage({
   const formattedDeadline = DEADLINE_DATE_TIME_FORMATTER.format(
     internship ? new Date(internship.applicationDeadline) : new Date(0)
   );
-  const canApply = useMemo(() => {
-    if (!internship) {
-      return false;
-    }
-
-    return (
-      internship.status === "open" &&
-      internship.applicationDeadline > Date.now()
-    );
-  }, [internship]);
+  const canApply =
+    internship !== null &&
+    internship !== undefined &&
+    internship.status === "open" &&
+    internship.applicationDeadline > Date.now();
 
   useEffect(() => {
-    if (!internship || currentUser === undefined || !currentUser) {
+    if (typeof window === "undefined") {
       return;
     }
 
-    const trackedViewKey = `${internship._id}:${currentUser._id}`;
+    const existingViewerKey = window.localStorage.getItem(
+      ANONYMOUS_VIEWER_STORAGE_KEY
+    );
+
+    if (existingViewerKey) {
+      setAnonymousViewerKey(existingViewerKey);
+      return;
+    }
+
+    const nextViewerKey =
+      window.crypto?.randomUUID?.() ??
+      `anon-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    window.localStorage.setItem(ANONYMOUS_VIEWER_STORAGE_KEY, nextViewerKey);
+    setAnonymousViewerKey(nextViewerKey);
+  }, []);
+
+  useEffect(() => {
+    if (!internship || currentUser === undefined) {
+      return;
+    }
+
+    const viewerIdentityKey = currentUser
+      ? `user:${currentUser._id}`
+      : anonymousViewerKey;
+
+    if (!viewerIdentityKey) {
+      return;
+    }
+
+    const trackedViewKey = `${internship._id}:${viewerIdentityKey}`;
     if (trackedViewKeyRef.current === trackedViewKey) {
       return;
     }
 
     trackedViewKeyRef.current = trackedViewKey;
 
-    void trackView({ internshipId: internship._id }).catch(() => {
+    void trackView({
+      internshipId: internship._id,
+      ...(currentUser ? {} : { viewerKey: anonymousViewerKey ?? undefined }),
+    }).catch(() => {
       if (trackedViewKeyRef.current === trackedViewKey) {
         trackedViewKeyRef.current = null;
       }
     });
-  }, [currentUser, internship, trackView]);
+  }, [anonymousViewerKey, currentUser, internship, trackView]);
 
   if (!internship) {
     return (
