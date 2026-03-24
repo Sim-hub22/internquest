@@ -19,6 +19,10 @@ export default defineSchema({
     ),
     onboardingComplete: v.boolean(),
     bio: v.optional(v.string()),
+    isSuspended: v.optional(v.boolean()),
+    suspensionReason: v.optional(v.string()),
+    suspendedAt: v.optional(v.number()),
+    suspendedBy: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -99,6 +103,10 @@ export default defineSchema({
     applicationDeadline: v.number(),
     maxApplications: v.optional(v.number()),
     viewCount: v.number(),
+    isClosedByAdmin: v.optional(v.boolean()),
+    adminModerationReason: v.optional(v.string()),
+    adminModeratedAt: v.optional(v.number()),
+    adminModeratedBy: v.optional(v.id("users")),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
@@ -349,8 +357,24 @@ export default defineSchema({
     ),
     reviewedBy: v.optional(v.id("users")),
     reviewedAt: v.optional(v.number()),
+    reviewNotes: v.optional(v.string()),
+    actionType: v.optional(
+      v.union(
+        v.literal("close_internship"),
+        v.literal("unpublish_blog_post"),
+        v.literal("suspend_user")
+      )
+    ),
+    actionSummary: v.optional(v.string()),
     createdAt: v.number(),
   })
     .index("by_status", ["status"])
-    .index("by_target_type_and_status", ["targetType", "status"]),
+    .index("by_targetType", ["targetType"])
+    .index("by_target_type_and_status", ["targetType", "status"])
+    .index("by_reporter_and_target_and_status", [
+      "reporterId",
+      "targetType",
+      "targetId",
+      "status",
+    ]),
 });

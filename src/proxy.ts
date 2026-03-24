@@ -9,6 +9,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/onboarding",
+  "/suspended",
 ]);
 
 const isCandidateRoute = createRouteMatcher(["/candidate(.*)"]);
@@ -17,6 +18,8 @@ const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId, sessionClaims, redirectToSignIn } = await auth();
+  const metadata = sessionClaims?.metadata;
+  const isSuspended = metadata?.isSuspended === true;
 
   // If the user isn't signed in and the route is private, redirect to sign-in
   if (!userId && !isPublicRoute(req)) {
@@ -27,16 +30,26 @@ export default clerkMiddleware(async (auth, req) => {
   // Redirect them to the /onboarding route to complete onboarding
   if (
     userId &&
-    !sessionClaims?.metadata?.onboardingComplete &&
+    !metadata?.onboardingComplete &&
     req.nextUrl.pathname !== "/onboarding"
   ) {
     const onboardingUrl = new URL("/onboarding", req.url);
     return NextResponse.redirect(onboardingUrl);
   }
 
+  if (
+    userId &&
+    isSuspended &&
+    metadata?.role !== "admin" &&
+    !isPublicRoute(req)
+  ) {
+    const suspendedUrl = new URL("/suspended", req.url);
+    return NextResponse.redirect(suspendedUrl);
+  }
+
   // Role-based route protection
-  if (userId && sessionClaims?.metadata?.onboardingComplete) {
-    const role = sessionClaims?.metadata?.role as string | undefined;
+  if (userId && metadata?.onboardingComplete) {
+    const role = metadata?.role as string | undefined;
 
     if (isCandidateRoute(req) && role !== "candidate") {
       const homeUrl = new URL(`/${role ?? ""}/dashboard`, req.url);

@@ -14,6 +14,11 @@ export default async function DashboardRedirectPage() {
   "use no memo";
   const { sessionClaims } = await auth();
   const role = sessionClaims?.metadata?.role as string | undefined;
+  const isSuspended = sessionClaims?.metadata?.isSuspended === true;
+
+  if (isSuspended && role !== "admin") {
+    redirect("/suspended" as Route);
+  }
 
   if (role === "candidate") {
     redirect("/candidate/dashboard" as Route);

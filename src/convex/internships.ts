@@ -56,6 +56,14 @@ function buildInternshipUrl(internshipId: string) {
   return APP_URL ? `${APP_URL}${path}` : path;
 }
 
+function assertRecruiterCanManageInternship(internship: Doc<"internships">) {
+  if (internship.isClosedByAdmin === true) {
+    throw new ConvexError(
+      "This listing was closed by an admin and can no longer be edited"
+    );
+  }
+}
+
 function includesMatchingCategory(
   preferredCategories: string[] | undefined,
   internshipCategory: Doc<"internships">["category"]
@@ -154,6 +162,8 @@ export const update = mutation({
       throw new ConvexError("FORBIDDEN");
     }
 
+    assertRecruiterCanManageInternship(internship);
+
     ensureFutureDeadline(args.applicationDeadline);
 
     const shouldNotifyMatches =
@@ -201,6 +211,8 @@ export const updateStatus = mutation({
     if (internship.recruiterId !== recruiter._id) {
       throw new ConvexError("FORBIDDEN");
     }
+
+    assertRecruiterCanManageInternship(internship);
 
     const shouldNotifyMatches =
       internship.status !== "open" && args.status === "open";

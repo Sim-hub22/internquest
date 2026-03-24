@@ -63,12 +63,7 @@ export function AnalyticsMetricCard({
   className?: string;
 }) {
   return (
-    <Card
-      className={cn(
-        "overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/30",
-        className
-      )}
-    >
+    <Card className={cn("overflow-hidden border-border/70", className)}>
       <CardHeader className="space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -79,7 +74,7 @@ export function AnalyticsMetricCard({
               {value}
             </CardTitle>
           </div>
-          <div className="rounded-full border border-border/70 bg-background/80 p-2 text-muted-foreground shadow-sm">
+          <div className="rounded-full border border-border/70 bg-muted/30 p-2 text-muted-foreground shadow-sm">
             <Icon className="size-4" />
           </div>
         </div>
@@ -109,12 +104,7 @@ export function AnalyticsChartCard({
   className?: string;
 }) {
   return (
-    <Card
-      className={cn(
-        "overflow-hidden border-border/70 bg-gradient-to-br from-background via-background to-muted/25",
-        className
-      )}
-    >
+    <Card className={cn("overflow-hidden border-border/70", className)}>
       <CardHeader className="space-y-2">
         <CardTitle className="text-xl tracking-tight">{title}</CardTitle>
         <p className="text-sm leading-relaxed text-muted-foreground">

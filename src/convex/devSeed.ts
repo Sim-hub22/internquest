@@ -6,6 +6,7 @@ import { userByClerkId } from "@/convex/users";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SEED_PREFIX = "[Seed Analytics]";
+const REPORTS_SEED_PREFIX = "[Seed Reports]";
 
 const VIEWER_KIND_SEQUENCE = [
   "candidate",
@@ -21,6 +22,28 @@ type SeedCandidate = {
   username: string;
   name: string;
   email: string;
+};
+
+type SeedPreviewUser = SeedCandidate & {
+  role: "candidate" | "recruiter";
+};
+
+type SeedReportPreviewEntry = {
+  reporterKey: keyof typeof REPORTS_SEED_USERS;
+  targetType: "internship" | "blog_post" | "user";
+  targetKey: string;
+  reason:
+    | "spam"
+    | "misleading_information"
+    | "inappropriate_content"
+    | "fraud_or_scam"
+    | "harassment"
+    | "other";
+  status: "pending" | "reviewed" | "resolved" | "dismissed";
+  details: string;
+  reviewNotes?: string;
+  actionType?: "close_internship" | "unpublish_blog_post";
+  createdDaysAgo: number;
 };
 
 type SeedInternshipInput = {
@@ -236,6 +259,187 @@ const SEED_INTERNSHIPS: SeedInternshipInput[] = [
   },
 ];
 
+const REPORTS_SEED_USERS: Record<string, SeedPreviewUser> = {
+  recruiter: {
+    clerkId: "seed_reports_preview_recruiter",
+    username: "preview.recruiter",
+    name: "Preview Recruiter",
+    email: "preview.recruiter@example.com",
+    role: "recruiter",
+  },
+  reporterOne: {
+    clerkId: "seed_reports_preview_reporter_one",
+    username: "maya.preview",
+    name: "Maya Karki",
+    email: "maya.preview@example.com",
+    role: "candidate",
+  },
+  reporterTwo: {
+    clerkId: "seed_reports_preview_reporter_two",
+    username: "sajan.preview",
+    name: "Sajan Khadka",
+    email: "sajan.preview@example.com",
+    role: "candidate",
+  },
+  reporterThree: {
+    clerkId: "seed_reports_preview_reporter_three",
+    username: "rhea.preview",
+    name: "Rhea Rai",
+    email: "rhea.preview@example.com",
+    role: "candidate",
+  },
+  reporterFour: {
+    clerkId: "seed_reports_preview_reporter_four",
+    username: "nima.preview",
+    name: "Nima Sherpa",
+    email: "nima.preview@example.com",
+    role: "candidate",
+  },
+  reporterFive: {
+    clerkId: "seed_reports_preview_reporter_five",
+    username: "kabin.preview",
+    name: "Kabin Shahi",
+    email: "kabin.preview@example.com",
+    role: "candidate",
+  },
+  targetUser: {
+    clerkId: "seed_reports_preview_target_user",
+    username: "flagged.preview",
+    name: "Flagged Preview User",
+    email: "flagged.preview@example.com",
+    role: "candidate",
+  },
+};
+
+const REPORTS_PREVIEW_INTERNSHIPS = [
+  {
+    key: "payments",
+    title: `${REPORTS_SEED_PREFIX} Payments Operations Intern`,
+    company: "LedgerLoop",
+    category: "finance" as const,
+    location: "Kathmandu",
+    locationType: "hybrid" as const,
+    duration: "4 months",
+    stipend: 24000,
+    createdDaysAgo: 4,
+  },
+  {
+    key: "content",
+    title: `${REPORTS_SEED_PREFIX} Content Strategy Intern`,
+    company: "Narrative House",
+    category: "marketing" as const,
+    location: "Lalitpur",
+    locationType: "remote" as const,
+    duration: "3 months",
+    stipend: 18000,
+    createdDaysAgo: 3,
+  },
+  {
+    key: "design",
+    title: `${REPORTS_SEED_PREFIX} Product Design Intern`,
+    company: "Northbound Studio",
+    category: "design" as const,
+    location: "Bhaktapur",
+    locationType: "onsite" as const,
+    duration: "6 months",
+    stipend: 26000,
+    createdDaysAgo: 2,
+  },
+] as const;
+
+const REPORTS_PREVIEW_POSTS = [
+  {
+    key: "salary-guide",
+    title: `${REPORTS_SEED_PREFIX} Internship Salary Guide`,
+    slug: "seed-reports-preview-internship-salary-guide",
+    excerpt:
+      "A preview resource post used to demonstrate the moderation queue with realistic report states.",
+    category: "career_tips" as const,
+    createdDaysAgo: 5,
+  },
+  {
+    key: "cv-checklist",
+    title: `${REPORTS_SEED_PREFIX} CV Checklist for Fresh Graduates`,
+    slug: "seed-reports-preview-cv-checklist",
+    excerpt:
+      "Another preview post seeded for the reports page so the review drawer has content to inspect.",
+    category: "resume_guide" as const,
+    createdDaysAgo: 1,
+  },
+] as const;
+
+const REPORTS_PREVIEW_ENTRIES: SeedReportPreviewEntry[] = [
+  {
+    reporterKey: "reporterOne",
+    targetType: "internship" as const,
+    targetKey: "payments",
+    reason: "misleading_information" as const,
+    status: "pending" as const,
+    details: `${REPORTS_SEED_PREFIX} The stipend and work arrangement look inconsistent across the listing details.`,
+    createdDaysAgo: 0,
+  },
+  {
+    reporterKey: "reporterTwo",
+    targetType: "blog_post" as const,
+    targetKey: "salary-guide",
+    reason: "other" as const,
+    status: "pending" as const,
+    details: `${REPORTS_SEED_PREFIX} This preview report keeps the queue populated with a blog-resource moderation case.`,
+    createdDaysAgo: 0,
+  },
+  {
+    reporterKey: "reporterThree",
+    targetType: "user" as const,
+    targetKey: "targetUser",
+    reason: "harassment" as const,
+    status: "pending" as const,
+    details: `${REPORTS_SEED_PREFIX} The reported profile is here so the user-target review state is visible in the admin queue.`,
+    createdDaysAgo: 1,
+  },
+  {
+    reporterKey: "reporterFour",
+    targetType: "internship" as const,
+    targetKey: "content",
+    reason: "spam" as const,
+    status: "reviewed" as const,
+    details: `${REPORTS_SEED_PREFIX} Kept as reviewed so you can preview an in-progress moderation item.`,
+    reviewNotes: `${REPORTS_SEED_PREFIX} Checked the recruiter profile and noted that the job copy needs a closer audit.`,
+    createdDaysAgo: 2,
+  },
+  {
+    reporterKey: "reporterFive",
+    targetType: "internship" as const,
+    targetKey: "payments",
+    reason: "fraud_or_scam" as const,
+    status: "dismissed" as const,
+    details: `${REPORTS_SEED_PREFIX} Added to show how dismissed items sort and display in the queue.`,
+    reviewNotes: `${REPORTS_SEED_PREFIX} Duplicate concern with insufficient evidence after review.`,
+    createdDaysAgo: 3,
+  },
+  {
+    reporterKey: "reporterTwo",
+    targetType: "internship" as const,
+    targetKey: "design",
+    reason: "inappropriate_content" as const,
+    status: "resolved" as const,
+    details: `${REPORTS_SEED_PREFIX} This one demonstrates a resolved internship report with an admin action applied.`,
+    reviewNotes: `${REPORTS_SEED_PREFIX} Listing was closed after confirming the content violated publishing standards.`,
+    actionType: "close_internship" as const,
+    createdDaysAgo: 4,
+  },
+  {
+    reporterKey: "reporterOne",
+    targetType: "blog_post" as const,
+    targetKey: "cv-checklist",
+    reason: "spam" as const,
+    status: "resolved" as const,
+    details: `${REPORTS_SEED_PREFIX} This resolved resource case lets you preview the unpublish action state.`,
+    reviewNotes: `${REPORTS_SEED_PREFIX} Post was moved back to draft after moderation review.`,
+    actionType: "unpublish_blog_post" as const,
+    createdDaysAgo: 5,
+  },
+] as const;
+
 function daysAgoTimestamp(daysAgo: number, hour: number, minute: number) {
   return (
     Date.now() - daysAgo * DAY_MS - hour * 60 * 60 * 1000 - minute * 60 * 1000
@@ -285,6 +489,51 @@ async function ensureCandidate(
   return inserted;
 }
 
+async function ensurePreviewUser(
+  ctx: MutationCtx,
+  user: SeedPreviewUser
+): Promise<Doc<"users">> {
+  const existing = await userByClerkId(ctx, user.clerkId);
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      username: user.username,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      onboardingComplete: true,
+      updatedAt: Date.now(),
+    });
+
+    const updated = await ctx.db.get(existing._id);
+
+    if (!updated) {
+      throw new ConvexError("Failed to update preview user");
+    }
+
+    return updated;
+  }
+
+  const now = Date.now();
+  const userId = await ctx.db.insert("users", {
+    clerkId: user.clerkId,
+    username: user.username,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    onboardingComplete: true,
+    createdAt: now,
+    updatedAt: now,
+  });
+  const inserted = await ctx.db.get(userId);
+
+  if (!inserted) {
+    throw new ConvexError("Failed to create preview user");
+  }
+
+  return inserted;
+}
+
 async function deleteExistingSeedData(
   ctx: MutationCtx,
   recruiterId: Id<"users">
@@ -329,6 +578,47 @@ async function deleteExistingSeedData(
     }
 
     await ctx.db.delete(internship._id);
+  }
+}
+
+async function deleteExistingReportsPreviewData(ctx: MutationCtx) {
+  const reports = await ctx.db.query("reports").collect();
+
+  for (const report of reports) {
+    const isSeeded =
+      report.details?.startsWith(REPORTS_SEED_PREFIX) ||
+      report.reviewNotes?.startsWith(REPORTS_SEED_PREFIX);
+
+    if (isSeeded) {
+      await ctx.db.delete(report._id);
+    }
+  }
+
+  const blogPosts = await ctx.db.query("blogPosts").collect();
+
+  for (const post of blogPosts) {
+    if (
+      post.title.startsWith(REPORTS_SEED_PREFIX) ||
+      post.slug.startsWith("seed-reports-preview-")
+    ) {
+      await ctx.db.delete(post._id);
+    }
+  }
+
+  const internships = await ctx.db.query("internships").collect();
+
+  for (const internship of internships) {
+    if (internship.title.startsWith(REPORTS_SEED_PREFIX)) {
+      await ctx.db.delete(internship._id);
+    }
+  }
+
+  const users = await ctx.db.query("users").collect();
+
+  for (const user of users) {
+    if (user.clerkId.startsWith("seed_reports_preview_")) {
+      await ctx.db.delete(user._id);
+    }
   }
 }
 
@@ -495,6 +785,185 @@ export const seedRecruiterAnalytics = internalMutation({
       internshipsCreated: createdInternshipIds.length,
       internshipIds: createdInternshipIds,
       candidatesAvailable: candidates.length,
+    };
+  },
+});
+
+export const seedReportsPreview = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    await deleteExistingReportsPreviewData(ctx);
+
+    const users = await ctx.db.query("users").collect();
+    const adminUsers = users.filter((user) => user.role === "admin");
+
+    if (adminUsers.length === 0) {
+      throw new ConvexError(
+        "An admin user is required to seed report previews"
+      );
+    }
+
+    const admin = adminUsers[0];
+    const previewUsers = await Promise.all(
+      Object.entries(REPORTS_SEED_USERS).map(async ([key, user]) => {
+        const createdUser = await ensurePreviewUser(ctx, user);
+        return [key, createdUser] as const;
+      })
+    );
+    const previewUserMap = new Map(previewUsers);
+    const recruiter = previewUserMap.get("recruiter");
+
+    if (!recruiter) {
+      throw new ConvexError("Preview recruiter could not be created");
+    }
+
+    const internships = await Promise.all(
+      REPORTS_PREVIEW_INTERNSHIPS.map(async (internshipSeed) => {
+        const createdAt = daysAgoTimestamp(internshipSeed.createdDaysAgo, 9, 0);
+        const internshipId = await ctx.db.insert("internships", {
+          recruiterId: recruiter._id,
+          title: internshipSeed.title,
+          company: internshipSeed.company,
+          description: `<p>${internshipSeed.title} exists to preview the moderation reports queue in a filled state.</p>`,
+          category: internshipSeed.category,
+          location: internshipSeed.location,
+          locationType: internshipSeed.locationType,
+          duration: internshipSeed.duration,
+          stipend: internshipSeed.stipend,
+          requirements: [
+            "Comfortable with async communication",
+            "Able to document work clearly",
+            "Open to iterative feedback",
+          ],
+          status: "open",
+          applicationDeadline: Date.now() + 14 * DAY_MS,
+          maxApplications: 30,
+          viewCount: 0,
+          createdAt,
+          updatedAt: createdAt,
+        });
+
+        return [internshipSeed.key, internshipId] as const;
+      })
+    );
+    const internshipMap = new Map(internships);
+
+    const posts = await Promise.all(
+      REPORTS_PREVIEW_POSTS.map(async (postSeed) => {
+        const createdAt = daysAgoTimestamp(postSeed.createdDaysAgo, 8, 30);
+        const postId = await ctx.db.insert("blogPosts", {
+          authorId: admin._id,
+          title: postSeed.title,
+          slug: postSeed.slug,
+          content: `<p>${postSeed.title} exists only to preview the moderation reports queue with realistic content records.</p>`,
+          excerpt: postSeed.excerpt,
+          category: postSeed.category,
+          tags: ["seed", "reports", "moderation"],
+          status: "published",
+          publishedAt: createdAt + 60 * 60 * 1000,
+          createdAt,
+          updatedAt: createdAt,
+        });
+
+        return [postSeed.key, postId] as const;
+      })
+    );
+    const postMap = new Map(posts);
+
+    const createdReportIds: Id<"reports">[] = [];
+
+    for (const reportSeed of REPORTS_PREVIEW_ENTRIES) {
+      const reporter = previewUserMap.get(reportSeed.reporterKey);
+
+      if (!reporter) {
+        throw new ConvexError("Preview reporter could not be found");
+      }
+
+      const targetId =
+        reportSeed.targetType === "internship"
+          ? internshipMap.get(
+              reportSeed.targetKey as (typeof REPORTS_PREVIEW_INTERNSHIPS)[number]["key"]
+            )
+          : reportSeed.targetType === "blog_post"
+            ? postMap.get(
+                reportSeed.targetKey as (typeof REPORTS_PREVIEW_POSTS)[number]["key"]
+              )
+            : previewUserMap.get(
+                reportSeed.targetKey as keyof typeof REPORTS_SEED_USERS
+              )?._id;
+
+      if (!targetId) {
+        throw new ConvexError("Preview report target could not be found");
+      }
+
+      if (
+        reportSeed.status === "resolved" &&
+        reportSeed.actionType === "close_internship"
+      ) {
+        await ctx.db.patch(targetId as Id<"internships">, {
+          status: "closed",
+          isClosedByAdmin: true,
+          adminModerationReason: reportSeed.reviewNotes,
+          adminModeratedAt: daysAgoTimestamp(reportSeed.createdDaysAgo, 11, 45),
+          adminModeratedBy: admin._id,
+          updatedAt: Date.now(),
+        });
+      }
+
+      if (
+        reportSeed.status === "resolved" &&
+        reportSeed.actionType === "unpublish_blog_post"
+      ) {
+        await ctx.db.patch(targetId as Id<"blogPosts">, {
+          status: "draft",
+          updatedAt: Date.now(),
+        });
+      }
+
+      const createdAt = daysAgoTimestamp(reportSeed.createdDaysAgo, 11, 15);
+      const reviewedAt =
+        reportSeed.status === "pending"
+          ? undefined
+          : createdAt + 2 * 60 * 60 * 1000;
+      const reportId = await ctx.db.insert("reports", {
+        reporterId: reporter._id,
+        targetType: reportSeed.targetType,
+        targetId,
+        reason: reportSeed.reason,
+        details: reportSeed.details,
+        status: reportSeed.status,
+        ...(reviewedAt
+          ? {
+              reviewedBy: admin._id,
+              reviewedAt,
+            }
+          : {}),
+        ...(reportSeed.reviewNotes
+          ? {
+              reviewNotes: reportSeed.reviewNotes,
+            }
+          : {}),
+        ...(reportSeed.actionType
+          ? {
+              actionType: reportSeed.actionType,
+              actionSummary:
+                reportSeed.actionType === "close_internship"
+                  ? "Close Internship"
+                  : "Unpublish Blog Post",
+            }
+          : {}),
+        createdAt,
+      });
+
+      createdReportIds.push(reportId);
+    }
+
+    return {
+      reportsCreated: createdReportIds.length,
+      reportIds: createdReportIds,
+      seededInternships: internshipMap.size,
+      seededPosts: postMap.size,
+      seededUsers: previewUserMap.size,
     };
   },
 });

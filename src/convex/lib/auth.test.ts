@@ -66,4 +66,20 @@ describe("convex/lib/auth", () => {
       t.withIdentity(identity).run(async (ctx) => requireRole(ctx, "recruiter"))
     ).rejects.toThrow("FORBIDDEN");
   });
+
+  it("blocks suspended non-admin users in requireUser", async () => {
+    const t = convexTest(schema, modules);
+    const identity = { subject: "clerk_candidate_suspended" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        ...createTestUser(identity.subject, "candidate"),
+        isSuspended: true,
+      });
+    });
+
+    await expect(
+      t.withIdentity(identity).run(async (ctx) => requireUser(ctx))
+    ).rejects.toThrow("ACCOUNT_SUSPENDED");
+  });
 });
