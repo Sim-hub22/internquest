@@ -1,7 +1,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/convex/_generated/api";
+import { api, internal } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import schema from "@/convex/schema";
 import { modules } from "@/convex/test.setup";
@@ -590,5 +590,113 @@ describe("convex/internships", () => {
 
     expect(closedSnapshot.internship?.viewCount).toBe(0);
     expect(closedSnapshot.viewsCount).toBe(0);
+  });
+
+  it("backfills missing viewer keys for legacy internship views", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_backfill" };
+    const candidateIdentity = { subject: "candidate_backfill" };
+
+    const [recruiterId, candidateId] = await t.run(async (ctx) =>
+      Promise.all([
+        ctx.db.insert(
+          "users",
+          createTestUser(recruiterIdentity.subject, "recruiter")
+        ),
+        ctx.db.insert(
+          "users",
+          createTestUser(candidateIdentity.subject, "candidate")
+        ),
+      ])
+    );
+
+    const internshipId = await t.run(async (ctx) =>
+      ctx.db.insert("internships", createInternshipSeed(recruiterId))
+    );
+
+    const legacyAnonymousViewId = await t.run(async (ctx) =>
+      ctx.db.insert("internshipViews", {
+        internshipId,
+        viewedAt: Date.now(),
+      })
+    );
+
+    await t.run(async (ctx) =>
+      ctx.db.insert("internshipViews", {
+        internshipId,
+        viewerId: candidateId,
+        viewedAt: Date.now() + 1,
+      })
+    );
+
+    const dryRunResult = await t.mutation(
+      internal.internships.backfillInternshipViewViewerKeys,
+      {
+        batchSize: 1,
+        dryRun: true,
+      }
+    );
+
+    expect(dryRunResult.updatedCount).toBe(1);
+    expect(dryRunResult.hasMore).toBe(true);
+    expect(dryRunResult.dryRun).toBe(true);
+
+    const afterDryRun = await t.run(async (ctx) => {
+      const legacyAnonymousView = await ctx.db.get(legacyAnonymousViewId);
+      const views = await ctx.db
+        .query("internshipViews")
+        .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+        .collect();
+
+      return { legacyAnonymousView, views };
+    });
+
+    expect(afterDryRun.legacyAnonymousView?.viewerKey).toBeUndefined();
+    expect(
+      afterDryRun.views.filter((view) => view.viewerKey === undefined)
+    ).toHaveLength(2);
+
+    const firstBackfillResult = await t.mutation(
+      internal.internships.backfillInternshipViewViewerKeys,
+      {
+        batchSize: 1,
+      }
+    );
+
+    expect(firstBackfillResult.updatedCount).toBe(1);
+    expect(firstBackfillResult.hasMore).toBe(true);
+    expect(firstBackfillResult.dryRun).toBe(false);
+
+    const secondBackfillResult = await t.mutation(
+      internal.internships.backfillInternshipViewViewerKeys,
+      {
+        batchSize: 10,
+      }
+    );
+
+    expect(secondBackfillResult.updatedCount).toBe(1);
+    expect(secondBackfillResult.hasMore).toBe(false);
+
+    const finalSnapshot = await t.run(async (ctx) => {
+      const views = await ctx.db
+        .query("internshipViews")
+        .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+        .collect();
+
+      return views;
+    });
+
+    expect(finalSnapshot).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: legacyAnonymousViewId,
+          viewerKey: `legacy:${legacyAnonymousViewId}`,
+        }),
+        expect.objectContaining({
+          viewerId: candidateId,
+          viewerKey: `user:${candidateId}`,
+        }),
+      ])
+    );
   });
 });
