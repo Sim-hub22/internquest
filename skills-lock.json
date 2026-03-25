@@ -61,6 +61,11 @@
       "sourceType": "github",
       "computedHash": "dbb84d8c1996d9054958f07e67502ece523c49ff957bb3109397a6595e44f4ed"
     },
+    "convex-create-component": {
+      "source": "get-convex/agent-skills",
+      "sourceType": "github",
+      "computedHash": "84897925dd765dd58847b3b05b22ad706e65609f93a962345b48a97ff93a760f"
+    },
     "convex-cron-jobs": {
       "source": "waynesutton/convexskills",
       "sourceType": "github",
@@ -81,10 +86,25 @@
       "sourceType": "github",
       "computedHash": "c189703dd5d91f280b53d6bd903bf8313e935b1edab136bb7ffdb6c1512b95aa"
     },
+    "convex-migration-helper": {
+      "source": "get-convex/agent-skills",
+      "sourceType": "github",
+      "computedHash": "b99262360eb6fba714155b630537861da2d4c890365f629c75d607c8a1405c7b"
+    },
     "convex-migrations": {
       "source": "waynesutton/convexskills",
       "sourceType": "github",
       "computedHash": "869a862d35e7fb024d244830b0968e231f8ff99fefa0f879270e13e14c4934fe"
+    },
+    "convex-performance-audit": {
+      "source": "get-convex/agent-skills",
+      "sourceType": "github",
+      "computedHash": "1a41a616f9615b9229928653fa22c752e86487f415c73082dd17f1073e059127"
+    },
+    "convex-quickstart": {
+      "source": "get-convex/agent-skills",
+      "sourceType": "github",
+      "computedHash": "51322b7e70b0f47ec67650b2db721eb91043cba99bf8c864366b7b250d8a313f"
     },
     "convex-realtime": {
       "source": "waynesutton/convexskills",
@@ -105,6 +125,11 @@
       "source": "waynesutton/convexskills",
       "sourceType": "github",
       "computedHash": "b53e061304bb81d037c6dd4e38762d27a596523bcbeab43c58e0b05140449802"
+    },
+    "convex-setup-auth": {
+      "source": "get-convex/agent-skills",
+      "sourceType": "github",
+      "computedHash": "7cc29991c446d2ea574dc9abb5fb85c0c9a7f3ef3af4c94454eef45017bda794"
     },
     "email-best-practices": {
       "source": "resend/email-best-practices",
