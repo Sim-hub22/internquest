@@ -3,6 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import prettier from "eslint-config-prettier/flat";
 import nodePlugin from "eslint-plugin-n";
+import tailwindCanonicalClasses from "eslint-plugin-tailwind-canonical-classes";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 const eslintConfig = defineConfig([
@@ -13,6 +14,7 @@ const eslintConfig = defineConfig([
   {
     plugins: {
       n: nodePlugin,
+      "tailwind-canonical-classes": tailwindCanonicalClasses,
     },
     rules: {
       "prefer-arrow-callback": ["error"],
@@ -20,6 +22,12 @@ const eslintConfig = defineConfig([
       semi: ["error"],
       quotes: ["error", "double"],
       "n/no-process-env": ["error"],
+      "tailwind-canonical-classes/tailwind-canonical-classes": [
+        "warn",
+        {
+          cssPath: "./src/styles/globals.css",
+        },
+      ],
     },
   },
   {

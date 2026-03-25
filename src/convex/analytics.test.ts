@@ -73,6 +73,79 @@ function createStatusHistory(
   }));
 }
 
+function createCandidateProfileSeed(
+  userId: Id<"users">,
+  overrides?: Partial<{
+    headline: string;
+    location: string;
+    education: {
+      institution: string;
+      degree: string;
+      graduationYear: number;
+      gpa?: number;
+    }[];
+    skills: {
+      name: string;
+      proficiency: "beginner" | "intermediate" | "advanced";
+    }[];
+    experience: {
+      title: string;
+      company: string;
+      startDate: string;
+      endDate?: string;
+      description?: string;
+    }[];
+    links: {
+      github?: string;
+      linkedin?: string;
+      portfolio?: string;
+    };
+    preferredCategories: (
+      | "technology"
+      | "business"
+      | "design"
+      | "marketing"
+      | "finance"
+      | "healthcare"
+      | "other"
+    )[];
+    preferredLocationType: "remote" | "onsite" | "hybrid";
+  }>
+) {
+  return {
+    userId,
+    headline: overrides?.headline ?? "Frontend candidate",
+    location: overrides?.location ?? "Kathmandu",
+    education: overrides?.education ?? [
+      {
+        institution: "Pulchowk Campus",
+        degree: "BSc CSIT",
+        graduationYear: 2027,
+      },
+    ],
+    skills: overrides?.skills ?? [
+      {
+        name: "TypeScript",
+        proficiency: "advanced" as const,
+      },
+    ],
+    experience: overrides?.experience ?? [
+      {
+        title: "Frontend Intern",
+        company: "InternQuest",
+        startDate: "2025-06",
+        description: "Built candidate-facing flows.",
+      },
+    ],
+    links: overrides?.links ?? {
+      github: "https://github.com/candidate",
+    },
+    preferredCategories: overrides?.preferredCategories ?? ["technology"],
+    preferredLocationType: overrides?.preferredLocationType ?? "remote",
+    updatedAt: Date.now(),
+  };
+}
+
 describe("convex/analytics", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -111,6 +184,37 @@ describe("convex/analytics", () => {
       t
         .withIdentity(candidateIdentity)
         .query(api.analytics.getRecruiterDashboardOverview, {})
+    ).rejects.toThrow("FORBIDDEN");
+  });
+
+  it("restricts candidate dashboard queries to candidates", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_candidate_dashboard_auth" };
+    const adminIdentity = { subject: "admin_candidate_dashboard_auth" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+    });
+
+    await expect(
+      t.query(api.analytics.getCandidateDashboardOverview, {})
+    ).rejects.toThrow("UNAUTHENTICATED");
+    await expect(
+      t
+        .withIdentity(recruiterIdentity)
+        .query(api.analytics.getCandidateDashboardOverview, {})
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t
+        .withIdentity(adminIdentity)
+        .query(api.analytics.getCandidateDashboardOverview, {})
     ).rejects.toThrow("FORBIDDEN");
   });
 
@@ -673,5 +777,259 @@ describe("convex/analytics", () => {
       status: "open",
       applicationCount: 2,
     });
+  });
+
+  it("returns useful fallback candidate dashboard data even with no applications", async () => {
+    const t = convexTest(schema, modules);
+    const candidateIdentity = { subject: "candidate_dashboard_empty" };
+
+    await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed("recruiter_dashboard_empty", "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+
+      await ctx.db.insert("notifications", {
+        userId: candidateId,
+        type: "new_internship",
+        title: "Fresh internship match",
+        message: "A new remote technology role was posted.",
+        link: "/internships/example",
+        relatedId: "example",
+        isRead: false,
+        createdAt: Date.parse("2026-03-24T10:00:00.000Z"),
+      });
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Remote Platform Internship",
+          category: "technology",
+          applicationDeadline: Date.parse("2026-03-27T12:00:00.000Z"),
+        })
+      );
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Operations Internship",
+          category: "business",
+          applicationDeadline: Date.parse("2026-03-29T12:00:00.000Z"),
+        })
+      );
+    });
+
+    const result = await t
+      .withIdentity(candidateIdentity)
+      .query(api.analytics.getCandidateDashboardOverview, {});
+
+    expect(result.summary).toEqual({
+      profileCompleteness: 0,
+      applicationCount: 0,
+      activePipelineCount: 0,
+      pendingQuizCount: 0,
+      unreadNotificationCount: 1,
+    });
+    expect(result.profile.hasProfile).toBe(false);
+    expect(result.profile.missingProfileSteps).toContain("Add a headline");
+    expect(result.recentApplications).toEqual([]);
+    expect(result.pendingQuizItems).toEqual([]);
+    expect(result.matchingInternships).toHaveLength(2);
+  });
+
+  it("returns candidate dashboard aggregates, pending quizzes, updates, and excludes applied roles from matches", async () => {
+    const t = convexTest(schema, modules);
+    const candidateIdentity = { subject: "candidate_dashboard_full" };
+    const seededStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    const seededIds = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed("recruiter_candidate_dashboard_full", "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+
+      await ctx.db.insert(
+        "candidateProfiles",
+        createCandidateProfileSeed(candidateId)
+      );
+
+      const appliedInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Applied Platform Internship",
+          category: "technology",
+          applicationDeadline: Date.parse("2026-03-28T12:00:00.000Z"),
+        })
+      );
+      const activeInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Frontend Systems Internship",
+          category: "technology",
+          applicationDeadline: Date.parse("2026-03-30T12:00:00.000Z"),
+        })
+      );
+      const matchingInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Remote UX Engineering Internship",
+          category: "technology",
+          applicationDeadline: Date.parse("2026-04-02T12:00:00.000Z"),
+        })
+      );
+      const fallbackInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Fallback Finance Internship",
+          category: "finance",
+          applicationDeadline: Date.parse("2026-04-04T12:00:00.000Z"),
+        })
+      );
+
+      const appliedApplicationId = await ctx.db.insert("applications", {
+        internshipId: appliedInternshipId,
+        candidateId,
+        resumeStorageId: seededStorageId,
+        status: "under_review",
+        statusHistory: createStatusHistory(
+          ["applied", "under_review"],
+          recruiterId,
+          Date.parse("2026-03-21T10:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-21T10:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-24T09:00:00.000Z"),
+      });
+
+      const quizId = await ctx.db.insert("quizzes", {
+        creatorId: recruiterId,
+        title: "Candidate Review Quiz",
+        description: "Short answer review",
+        type: "recruitment",
+        internshipId: activeInternshipId,
+        timeLimit: 20,
+        questions: [
+          {
+            id: "q1",
+            type: "short_answer",
+            question: "Explain reactivity.",
+            points: 5,
+            sampleAnswer: "State changes trigger UI updates.",
+          },
+        ],
+        isPublished: true,
+        publishedAt: Date.parse("2026-03-20T09:00:00.000Z"),
+        createdAt: Date.parse("2026-03-20T09:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-20T09:00:00.000Z"),
+      });
+      const quizApplicationId = await ctx.db.insert("applications", {
+        internshipId: activeInternshipId,
+        candidateId,
+        resumeStorageId: seededStorageId,
+        assignedQuizId: quizId,
+        quizAssignedAt: Date.parse("2026-03-24T08:00:00.000Z"),
+        status: "quiz_completed",
+        statusHistory: createStatusHistory(
+          [
+            "applied",
+            "under_review",
+            "shortlisted",
+            "quiz_assigned",
+            "quiz_completed",
+          ],
+          recruiterId,
+          Date.parse("2026-03-22T10:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-22T10:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-24T11:00:00.000Z"),
+      });
+
+      await ctx.db.insert("quizAttempts", {
+        quizId,
+        candidateId,
+        applicationId: quizApplicationId,
+        attemptType: "application",
+        answers: [
+          {
+            questionId: "q1",
+            type: "short_answer",
+            textAnswer: "Reactive systems update outputs when state changes.",
+          },
+        ],
+        maxScore: 5,
+        startedAt: Date.parse("2026-03-24T08:10:00.000Z"),
+        submittedAt: Date.parse("2026-03-24T08:25:00.000Z"),
+        timeLimit: 20,
+        status: "submitted",
+      });
+
+      await ctx.db.insert("notifications", {
+        userId: candidateId,
+        type: "application_status",
+        title: "Application moved forward",
+        message: "Your platform internship application is under review.",
+        link: `/candidate/applications/${appliedApplicationId}`,
+        relatedId: String(appliedApplicationId),
+        isRead: false,
+        createdAt: Date.parse("2026-03-24T09:30:00.000Z"),
+      });
+      await ctx.db.insert("notifications", {
+        userId: candidateId,
+        type: "quiz_graded",
+        title: "Quiz update",
+        message: "A recruiter looked at your quiz submission.",
+        link: `/candidate/applications/${quizApplicationId}`,
+        relatedId: String(quizApplicationId),
+        isRead: false,
+        createdAt: Date.parse("2026-03-24T11:30:00.000Z"),
+      });
+
+      return {
+        appliedInternshipId,
+        matchingInternshipId,
+        fallbackInternshipId,
+        appliedApplicationId,
+        quizApplicationId,
+      };
+    });
+
+    const result = await t
+      .withIdentity(candidateIdentity)
+      .query(api.analytics.getCandidateDashboardOverview, {});
+
+    expect(result.summary).toEqual({
+      profileCompleteness: 100,
+      applicationCount: 2,
+      activePipelineCount: 2,
+      pendingQuizCount: 1,
+      unreadNotificationCount: 2,
+    });
+    expect(result.profile.missingProfileSteps).toEqual([]);
+    expect(result.recentApplications.map((item) => item.applicationId)).toEqual(
+      [seededIds.quizApplicationId, seededIds.appliedApplicationId]
+    );
+    expect(result.pendingQuizItems[0]).toMatchObject({
+      applicationId: seededIds.quizApplicationId,
+      attemptStatus: "submitted",
+      internshipTitle: "Frontend Systems Internship",
+    });
+    expect(
+      result.unreadNotifications.map((notification) => notification.title)
+    ).toEqual(["Quiz update", "Application moved forward"]);
+    expect(
+      result.matchingInternships.map((internship) => internship.internshipId)
+    ).not.toContain(seededIds.appliedInternshipId);
+    expect(
+      result.matchingInternships.map((internship) => internship.internshipId)
+    ).toEqual([seededIds.matchingInternshipId, seededIds.fallbackInternshipId]);
   });
 });

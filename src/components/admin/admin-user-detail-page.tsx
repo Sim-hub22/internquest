@@ -197,7 +197,7 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
     return (
       <div className="flex flex-1 flex-col gap-6 p-4 lg:gap-8 lg:p-6">
         <Skeleton className="h-10 w-40" />
-        <Skeleton className="h-[24rem] w-full rounded-xl" />
+        <Skeleton className="h-96 w-full rounded-xl" />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
             <Skeleton
@@ -207,8 +207,8 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
           ))}
         </div>
         <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-          <Skeleton className="h-[28rem] rounded-xl" />
-          <Skeleton className="h-[28rem] rounded-xl" />
+          <Skeleton className="h-112 rounded-xl" />
+          <Skeleton className="h-112 rounded-xl" />
         </div>
       </div>
     );
@@ -380,7 +380,7 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
                         Admin user detail
                       </p>
                       <div className="space-y-2">
-                        <h1 className="text-3xl font-semibold tracking-tight break-words sm:text-4xl">
+                        <h1 className="text-3xl font-semibold tracking-tight wrap-break-word sm:text-4xl">
                           {detail.user.name}
                         </h1>
                         <p className="text-sm leading-6 break-all text-muted-foreground sm:text-base">

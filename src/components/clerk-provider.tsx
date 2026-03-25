@@ -3,6 +3,7 @@
 import React from "react";
 
 import { ClerkProvider as ClerkNextJsProvider } from "@clerk/nextjs";
+import { ui } from "@clerk/ui";
 import { shadcn } from "@clerk/ui/themes";
 import { useTheme } from "next-themes";
 
@@ -17,6 +18,7 @@ export function ClerkProvider({
   const { theme } = useTheme();
   return (
     <ClerkNextJsProvider
+      ui={ui}
       appearance={{
         theme: shadcn,
         options: {

@@ -29,7 +29,7 @@ export function OwnerBlogPostPreviewPage({
     return (
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 lg:p-6">
         <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-[28rem] w-full" />
+        <Skeleton className="h-112 w-full" />
       </div>
     );
   }
@@ -87,10 +87,10 @@ export function OwnerBlogPostPreviewPage({
           <img
             src={post.coverImageUrl}
             alt={post.title}
-            className="aspect-[16/8] w-full object-cover"
+            className="aspect-16/8 w-full object-cover"
           />
         ) : (
-          <div className="h-56 bg-gradient-to-br from-slate-100 via-white to-amber-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900" />
+          <div className="h-56 bg-linear-to-br from-slate-100 via-white to-amber-50 dark:from-slate-900 dark:via-slate-950 dark:to-slate-900" />
         )}
 
         <div className="space-y-6 p-6 lg:p-8">

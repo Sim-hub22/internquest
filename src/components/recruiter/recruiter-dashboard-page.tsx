@@ -137,7 +137,7 @@ export function RecruiterDashboardPageContent() {
       <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
         <div className="space-y-2">
           <Skeleton className="h-9 w-72" />
-          <Skeleton className="h-5 w-[30rem]" />
+          <Skeleton className="h-5 w-120" />
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
@@ -148,12 +148,12 @@ export function RecruiterDashboardPageContent() {
           ))}
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
-          <Skeleton className="h-[24rem]" />
-          <Skeleton className="h-[24rem]" />
+          <Skeleton className="h-96" />
+          <Skeleton className="h-96" />
         </div>
         <div className="grid gap-4 xl:grid-cols-[1.3fr_0.9fr]">
-          <Skeleton className="h-[26rem]" />
-          <Skeleton className="h-[26rem]" />
+          <Skeleton className="h-104" />
+          <Skeleton className="h-104" />
         </div>
       </div>
     );
@@ -177,7 +177,7 @@ export function RecruiterDashboardPageContent() {
           </p>
         </div>
 
-        <Empty className="min-h-[28rem] border-border/70 bg-gradient-to-br from-background via-background to-muted/20">
+        <Empty className="min-h-112 border-border/70 bg-linear-to-br from-background via-background to-muted/20">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <BriefcaseBusinessIcon />

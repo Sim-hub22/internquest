@@ -111,9 +111,9 @@ export function AnalyticsChartCard({
           {description}
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="h-full">
         {isEmpty ? (
-          <Empty className="min-h-72 rounded-2xl border-border/70 bg-muted/15">
+          <Empty className="h-full min-h-72 rounded-2xl border border-dashed bg-muted/30">
             <EmptyHeader>
               <EmptyMedia variant="icon">
                 <BarChart3Icon />

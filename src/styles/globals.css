@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@clerk/ui/themes/shadcn.css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
@@ -129,9 +128,4 @@
   html {
     @apply font-sans;
   }
-}
-
-.cl-internal-1dauvpw,
-.cl-internal-l2l775 {
-  @apply hidden;
 }

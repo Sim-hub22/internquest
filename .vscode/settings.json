@@ -5,8 +5,10 @@
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
     "source.fixAll": "always",
+    "source.fixAll.eslint": "always",
     "source.organizeImports": "always"
   },
+  "tailwindCSS.lint.suggestCanonicalClasses": "ignore",
   "js/ts.preferences.importModuleSpecifier": "non-relative",
   "js/ts.preferences.autoImportSpecifierExcludeRegexes": ["^@base-ui/.*$"],
   "files.associations": {

@@ -3,6 +3,7 @@ import { ConvexError, v } from "convex/values";
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { QueryCtx, query } from "@/convex/_generated/server";
 import { requireRole } from "@/convex/lib/auth";
+import { calculateProfileCompleteness } from "@/lib/profile-completeness";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TREND_DAY_COUNT = 30;
@@ -22,6 +23,13 @@ const FUNNEL_SHORTLISTED_STATUSES = new Set([
   "quiz_assigned",
   "quiz_completed",
   "accepted",
+]);
+const ACTIVE_PIPELINE_STATUSES = new Set<ApplicationStatus>([
+  "applied",
+  "under_review",
+  "shortlisted",
+  "quiz_assigned",
+  "quiz_completed",
 ]);
 
 const INTERNSHIP_CATEGORIES = [
@@ -254,6 +262,63 @@ function hasReachedShortlisted(application: Doc<"applications">) {
 
 function hasReachedAccepted(application: Doc<"applications">) {
   return application.statusHistory.some((entry) => entry.status === "accepted");
+}
+
+function buildMissingProfileSteps(profile: Doc<"candidateProfiles"> | null) {
+  const steps: string[] = [];
+
+  if (!profile?.headline) {
+    steps.push("Add a headline");
+  }
+
+  if (!profile?.location) {
+    steps.push("Set your location");
+  }
+
+  if (!profile || profile.education.length === 0) {
+    steps.push("Add your education");
+  }
+
+  if (!profile || profile.skills.length === 0) {
+    steps.push("List your skills");
+  }
+
+  if (!profile || profile.experience.length === 0) {
+    steps.push("Add your experience");
+  }
+
+  if (
+    !profile ||
+    (!profile.links.github &&
+      !profile.links.linkedin &&
+      !profile.links.portfolio)
+  ) {
+    steps.push("Add at least one portfolio link");
+  }
+
+  if (!profile?.preferredCategories?.length) {
+    steps.push("Choose preferred categories");
+  }
+
+  if (!profile?.preferredLocationType) {
+    steps.push("Set your preferred location type");
+  }
+
+  return steps;
+}
+
+function internshipMatchesProfile(
+  internship: Doc<"internships">,
+  profile: Doc<"candidateProfiles"> | null
+) {
+  const matchesCategory =
+    !profile?.preferredCategories?.length ||
+    profile.preferredCategories.includes(internship.category);
+  const matchesLocationType =
+    !profile?.preferredLocationType ||
+    profile.preferredLocationType === internship.locationType;
+
+  return matchesCategory && matchesLocationType;
 }
 
 export const getInternshipAnalytics = query({
@@ -594,6 +659,196 @@ export const getRecruiterDashboardOverview = query({
           applicationDeadline: stat.internship.applicationDeadline,
           applicationCount: stat.applicationCount,
         })),
+    };
+  },
+});
+
+export const getCandidateDashboardOverview = query({
+  args: {},
+  handler: async (ctx) => {
+    const candidate = await requireRole(ctx, "candidate");
+    const [profile, applications, unreadNotifications] = await Promise.all([
+      ctx.db
+        .query("candidateProfiles")
+        .withIndex("by_userId", (q) => q.eq("userId", candidate._id))
+        .unique(),
+      ctx.db
+        .query("applications")
+        .withIndex("by_candidate", (q) => q.eq("candidateId", candidate._id))
+        .order("desc")
+        .collect(),
+      ctx.db
+        .query("notifications")
+        .withIndex("by_user_and_read", (q) =>
+          q.eq("userId", candidate._id).eq("isRead", false)
+        )
+        .order("desc")
+        .collect(),
+    ]);
+
+    const profileCompleteness = calculateProfileCompleteness(profile);
+    const missingProfileSteps = buildMissingProfileSteps(profile);
+    const internshipEntries = await Promise.all(
+      Array.from(
+        new Set(applications.map((application) => application.internshipId))
+      ).map(
+        async (internshipId) =>
+          [internshipId, await ctx.db.get(internshipId)] as const
+      )
+    );
+    const internshipMap = new Map(internshipEntries);
+
+    const recentApplications = applications
+      .slice()
+      .sort((left, right) => right.updatedAt - left.updatedAt)
+      .slice(0, 5)
+      .map((application) => {
+        const internship = internshipMap.get(application.internshipId);
+
+        return {
+          applicationId: application._id,
+          internshipId: application.internshipId,
+          status: application.status,
+          appliedAt: application.appliedAt,
+          updatedAt: application.updatedAt,
+          internship: internship
+            ? {
+                title: internship.title,
+                company: internship.company,
+                locationType: internship.locationType,
+              }
+            : null,
+        };
+      });
+
+    const quizApplications = applications
+      .filter((application) => application.assignedQuizId)
+      .filter(
+        (application) =>
+          application.status === "quiz_assigned" ||
+          application.status === "quiz_completed"
+      )
+      .sort((left, right) => right.updatedAt - left.updatedAt);
+
+    const pendingQuizItems = (
+      await Promise.all(
+        quizApplications.map(async (application) => {
+          if (!application.assignedQuizId) {
+            return null;
+          }
+
+          const [quiz, attempt] = await Promise.all([
+            ctx.db.get(application.assignedQuizId),
+            ctx.db
+              .query("quizAttempts")
+              .withIndex("by_application", (q) =>
+                q.eq("applicationId", application._id)
+              )
+              .unique(),
+          ]);
+
+          if (!quiz || attempt?.status === "graded") {
+            return null;
+          }
+
+          const internship = internshipMap.get(application.internshipId);
+
+          return {
+            applicationId: application._id,
+            quizId: quiz._id,
+            quizTitle: quiz.title,
+            internshipId: application.internshipId,
+            internshipTitle: internship?.title ?? "Internship unavailable",
+            internshipCompany: internship?.company ?? "Unknown company",
+            attemptStatus: attempt?.status ?? null,
+            deadlineAt: attempt?.deadlineAt ?? null,
+            quizAssignedAt: application.quizAssignedAt ?? null,
+            updatedAt: application.updatedAt,
+          };
+        })
+      )
+    ).filter((item) => item !== null);
+
+    const openInternships = await ctx.db
+      .query("internships")
+      .withIndex("by_status_and_deadline", (q) => q.eq("status", "open"))
+      .order("asc")
+      .take(50);
+    const appliedInternshipIds = new Set(
+      applications.map((application) => application.internshipId)
+    );
+    const matchingInternships: {
+      internshipId: Id<"internships">;
+      title: string;
+      company: string;
+      category: Doc<"internships">["category"];
+      locationType: Doc<"internships">["locationType"];
+      applicationDeadline: number;
+      stipend?: number;
+    }[] = [];
+    const seenInternshipIds = new Set<Id<"internships">>();
+
+    for (const internship of [
+      ...openInternships.filter((entry) =>
+        internshipMatchesProfile(entry, profile)
+      ),
+      ...openInternships,
+    ]) {
+      if (
+        appliedInternshipIds.has(internship._id) ||
+        seenInternshipIds.has(internship._id)
+      ) {
+        continue;
+      }
+
+      matchingInternships.push({
+        internshipId: internship._id,
+        title: internship.title,
+        company: internship.company,
+        category: internship.category,
+        locationType: internship.locationType,
+        applicationDeadline: internship.applicationDeadline,
+        ...(internship.stipend === undefined
+          ? {}
+          : { stipend: internship.stipend }),
+      });
+      seenInternshipIds.add(internship._id);
+
+      if (matchingInternships.length === 4) {
+        break;
+      }
+    }
+
+    return {
+      summary: {
+        profileCompleteness,
+        applicationCount: applications.length,
+        activePipelineCount: applications.filter((application) =>
+          ACTIVE_PIPELINE_STATUSES.has(application.status as ApplicationStatus)
+        ).length,
+        pendingQuizCount: pendingQuizItems.length,
+        unreadNotificationCount: unreadNotifications.length,
+      },
+      profile: {
+        hasProfile: !!profile,
+        missingProfileSteps,
+        preferredCategories: profile?.preferredCategories ?? [],
+        preferredLocationType: profile?.preferredLocationType ?? null,
+      },
+      applicationStatusBreakdown: buildStatusBreakdown(applications),
+      recentApplications,
+      pendingQuizItems: pendingQuizItems.slice(0, 3),
+      unreadNotifications: unreadNotifications
+        .slice(0, 3)
+        .map((notification) => ({
+          notificationId: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          link: notification.link ?? null,
+          createdAt: notification.createdAt,
+        })),
+      matchingInternships,
     };
   },
 });
