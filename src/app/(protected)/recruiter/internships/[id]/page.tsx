@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
 
-import { auth } from "@clerk/nextjs/server";
 import { preloadQuery } from "convex/nextjs";
 
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { getAuthToken } from "@/lib/auth";
 
 import { RecruiterInternshipDetailPage } from "./recruiter-internship-detail-page";
 
@@ -14,8 +14,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { getToken } = await auth();
-  const token = (await getToken({ template: "convex" })) ?? undefined;
+  const token = await getAuthToken();
 
   let preloadedInternship;
 
