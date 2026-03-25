@@ -45,11 +45,6 @@ const RECRUITER_NAV: SidebarNavItem[] = [
     url: "/recruiter/internships",
     icon: "briefcase",
   },
-  {
-    title: "Analytics",
-    url: "/recruiter/analytics",
-    icon: "chart",
-  },
   { title: "Quizzes", url: "/recruiter/quizzes", icon: "book-open" },
 ];
 

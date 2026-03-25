@@ -98,11 +98,19 @@ describe("convex/analytics", () => {
     await expect(
       t.query(api.analytics.getRecruiterAnalyticsDashboard, {})
     ).rejects.toThrow("UNAUTHENTICATED");
+    await expect(
+      t.query(api.analytics.getRecruiterDashboardOverview, {})
+    ).rejects.toThrow("UNAUTHENTICATED");
 
     await expect(
       t
         .withIdentity(candidateIdentity)
         .query(api.analytics.getRecruiterAnalyticsDashboard, {})
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t
+        .withIdentity(candidateIdentity)
+        .query(api.analytics.getRecruiterDashboardOverview, {})
     ).rejects.toThrow("FORBIDDEN");
   });
 
@@ -469,5 +477,201 @@ describe("convex/analytics", () => {
     expect(
       result.conversionFunnel.find((entry) => entry.stage === "Views")?.count
     ).toBe(3);
+  });
+
+  it("returns recruiter dashboard overview cards, recent applications, and review counts", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_dashboard_overview" };
+    const seededStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    const seededIds = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+      const candidates = await Promise.all(
+        ["a", "b", "c", "d"].map((suffix) =>
+          ctx.db.insert(
+            "users",
+            createUserSeed(`candidate_overview_${suffix}`, "candidate")
+          )
+        )
+      );
+
+      const urgentInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Urgent Product Internship",
+          viewCount: 12,
+          applicationDeadline: Date.parse("2026-03-27T12:00:00.000Z"),
+        })
+      );
+      const stableInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Stable Data Internship",
+          viewCount: 7,
+          applicationDeadline: Date.parse("2026-04-18T12:00:00.000Z"),
+        })
+      );
+      const draftInternshipId = await ctx.db.insert("internships", {
+        ...createInternshipSeed(recruiterId, {
+          title: "Draft Ops Internship",
+          viewCount: 0,
+          applicationDeadline: Date.parse("2026-04-02T12:00:00.000Z"),
+        }),
+        status: "draft",
+      });
+
+      const urgentApplicationId = await ctx.db.insert("applications", {
+        internshipId: urgentInternshipId,
+        candidateId: candidates[0],
+        resumeStorageId: seededStorageId,
+        status: "under_review",
+        statusHistory: createStatusHistory(
+          ["applied", "under_review"],
+          recruiterId,
+          Date.parse("2026-03-24T11:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-24T11:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-24T11:05:00.000Z"),
+      });
+      const stableApplicationId = await ctx.db.insert("applications", {
+        internshipId: stableInternshipId,
+        candidateId: candidates[1],
+        resumeStorageId: seededStorageId,
+        status: "quiz_assigned",
+        statusHistory: createStatusHistory(
+          ["applied", "under_review", "shortlisted", "quiz_assigned"],
+          recruiterId,
+          Date.parse("2026-03-24T09:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-24T09:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-24T09:05:00.000Z"),
+      });
+      const earlierApplicationId = await ctx.db.insert("applications", {
+        internshipId: urgentInternshipId,
+        candidateId: candidates[2],
+        resumeStorageId: seededStorageId,
+        status: "quiz_completed",
+        statusHistory: createStatusHistory(
+          [
+            "applied",
+            "under_review",
+            "shortlisted",
+            "quiz_assigned",
+            "quiz_completed",
+          ],
+          recruiterId,
+          Date.parse("2026-03-23T08:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-23T08:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-23T08:05:00.000Z"),
+      });
+
+      const quizId = await ctx.db.insert("quizzes", {
+        creatorId: recruiterId,
+        title: "Manual review quiz",
+        description: "Needs recruiter grading",
+        type: "recruitment",
+        internshipId: stableInternshipId,
+        timeLimit: 20,
+        questions: [
+          {
+            id: "q1",
+            type: "short_answer",
+            question: "Explain event bubbling.",
+            points: 5,
+            sampleAnswer: "Events move up the DOM tree.",
+          },
+        ],
+        isPublished: true,
+        publishedAt: Date.parse("2026-03-20T12:00:00.000Z"),
+        createdAt: Date.parse("2026-03-20T12:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-20T12:00:00.000Z"),
+      });
+
+      await ctx.db.insert("quizAttempts", {
+        quizId,
+        candidateId: candidates[1],
+        applicationId: stableApplicationId,
+        attemptType: "application",
+        answers: [
+          {
+            questionId: "q1",
+            type: "short_answer",
+            textAnswer: "The event bubbles from child to parent.",
+          },
+        ],
+        maxScore: 5,
+        startedAt: Date.parse("2026-03-24T09:10:00.000Z"),
+        submittedAt: Date.parse("2026-03-24T09:25:00.000Z"),
+        timeLimit: 20,
+        status: "submitted",
+      });
+      await ctx.db.insert("quizAttempts", {
+        quizId,
+        candidateId: candidates[2],
+        applicationId: earlierApplicationId,
+        attemptType: "application",
+        answers: [
+          {
+            questionId: "q1",
+            type: "short_answer",
+            textAnswer: "Events bubble unless they are stopped.",
+          },
+        ],
+        maxScore: 5,
+        startedAt: Date.parse("2026-03-23T08:10:00.000Z"),
+        submittedAt: Date.parse("2026-03-23T08:25:00.000Z"),
+        timeLimit: 20,
+        status: "submitted",
+      });
+
+      return {
+        draftInternshipId,
+        urgentApplicationId,
+        stableApplicationId,
+        earlierApplicationId,
+      };
+    });
+
+    const result = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.analytics.getRecruiterDashboardOverview, {});
+
+    expect(result.summary).toEqual({
+      openListings: 2,
+      draftListings: 1,
+      totalApplications: 3,
+      pendingQuizReviews: 2,
+    });
+    expect(
+      result.recentApplications.map((application) => application.applicationId)
+    ).toEqual([
+      seededIds.urgentApplicationId,
+      seededIds.stableApplicationId,
+      seededIds.earlierApplicationId,
+    ]);
+    expect(result.recentApplications[0]).toMatchObject({
+      internshipTitle: "Urgent Product Internship",
+      candidateName: "candidate_overview_a name",
+      status: "under_review",
+    });
+    expect(result.listingsNeedingAttention).toHaveLength(2);
+    expect(result.listingsNeedingAttention[0]).toMatchObject({
+      internshipId: seededIds.draftInternshipId,
+      title: "Draft Ops Internship",
+      status: "draft",
+      applicationCount: 0,
+    });
+    expect(result.listingsNeedingAttention[1]).toMatchObject({
+      title: "Urgent Product Internship",
+      status: "open",
+      applicationCount: 2,
+    });
   });
 });

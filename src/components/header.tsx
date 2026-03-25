@@ -32,7 +32,6 @@ const NAV_LINKS = [
   { href: "/", label: "Home" },
   { href: "/internships", label: "Internships" },
   { href: "/resources", label: "Resources" },
-  { href: "#", label: "About" },
 ] as const;
 
 export function Header() {

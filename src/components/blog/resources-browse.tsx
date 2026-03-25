@@ -165,7 +165,8 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
             <div className="grid gap-3 rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
               <div className="flex items-center gap-3 text-sm text-slate-300">
                 <BookOpenIcon className="size-4" />
-                Sample quizzes are open to signed-in users
+                Public previews are open to everyone. Sign in to practice and
+                save results.
               </div>
               <Button
                 asChild

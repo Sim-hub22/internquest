@@ -489,4 +489,53 @@ describe("convex/quizAttempts", () => {
       })
     ).rejects.toThrow("This attempt can no longer be updated");
   });
+
+  it("keeps sample quiz previews public while requiring authentication to start attempts", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "sample_public_preview_admin" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+    });
+
+    const sampleQuizId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Preview Before Practice",
+        description: "Public preview sample quiz",
+        type: "sample",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which CSS property changes spacing inside an element?",
+            points: 2,
+            options: [
+              { id: "a", text: "padding" },
+              { id: "b", text: "margin" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await t.withIdentity(adminIdentity).mutation(api.quizzes.publish, {
+      quizId: sampleQuizId,
+    });
+
+    const preview = await t.query(api.quizzes.getPublishedSample, {
+      quizId: sampleQuizId,
+    });
+
+    expect(preview?.quiz.title).toBe("Preview Before Practice");
+    expect(preview?.viewerAttempt).toBeNull();
+    await expect(
+      t.mutation(api.quizAttempts.start, {
+        quizId: sampleQuizId,
+      })
+    ).rejects.toThrow("UNAUTHENTICATED");
+  });
 });

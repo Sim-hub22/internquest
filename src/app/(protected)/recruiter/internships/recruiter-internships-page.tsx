@@ -299,7 +299,7 @@ export function RecruiterInternshipsPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild variant="outline">
-            <Link href={"/recruiter/analytics" as Route}>View Analytics</Link>
+            <Link href={"/recruiter/dashboard" as Route}>View Dashboard</Link>
           </Button>
           <Button asChild>
             <Link href={"/recruiter/internships/new" as Route}>

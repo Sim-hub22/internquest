@@ -81,7 +81,11 @@ const FUNNEL_COLORS = [
   ANALYTICS_ACCENT_COLORS.gold,
 ];
 
-export function RecruiterAnalyticsDashboard() {
+export function RecruiterAnalyticsDashboard({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const { isAuthenticated } = useConvexAuth();
   const analytics = useQuery(
     api.analytics.getRecruiterAnalyticsDashboard,
@@ -90,11 +94,19 @@ export function RecruiterAnalyticsDashboard() {
 
   if (analytics === undefined) {
     return (
-      <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-        <div className="space-y-2">
-          <Skeleton className="h-9 w-72" />
-          <Skeleton className="h-5 w-[28rem]" />
-        </div>
+      <div
+        className={
+          embedded
+            ? "flex flex-col gap-6"
+            : "flex flex-1 flex-col gap-6 p-4 lg:p-6"
+        }
+      >
+        {!embedded ? (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-72" />
+            <Skeleton className="h-5 w-[28rem]" />
+          </div>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <Skeleton key={`dashboard-metric-${index}`} className="h-40" />
@@ -115,6 +127,10 @@ export function RecruiterAnalyticsDashboard() {
   const hasListings = analytics.topPerformingInternships.length > 0;
 
   if (!hasListings) {
+    if (embedded) {
+      return null;
+    }
+
     return (
       <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
         <div className="space-y-2">
@@ -162,21 +178,41 @@ export function RecruiterAnalyticsDashboard() {
   }));
 
   return (
-    <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
+    <div
+      className={
+        embedded
+          ? "flex flex-col gap-6"
+          : "flex flex-1 flex-col gap-6 p-4 lg:p-6"
+      }
+    >
+      {embedded ? (
         <div className="space-y-2">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Recruiter Analytics
-          </h1>
+          <h2 className="text-2xl font-semibold tracking-tight">
+            Performance snapshot
+          </h2>
           <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Compare listing performance, monitor application momentum, and see
-            how effectively views move through your pipeline.
+            Keep the daily action view and the bigger recruiting trend lines in
+            the same place.
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href={"/recruiter/internships" as Route}>Back to Listings</Link>
-        </Button>
-      </div>
+      ) : (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Recruiter Analytics
+            </h1>
+            <p className="max-w-3xl text-sm leading-relaxed text-muted-foreground">
+              Compare listing performance, monitor application momentum, and see
+              how effectively views move through your pipeline.
+            </p>
+          </div>
+          <Button asChild variant="outline">
+            <Link href={"/recruiter/internships" as Route}>
+              Back to Listings
+            </Link>
+          </Button>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-3">
         <AnalyticsMetricCard

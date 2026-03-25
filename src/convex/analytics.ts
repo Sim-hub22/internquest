@@ -126,6 +126,20 @@ async function listInternshipApplications(
     .collect();
 }
 
+async function listLatestInternshipApplications(
+  ctx: QueryCtx,
+  internshipId: Id<"internships">,
+  limit: number
+) {
+  return await ctx.db
+    .query("applications")
+    .withIndex("by_internship_and_appliedAt", (q) =>
+      q.eq("internshipId", internshipId)
+    )
+    .order("desc")
+    .take(limit);
+}
+
 async function listRecentInternshipApplications(
   ctx: QueryCtx,
   internshipId: Id<"internships">,
@@ -148,6 +162,27 @@ async function listRecentInternshipViews(
     .query("internshipViews")
     .withIndex("by_internship_and_date", (q) =>
       q.eq("internshipId", internshipId).gte("viewedAt", startTimestamp)
+    )
+    .collect();
+}
+
+async function listRecruiterRecruitmentQuizzes(
+  ctx: QueryCtx,
+  recruiterId: Id<"users">
+) {
+  return await ctx.db
+    .query("quizzes")
+    .withIndex("by_creator_and_type", (q) =>
+      q.eq("creatorId", recruiterId).eq("type", "recruitment")
+    )
+    .collect();
+}
+
+async function listSubmittedQuizAttempts(ctx: QueryCtx, quizId: Id<"quizzes">) {
+  return await ctx.db
+    .query("quizAttempts")
+    .withIndex("by_quiz_and_status", (q) =>
+      q.eq("quizId", quizId).eq("status", "submitted")
     )
     .collect();
 }
@@ -430,6 +465,135 @@ export const getRecruiterAnalyticsDashboard = query({
         { stage: "Shortlisted", count: shortlistedApplications.length },
         { stage: "Accepted", count: acceptedApplications.length },
       ],
+    };
+  },
+});
+
+export const getRecruiterDashboardOverview = query({
+  args: {},
+  handler: async (ctx) => {
+    const recruiter = await requireRole(ctx, "recruiter");
+    const [internships, quizzes] = await Promise.all([
+      listRecruiterInternships(ctx, recruiter._id),
+      listRecruiterRecruitmentQuizzes(ctx, recruiter._id),
+    ]);
+
+    if (internships.length === 0) {
+      return {
+        summary: {
+          openListings: 0,
+          draftListings: 0,
+          totalApplications: 0,
+          pendingQuizReviews: 0,
+        },
+        recentApplications: [],
+        listingsNeedingAttention: [],
+      };
+    }
+
+    const internshipStats = await Promise.all(
+      internships.map(async (internship) => {
+        const [applications, recentApplications] = await Promise.all([
+          listInternshipApplications(ctx, internship._id),
+          listLatestInternshipApplications(ctx, internship._id, 5),
+        ]);
+
+        return {
+          internship,
+          applicationCount: applications.length,
+          recentApplications,
+        };
+      })
+    );
+
+    const pendingQuizReviews = await Promise.all(
+      quizzes.map(async (quiz) => {
+        const attempts = await listSubmittedQuizAttempts(ctx, quiz._id);
+        return attempts.length;
+      })
+    );
+
+    const recentCandidateIds = Array.from(
+      new Set(
+        internshipStats.flatMap((stat) =>
+          stat.recentApplications.map((application) => application.candidateId)
+        )
+      )
+    );
+    const recentCandidates = await Promise.all(
+      recentCandidateIds.map(
+        async (candidateId) =>
+          [candidateId, await ctx.db.get(candidateId)] as const
+      )
+    );
+    const candidateMap = new Map(recentCandidates);
+    const deadlineThreshold = Date.now() + 7 * DAY_MS;
+
+    return {
+      summary: {
+        openListings: internships.filter(
+          (internship) => internship.status === "open"
+        ).length,
+        draftListings: internships.filter(
+          (internship) => internship.status === "draft"
+        ).length,
+        totalApplications: internshipStats.reduce(
+          (sum, stat) => sum + stat.applicationCount,
+          0
+        ),
+        pendingQuizReviews: pendingQuizReviews.reduce(
+          (sum, count) => sum + count,
+          0
+        ),
+      },
+      recentApplications: internshipStats
+        .flatMap((stat) =>
+          stat.recentApplications.map((application) => ({
+            applicationId: application._id,
+            internshipId: stat.internship._id,
+            internshipTitle: stat.internship.title,
+            candidateName:
+              candidateMap.get(application.candidateId)?.name ?? "Candidate",
+            status: application.status,
+            appliedAt: application.appliedAt,
+          }))
+        )
+        .sort((left, right) => right.appliedAt - left.appliedAt)
+        .slice(0, 5),
+      listingsNeedingAttention: internshipStats
+        .filter(
+          (stat) =>
+            stat.internship.status === "draft" ||
+            (stat.internship.status === "open" &&
+              stat.internship.applicationDeadline <= deadlineThreshold)
+        )
+        .sort((left, right) => {
+          if (
+            left.internship.status === "draft" &&
+            right.internship.status !== "draft"
+          ) {
+            return -1;
+          }
+
+          if (
+            right.internship.status === "draft" &&
+            left.internship.status !== "draft"
+          ) {
+            return 1;
+          }
+
+          return (
+            left.internship.applicationDeadline -
+            right.internship.applicationDeadline
+          );
+        })
+        .map((stat) => ({
+          internshipId: stat.internship._id,
+          title: stat.internship.title,
+          status: stat.internship.status,
+          applicationDeadline: stat.internship.applicationDeadline,
+          applicationCount: stat.applicationCount,
+        })),
     };
   },
 });

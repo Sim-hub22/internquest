@@ -27,8 +27,8 @@ export default function PublicSampleQuizzesPage() {
           Sample Quizzes
         </h1>
         <p className="max-w-2xl text-muted-foreground">
-          Practice with public quizzes and get a feel for the assessment flow
-          used across InternQuest.
+          Preview public quiz questions first, then sign in when you want the
+          full timed practice flow with saved results.
         </p>
       </div>
 
@@ -63,9 +63,12 @@ export default function PublicSampleQuizzesPage() {
                   <span>{formatMinutesLabel(quiz.timeLimit)}</span>
                   <span>{formatScore(undefined, quiz.maxScore)}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Public preview available. Sign in to start the scored attempt.
+                </p>
                 <Button asChild variant="outline">
                   <Link href={`/resources/quizzes/${quiz._id}` as Route}>
-                    Open Quiz
+                    Preview Quiz
                   </Link>
                 </Button>
               </CardContent>

@@ -1,5 +1,5 @@
-import { RecruiterAnalyticsDashboard } from "@/components/analytics/recruiter-analytics-dashboard";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <RecruiterAnalyticsDashboard />;
+  redirect("/recruiter/dashboard");
 }

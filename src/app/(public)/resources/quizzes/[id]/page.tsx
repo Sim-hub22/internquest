@@ -167,6 +167,38 @@ export default function PublicSampleQuizDetailPage() {
     }
   };
 
+  const previewCards = sample.quiz.questions.map((question, index) => (
+    <Card key={question.id}>
+      <CardHeader>
+        <CardTitle className="text-base">
+          Question {index + 1} - {question.points} pts
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        <p className="text-sm">{question.question}</p>
+
+        {question.type === "multiple_choice" ? (
+          <div className="grid gap-3">
+            {question.options?.map((option) => (
+              <div
+                key={option.id}
+                className="rounded-lg border border-border/70 bg-muted/10 px-3 py-2 text-sm"
+              >
+                {option.text}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <Textarea
+            rows={6}
+            disabled
+            placeholder="Sign in to answer this question."
+          />
+        )}
+      </CardContent>
+    </Card>
+  ));
+
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 lg:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -185,27 +217,40 @@ export default function PublicSampleQuizDetailPage() {
             {formatMinutesLabel(sample.quiz.timeLimit)}
           </Badge>
           <Badge variant="outline">
-            {formatScore(sample.viewerAttempt?.score, sample.maxScore)}
+            {currentUser
+              ? formatScore(sample.viewerAttempt?.score, sample.maxScore)
+              : `${sample.maxScore} max points`}
           </Badge>
         </div>
       </div>
 
       {!currentUser ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign in to take this quiz</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3">
-            <Button asChild>
-              <Link href={signInHref}>Sign in to start</Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href={"/resources/quizzes" as Route}>
-                Back to resources
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
+        <div className="flex flex-col gap-4">
+          <Card className="border-border/70 bg-muted/10">
+            <CardHeader>
+              <CardTitle>Preview mode</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Read every question before you commit. Sign in when you are
+                ready for the timed practice flow, automatic submission, and
+                saved results.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button asChild>
+                  <Link href={signInHref}>Sign in to practice</Link>
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={"/resources/quizzes" as Route}>
+                    Back to quizzes
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {previewCards}
+        </div>
       ) : result && result.attempt.status !== "in_progress" ? (
         <div className="flex flex-col gap-4">
           <Card>
@@ -289,7 +334,7 @@ export default function PublicSampleQuizDetailPage() {
             <Card key={question.id}>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Question {index + 1} · {question.points} pts
+                  Question {index + 1} - {question.points} pts
                 </CardTitle>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
