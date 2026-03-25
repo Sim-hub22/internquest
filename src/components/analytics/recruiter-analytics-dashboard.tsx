@@ -397,7 +397,21 @@ export function RecruiterAnalyticsDashboard() {
                   fill="hsl(var(--background))"
                   stroke="none"
                   dataKey="count"
-                  formatter={(value: number) => formatWholeNumber(value)}
+                  formatter={(value) => {
+                    if (typeof value === "number") {
+                      return formatWholeNumber(value);
+                    }
+
+                    if (value == null) {
+                      return "";
+                    }
+
+                    const numericValue = Number(value);
+
+                    return Number.isFinite(numericValue)
+                      ? formatWholeNumber(numericValue)
+                      : "";
+                  }}
                 />
               </Funnel>
             </FunnelChart>
