@@ -1,7 +1,7 @@
 {
   "guidelinesHash": "294b619f8246c26bd6bfb6a57122503f0e2149872fc6b26609b7a95bfefaf2b8",
-  "agentsMdSectionHash": "04bd28a078ba0013e4a05d06bf0f18c7b3ce0325f5b5239f31b9dab1b8f36c7e",
-  "claudeMdHash": "04bd28a078ba0013e4a05d06bf0f18c7b3ce0325f5b5239f31b9dab1b8f36c7e",
+  "agentsMdSectionHash": "2e7c4225c2fe4c71cd39b83389288e622de3269593294a9fc667cfd2853b237e",
+  "claudeMdHash": "2e7c4225c2fe4c71cd39b83389288e622de3269593294a9fc667cfd2853b237e",
   "agentSkillsSha": "dc8ff761cfe4da450af2ea8a9ec708f737064bed",
   "installedSkillNames": [
     "agent-browser",
