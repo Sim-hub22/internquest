@@ -63,10 +63,10 @@ export function InternshipAnalyticsSection({
           ))}
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
-          <Skeleton className="h-[26rem]" />
-          <Skeleton className="h-[26rem]" />
+          <Skeleton className="h-104" />
+          <Skeleton className="h-104" />
         </div>
-        <Skeleton className="h-[26rem]" />
+        <Skeleton className="h-104" />
       </section>
     );
   }

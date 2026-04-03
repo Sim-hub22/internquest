@@ -104,7 +104,7 @@ export function RecruiterAnalyticsDashboard({
         {!embedded ? (
           <div className="space-y-2">
             <Skeleton className="h-9 w-72" />
-            <Skeleton className="h-5 w-[28rem]" />
+            <Skeleton className="h-5 w-md" />
           </div>
         ) : null}
         <div className="grid gap-4 md:grid-cols-3">
@@ -113,12 +113,12 @@ export function RecruiterAnalyticsDashboard({
           ))}
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
-          <Skeleton className="h-[28rem]" />
-          <Skeleton className="h-[28rem]" />
+          <Skeleton className="h-112" />
+          <Skeleton className="h-112" />
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
-          <Skeleton className="h-[28rem]" />
-          <Skeleton className="h-[28rem]" />
+          <Skeleton className="h-112" />
+          <Skeleton className="h-112" />
         </div>
       </div>
     );
@@ -144,7 +144,7 @@ export function RecruiterAnalyticsDashboard({
           </p>
         </div>
 
-        <Empty className="min-h-[28rem] border-border/70 bg-gradient-to-br from-background via-background to-muted/25">
+        <Empty className="min-h-112 border-border/70 bg-linear-to-br from-background via-background to-muted/25">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <TrendingUpIcon />

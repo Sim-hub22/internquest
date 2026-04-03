@@ -182,11 +182,11 @@ export function AdminInternshipsPage() {
       header: "Moderation",
       cell: ({ getValue }) =>
         getValue() ? (
-          <span className="block max-w-[18rem] text-sm leading-5 whitespace-normal text-muted-foreground xl:max-w-[22rem]">
+          <span className="block max-w-[18rem] text-sm leading-5 whitespace-normal text-muted-foreground xl:max-w-88">
             {getValue()}
           </span>
         ) : (
-          <span className="block max-w-[18rem] text-sm whitespace-normal text-muted-foreground xl:max-w-[22rem]">
+          <span className="block max-w-[18rem] text-sm whitespace-normal text-muted-foreground xl:max-w-88">
             Not moderated
           </span>
         ),

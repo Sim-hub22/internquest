@@ -108,8 +108,8 @@ export function AdminDashboardPage() {
           ))}
         </div>
         <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
-          <Skeleton className="h-[26rem]" />
-          <Skeleton className="h-[26rem]" />
+          <Skeleton className="h-104" />
+          <Skeleton className="h-104" />
         </div>
         <div className="grid gap-4 xl:grid-cols-2">
           <Skeleton className="h-64" />

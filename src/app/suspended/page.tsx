@@ -28,7 +28,7 @@ export default async function SuspendedPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
-      <Card className="w-full max-w-lg border-border/70 bg-gradient-to-br from-background via-background to-muted/30">
+      <Card className="w-full max-w-lg border-border/70 bg-linear-to-br from-background via-background to-muted/30">
         <CardHeader className="space-y-3">
           <CardTitle className="text-2xl tracking-tight">
             Account Suspended

@@ -26,7 +26,7 @@ export function ResourcePostPage({ slug }: { slug: string }) {
     return (
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-10 lg:px-6">
         <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-[30rem] w-full rounded-[2rem]" />
+        <Skeleton className="h-120 w-full rounded-[2rem]" />
       </main>
     );
   }
@@ -52,7 +52,7 @@ export function ResourcePostPage({ slug }: { slug: string }) {
   }
 
   return (
-    <main className="bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(248,250,252,1))] dark:bg-[linear-gradient(180deg,_rgba(2,6,23,1),_rgba(3,7,18,1))]">
+    <main className="bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,1))] dark:bg-[linear-gradient(180deg,rgba(2,6,23,1),rgba(3,7,18,1))]">
       <article className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 lg:px-6 lg:py-14">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-2">
@@ -109,7 +109,7 @@ export function ResourcePostPage({ slug }: { slug: string }) {
             <img
               src={post.coverImageUrl}
               alt={post.title}
-              className="aspect-[16/8] w-full object-cover"
+              className="aspect-16/8 w-full object-cover"
             />
           ) : null}
 

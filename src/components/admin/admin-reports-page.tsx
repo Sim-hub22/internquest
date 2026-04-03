@@ -185,7 +185,7 @@ export function AdminReportsPage() {
         }
 
         return (
-          <div className="flex max-w-[12rem] min-w-0 flex-col xl:max-w-[14rem]">
+          <div className="flex max-w-48 min-w-0 flex-col xl:max-w-56">
             <span className="truncate font-medium">{reporter.name}</span>
             <span className="truncate text-xs text-muted-foreground">
               {reporter.email}

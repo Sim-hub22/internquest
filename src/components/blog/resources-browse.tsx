@@ -95,7 +95,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
   const remainingPosts = results?.page.slice(1) ?? [];
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.10),_transparent_32%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(248,250,252,1))] dark:bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.16),_transparent_28%),linear-gradient(180deg,_rgba(2,6,23,1),_rgba(3,7,18,1))]">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.10),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,1))] dark:bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_28%),linear-gradient(180deg,rgba(2,6,23,1),rgba(3,7,18,1))]">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-10 lg:px-6 lg:py-14">
         <section className="grid gap-6 rounded-[2rem] border bg-background/85 p-6 shadow-sm backdrop-blur lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
           <div className="space-y-5">
@@ -162,7 +162,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
                 the resources section.
               </p>
             </div>
-            <div className="grid gap-3 rounded-[1.25rem] border border-white/10 bg-white/5 p-4">
+            <div className="grid gap-3 rounded-4xl border border-white/10 bg-white/5 p-4">
               <div className="flex items-center gap-3 text-sm text-slate-300">
                 <BookOpenIcon className="size-4" />
                 Public previews are open to everyone. Sign in to practice and
@@ -183,7 +183,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
 
         {results === undefined ? (
           <div className="grid gap-6">
-            <Skeleton className="h-[26rem] w-full rounded-[2rem]" />
+            <Skeleton className="h-104 w-full rounded-[2rem]" />
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 6 }).map((_, index) => (
                 <Skeleton
@@ -211,10 +211,10 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
                     <img
                       src={featuredPost.coverImageUrl}
                       alt={featuredPost.title}
-                      className="h-full min-h-[18rem] w-full object-cover lg:min-h-full"
+                      className="h-full min-h-72 w-full object-cover lg:min-h-full"
                     />
                   ) : (
-                    <div className="h-full min-h-[18rem] bg-[linear-gradient(135deg,_rgba(249,115,22,0.18),_rgba(250,204,21,0.12),_rgba(255,255,255,0.04))]" />
+                    <div className="h-full min-h-72 bg-[linear-gradient(135deg,rgba(249,115,22,0.18),rgba(250,204,21,0.12),rgba(255,255,255,0.04))]" />
                   )}
                 </div>
 
@@ -263,10 +263,10 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
                     <img
                       src={post.coverImageUrl}
                       alt={post.title}
-                      className="aspect-[16/10] w-full object-cover"
+                      className="aspect-16/10 w-full object-cover"
                     />
                   ) : (
-                    <div className="aspect-[16/10] bg-[linear-gradient(140deg,_rgba(251,191,36,0.18),_rgba(255,255,255,0.06),_rgba(59,130,246,0.10))]" />
+                    <div className="aspect-16/10 bg-[linear-gradient(140deg,rgba(251,191,36,0.18),rgba(255,255,255,0.06),rgba(59,130,246,0.10))]" />
                   )}
                   <div className="flex flex-1 flex-col gap-4 p-5">
                     <div className="flex flex-wrap items-center gap-2">
