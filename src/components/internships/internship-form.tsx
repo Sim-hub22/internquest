@@ -133,6 +133,7 @@ function formatDateValue(date: Date) {
 
 export function InternshipForm(props: InternshipFormProps) {
   const router = useRouter();
+  const destination = "/recruiter/internships" as Route;
   const [submitIntent, setSubmitIntent] = useState<"draft" | "open" | null>(
     null
   );
@@ -240,7 +241,7 @@ export function InternshipForm(props: InternshipFormProps) {
         toast.success("Internship updated");
       }
 
-      router.push("/recruiter/internships" as Route);
+      router.push(destination);
     } catch (error) {
       console.error(error);
       toast.error("Failed to save internship");
@@ -585,6 +586,14 @@ export function InternshipForm(props: InternshipFormProps) {
             Published listings are immediately visible to candidates.
           </p>
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => router.push(destination)}
+            >
+              Cancel
+            </Button>
             <Button type="submit" variant="secondary" disabled={isSubmitting}>
               {isSubmittingDraft && <Spinner />}
               Save Draft

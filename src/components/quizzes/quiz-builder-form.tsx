@@ -430,6 +430,14 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             type="button"
+            variant="outline"
+            disabled={isSubmitting}
+            onClick={() => router.push(destination as Route)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
             variant="secondary"
             disabled={isSubmitting}
             onClick={() => void save("draft")}
