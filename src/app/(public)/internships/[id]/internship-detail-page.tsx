@@ -13,6 +13,7 @@ import {
   InternshipMeta,
   toDisplayLabel,
 } from "@/components/internships/constants";
+import { canRecruiterManageInternship } from "@/components/internships/manage-listing-access";
 import { ReportContentButton } from "@/components/report-content-button";
 import { RichTextContent } from "@/components/rich-text-content";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +69,11 @@ export function InternshipDetailPage({
     internship !== undefined &&
     internship.status === "open" &&
     internship.applicationDeadline > Date.now();
+  const canManageListing = canRecruiterManageInternship(
+    currentUser,
+    internship
+  );
+  const showReportButton = currentUser !== undefined && !canManageListing;
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -244,10 +250,12 @@ export function InternshipDetailPage({
       </Card>
 
       <div className="flex flex-wrap items-center gap-2">
-        <ReportContentButton
-          targetId={internship._id}
-          targetType="internship"
-        />
+        {showReportButton ? (
+          <ReportContentButton
+            targetId={internship._id}
+            targetType="internship"
+          />
+        ) : null}
         {currentUser === undefined ? (
           <Skeleton className="h-9 w-36" />
         ) : currentUser === null ? (
@@ -327,11 +335,19 @@ export function InternshipDetailPage({
             </CardContent>
           </Card>
         ) : currentUser.role === "recruiter" ? (
-          <Button asChild variant="outline">
-            <Link href={`/recruiter/internships/${internship._id}` as Route}>
-              Manage Listing
-            </Link>
-          </Button>
+          canManageListing ? (
+            <Button asChild variant="outline">
+              <Link href={`/recruiter/internships/${internship._id}` as Route}>
+                Manage Listing
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild variant="outline">
+              <Link href={"/recruiter/internships" as Route}>
+                View Your Listings
+              </Link>
+            </Button>
+          )
         ) : (
           <Button asChild variant="outline">
             <Link href={"/admin/dashboard" as Route}>
