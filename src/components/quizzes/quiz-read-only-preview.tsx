@@ -15,6 +15,8 @@ type ReadOnlyQuizPreviewProps = {
         id: string;
         text: string;
       }>;
+      correctOptionId?: string;
+      sampleAnswer?: string;
     }>;
   };
   maxScore: number;
@@ -70,13 +72,25 @@ export function QuizReadOnlyPreview({
                       className="rounded-lg border px-4 py-3 text-sm text-muted-foreground"
                       key={option.id}
                     >
-                      {option.text}
+                      <div className="flex items-center justify-between gap-3">
+                        <span>{option.text}</span>
+                        {option.id === question.correctOptionId ? (
+                          <Badge>Correct answer</Badge>
+                        ) : null}
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
-                  Short answer response area
+                <div className="flex flex-col gap-3">
+                  <div className="rounded-lg border border-dashed px-4 py-6 text-sm text-muted-foreground">
+                    Short answer response area
+                  </div>
+                  {question.sampleAnswer ? (
+                    <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+                      Guidance: {question.sampleAnswer}
+                    </div>
+                  ) : null}
                 </div>
               )}
             </CardContent>

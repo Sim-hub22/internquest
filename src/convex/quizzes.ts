@@ -59,6 +59,34 @@ function sanitizeQuizForTaker(quiz: Doc<"quizzes">) {
   };
 }
 
+function buildQuizForOwnerPreview(quiz: Doc<"quizzes">) {
+  return {
+    _id: quiz._id,
+    _creationTime: quiz._creationTime,
+    creatorId: quiz.creatorId,
+    title: quiz.title,
+    description: quiz.description,
+    type: quiz.type,
+    internshipId: quiz.internshipId,
+    timeLimit: quiz.timeLimit,
+    isPublished: quiz.isPublished,
+    publishedAt: quiz.publishedAt,
+    createdAt: quiz.createdAt,
+    updatedAt: quiz.updatedAt,
+    questions: quiz.questions.map((question) => ({
+      id: question.id,
+      type: question.type,
+      question: question.question,
+      points: question.points,
+      ...(question.options ? { options: question.options } : {}),
+      ...(question.correctOptionId
+        ? { correctOptionId: question.correctOptionId }
+        : {}),
+      ...(question.sampleAnswer ? { sampleAnswer: question.sampleAnswer } : {}),
+    })),
+  };
+}
+
 async function getRecruitmentQuizForOwner(
   recruiterId: Id<"users">,
   quizId: Id<"quizzes">,
@@ -588,7 +616,7 @@ export const getOwnerPreview = query({
     }
 
     return {
-      quiz: sanitizeQuizForTaker(quiz),
+      quiz: buildQuizForOwnerPreview(quiz),
       questionCount: quiz.questions.length,
       maxScore: calculateMaxScore(quiz.questions),
     };

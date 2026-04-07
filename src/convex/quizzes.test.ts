@@ -388,28 +388,28 @@ describe("convex/quizzes", () => {
     );
   });
 
-  it("returns owner previews without leaking answer keys and blocks non-owners", async () => {
+  it("returns answer keys in owner previews and blocks non-owners", async () => {
     const t = convexTest(schema, modules);
-    const adminIdentity = { subject: "admin_owner_preview" };
-    const recruiterIdentity = { subject: "recruiter_owner_preview" };
+    const ownerIdentity = { subject: "recruiter_owner_preview" };
+    const otherRecruiterIdentity = { subject: "recruiter_non_owner_preview" };
 
     await t.run(async (ctx) => {
       await ctx.db.insert(
         "users",
-        createUserSeed(adminIdentity.subject, "admin")
+        createUserSeed(ownerIdentity.subject, "recruiter")
       );
       await ctx.db.insert(
         "users",
-        createUserSeed(recruiterIdentity.subject, "recruiter")
+        createUserSeed(otherRecruiterIdentity.subject, "recruiter")
       );
     });
 
     const quizId = await t
-      .withIdentity(adminIdentity)
+      .withIdentity(ownerIdentity)
       .mutation(api.quizzes.create, {
-        title: "Previewable sample quiz",
+        title: "Previewable recruitment quiz",
         description: "Preview me",
-        type: "sample",
+        type: "recruitment",
         questions: [
           {
             id: "q1",
@@ -422,22 +422,37 @@ describe("convex/quizzes", () => {
             ],
             correctOptionId: "a",
           },
+          {
+            id: "q2",
+            type: "short_answer",
+            question: "Explain why state updates trigger rerenders.",
+            points: 6,
+            sampleAnswer:
+              "State updates enqueue a rerender with the new value.",
+          },
         ],
       });
 
     const preview = await t
-      .withIdentity(adminIdentity)
+      .withIdentity(ownerIdentity)
       .query(api.quizzes.getOwnerPreview, {
         quizId,
       });
 
-    expect(preview?.quiz.questions[0]).not.toHaveProperty("correctOptionId");
-    expect(preview?.quiz.title).toBe("Previewable sample quiz");
+    expect(preview?.quiz.questions[0]).toMatchObject({
+      correctOptionId: "a",
+    });
+    expect(preview?.quiz.questions[1]).toMatchObject({
+      sampleAnswer: "State updates enqueue a rerender with the new value.",
+    });
+    expect(preview?.quiz.title).toBe("Previewable recruitment quiz");
 
     await expect(
-      t.withIdentity(recruiterIdentity).query(api.quizzes.getOwnerPreview, {
-        quizId,
-      })
+      t
+        .withIdentity(otherRecruiterIdentity)
+        .query(api.quizzes.getOwnerPreview, {
+          quizId,
+        })
     ).rejects.toThrow("FORBIDDEN");
   });
 
