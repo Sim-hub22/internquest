@@ -115,7 +115,7 @@ export default function AdminQuizzesPage() {
     }),
     columnHelper.accessor("maxScore", {
       id: "max_score",
-      header: "Max score",
+      header: "Total points",
       cell: ({ getValue }) => `${getValue()} pts`,
     }),
     columnHelper.accessor("timeLimit", {

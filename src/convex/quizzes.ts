@@ -87,6 +87,32 @@ function buildQuizForOwnerPreview(quiz: Doc<"quizzes">) {
   };
 }
 
+async function getQuizAttemptStats(
+  ctx: QueryCtx,
+  quizId: Id<"quizzes">
+): Promise<{
+  totalAttempts: number;
+  gradedAttempts: number;
+}> {
+  let totalAttempts = 0;
+  let gradedAttempts = 0;
+
+  for await (const attempt of ctx.db
+    .query("quizAttempts")
+    .withIndex("by_quiz", (q) => q.eq("quizId", quizId))) {
+    totalAttempts += 1;
+
+    if (attempt.status === "graded") {
+      gradedAttempts += 1;
+    }
+  }
+
+  return {
+    totalAttempts,
+    gradedAttempts,
+  };
+}
+
 async function getRecruitmentQuizForOwner(
   recruiterId: Id<"users">,
   quizId: Id<"quizzes">,
@@ -491,22 +517,14 @@ export const listForRecruiter = query({
 
     return Promise.all(
       quizzes.map(async (quiz) => {
-        const internship = quiz.internshipId
-          ? await ctx.db.get(quiz.internshipId)
-          : null;
         const deleteState = await getQuizDeleteState(ctx, quiz._id);
+        const attemptStats = await getQuizAttemptStats(ctx, quiz._id);
 
         return {
           ...quiz,
-          internship: internship
-            ? {
-                _id: internship._id,
-                title: internship.title,
-                company: internship.company,
-              }
-            : null,
           questionCount: quiz.questions.length,
           maxScore: calculateMaxScore(quiz.questions),
+          ...attemptStats,
           ...deleteState,
         };
       })

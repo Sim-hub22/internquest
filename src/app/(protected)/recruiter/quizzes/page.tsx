@@ -66,15 +66,12 @@ type RecruiterQuizRow = {
   isPublished: boolean;
   questionCount: number;
   maxScore: number;
+  totalAttempts: number;
+  gradedAttempts: number;
   timeLimit?: number;
   updatedAt: number;
   canDelete: boolean;
   deleteDisabledReason: string | null;
-  internship: {
-    _id: Id<"internships">;
-    title: string;
-    company: string;
-  } | null;
 };
 
 function quizStatusVariant(isPublished: boolean) {
@@ -116,20 +113,21 @@ export default function RecruiterQuizzesPage() {
         </Badge>
       ),
     }),
-    recruiterColumnHelper.accessor(
-      (row) => row.internship?.title ?? "Reusable quiz",
-      {
-        id: "internship",
-        header: "Internship",
-      }
-    ),
     recruiterColumnHelper.accessor("questionCount", {
       id: "questions",
       header: "Questions",
     }),
+    recruiterColumnHelper.accessor("totalAttempts", {
+      id: "attempts",
+      header: "Attempts",
+    }),
+    recruiterColumnHelper.accessor("gradedAttempts", {
+      id: "results",
+      header: "Results",
+    }),
     recruiterColumnHelper.accessor("maxScore", {
       id: "max_score",
-      header: "Max score",
+      header: "Total points",
       cell: ({ getValue }) => `${getValue()} pts`,
     }),
     recruiterColumnHelper.accessor("timeLimit", {
@@ -256,7 +254,7 @@ export default function RecruiterQuizzesPage() {
             columns={columns}
             data={(quizzes ?? []) as RecruiterQuizRow[]}
             isLoading={quizzes === undefined}
-            searchPlaceholder="Search quiz title or internship…"
+            searchPlaceholder="Search quiz title..."
             emptyMessage="No recruitment quizzes found."
             isRowSelectable={(row) => row.canDelete}
             renderToolbarExtras={({ selectedRows }) =>

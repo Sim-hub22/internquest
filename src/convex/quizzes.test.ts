@@ -388,6 +388,160 @@ describe("convex/quizzes", () => {
     );
   });
 
+  it("lists recruiter quizzes with total attempt and graded result counts", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_quiz_counts" };
+    const firstCandidateIdentity = { subject: "candidate_quiz_counts_one" };
+    const secondCandidateIdentity = { subject: "candidate_quiz_counts_two" };
+
+    const seeded = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+      const firstCandidateId = await ctx.db.insert(
+        "users",
+        createUserSeed(firstCandidateIdentity.subject, "candidate")
+      );
+      const secondCandidateId = await ctx.db.insert(
+        "users",
+        createUserSeed(secondCandidateIdentity.subject, "candidate")
+      );
+
+      return {
+        recruiterId,
+        firstCandidateId,
+        secondCandidateId,
+      };
+    });
+
+    const draftQuizId = await t
+      .withIdentity(recruiterIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Unused recruiter draft",
+        description: "No attempts yet",
+        draft: true,
+        type: "recruitment",
+        questions: [
+          {
+            id: "draft-q1",
+            type: "multiple_choice",
+            question: "",
+            points: 1,
+            options: [
+              { id: "a", text: "" },
+              { id: "b", text: "" },
+            ],
+            correctOptionId: "",
+          },
+        ],
+      });
+
+    const scoredQuizId = await t
+      .withIdentity(recruiterIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Screening quiz with results",
+        description: "Counts should show up",
+        type: "recruitment",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which hook stores local state?",
+            points: 3,
+            options: [
+              { id: "a", text: "useState" },
+              { id: "b", text: "useRouter" },
+            ],
+            correctOptionId: "a",
+          },
+          {
+            id: "q2",
+            type: "short_answer",
+            question: "Explain a rerender trigger.",
+            points: 5,
+            sampleAnswer: "State changes schedule a rerender.",
+          },
+        ],
+      });
+
+    await t.withIdentity(recruiterIdentity).mutation(api.quizzes.publish, {
+      quizId: scoredQuizId,
+    });
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("quizAttempts", {
+        quizId: scoredQuizId,
+        candidateId: seeded.firstCandidateId,
+        attemptType: "application",
+        answers: [
+          {
+            questionId: "q1",
+            type: "multiple_choice",
+            selectedOptionId: "a",
+            awardedPoints: 3,
+            isCorrect: true,
+          },
+          {
+            questionId: "q2",
+            type: "short_answer",
+            textAnswer: "A state update rerenders the component.",
+          },
+        ],
+        autoScore: 3,
+        maxScore: 8,
+        startedAt: Date.now() - 5_000,
+        submittedAt: Date.now() - 4_000,
+        submissionMode: "manual",
+        status: "submitted",
+      });
+
+      await ctx.db.insert("quizAttempts", {
+        quizId: scoredQuizId,
+        candidateId: seeded.secondCandidateId,
+        attemptType: "application",
+        answers: [
+          {
+            questionId: "q1",
+            type: "multiple_choice",
+            selectedOptionId: "a",
+            awardedPoints: 3,
+            isCorrect: true,
+          },
+          {
+            questionId: "q2",
+            type: "short_answer",
+            textAnswer: "Changing state schedules a fresh render pass.",
+            awardedPoints: 5,
+          },
+        ],
+        score: 8,
+        autoScore: 3,
+        manualScore: 5,
+        maxScore: 8,
+        startedAt: Date.now() - 3_000,
+        submittedAt: Date.now() - 2_000,
+        gradedAt: Date.now() - 1_000,
+        submissionMode: "manual",
+        status: "graded",
+        gradedBy: seeded.recruiterId,
+      });
+    });
+
+    const quizzes = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.quizzes.listForRecruiter, {});
+
+    expect(quizzes.find((quiz) => quiz._id === draftQuizId)).toMatchObject({
+      totalAttempts: 0,
+      gradedAttempts: 0,
+    });
+    expect(quizzes.find((quiz) => quiz._id === scoredQuizId)).toMatchObject({
+      totalAttempts: 2,
+      gradedAttempts: 1,
+    });
+  });
+
   it("returns answer keys in owner previews and blocks non-owners", async () => {
     const t = convexTest(schema, modules);
     const ownerIdentity = { subject: "recruiter_owner_preview" };
