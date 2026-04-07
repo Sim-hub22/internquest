@@ -10,6 +10,7 @@ import { AuthLoading, Authenticated } from "convex/react";
 
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationButton } from "@/components/notification-button";
+import { buildSiteHeaderBreadcrumbs } from "@/components/site-header-breadcrumbs";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -22,38 +23,9 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const BREADCRUMB_LABELS: Record<string, string> = {
-  candidate: "Candidate",
-  recruiter: "Recruiter",
-  admin: "Admin",
-  dashboard: "Dashboard",
-  applications: "Applications",
-  quizzes: "Quizzes",
-  internships: "Internships",
-  notifications: "Notifications",
-  profile: "Profile",
-  settings: "Settings",
-  blog: "Blog",
-  reports: "Reports",
-  users: "Users",
-};
-
-function toBreadcrumbLabel(segment: string) {
-  const mapped = BREADCRUMB_LABELS[segment];
-
-  if (mapped) {
-    return mapped;
-  }
-
-  return segment
-    .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 export function SiteHeader() {
   const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
+  const breadcrumbs = buildSiteHeaderBreadcrumbs(pathname);
 
   return (
     <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-background! px-4 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 lg:px-6">
@@ -67,22 +39,18 @@ export function SiteHeader() {
         </div>
         <Breadcrumb>
           <BreadcrumbList>
-            {segments.map((segment, index) => {
-              const href =
-                `/${segments.slice(0, index + 1).join("/")}` as Route;
-              const isLast = index === segments.length - 1;
-
+            {breadcrumbs.map((breadcrumb, index) => {
               return (
-                <Fragment key={href}>
+                <Fragment key={breadcrumb.href}>
                   {index > 0 ? <BreadcrumbSeparator /> : null}
                   <BreadcrumbItem>
-                    {isLast ? (
-                      <BreadcrumbPage>
-                        {toBreadcrumbLabel(segment)}
-                      </BreadcrumbPage>
+                    {breadcrumb.isCurrent ? (
+                      <BreadcrumbPage>{breadcrumb.label}</BreadcrumbPage>
                     ) : (
                       <BreadcrumbLink asChild>
-                        <Link href={href}>{toBreadcrumbLabel(segment)}</Link>
+                        <Link href={breadcrumb.href as Route}>
+                          {breadcrumb.label}
+                        </Link>
                       </BreadcrumbLink>
                     )}
                   </BreadcrumbItem>
