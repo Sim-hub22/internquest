@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -395,7 +396,14 @@ function RecruiterApplicationReviewContent({
                 {detail.quizAttempt ? (
                   <p className="mt-2 text-muted-foreground">
                     Attempt status:{" "}
-                    {formatAttemptStatus(detail.quizAttempt.status)}
+                    <Link
+                      className="font-medium text-primary underline-offset-2 hover:underline"
+                      href={
+                        `/recruiter/quizzes/${detail.assignedQuiz._id}/results?attemptId=${detail.quizAttempt._id}` as Route
+                      }
+                    >
+                      {formatAttemptStatus(detail.quizAttempt.status)}
+                    </Link>
                   </p>
                 ) : null}
               </div>

@@ -2,12 +2,16 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
+import {
+  getRecruiterQuizResultsBackLink,
+  selectRecruiterQuizAttemptId,
+} from "@/components/quizzes/recruiter-quiz-results";
 import {
   formatDate,
   formatMinutesLabel,
@@ -37,7 +41,9 @@ type GradeDraft = {
 
 export default function RecruiterQuizResultsPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const quizId = params.id as Id<"quizzes">;
+  const preferredAttemptId = searchParams.get("attemptId");
   const results = useQuery(api.quizAttempts.listResultsForRecruiter, {
     quizId,
   });
@@ -55,16 +61,13 @@ export default function RecruiterQuizResultsPage() {
     }
 
     setSelectedAttemptId((current) => {
-      if (current) {
-        return current;
-      }
-
-      return (
-        results.results.find((item) => item.attempt.status === "submitted")
-          ?.attempt._id ?? results.results[0]!.attempt._id
-      );
+      return selectRecruiterQuizAttemptId(
+        results.results,
+        preferredAttemptId,
+        current
+      ) as Id<"quizAttempts"> | null;
     });
-  }, [results]);
+  }, [preferredAttemptId, results]);
 
   useEffect(() => {
     if (!results || !selectedAttemptId) {
@@ -135,6 +138,7 @@ export default function RecruiterQuizResultsPage() {
   const selected =
     results.results.find((item) => item.attempt._id === selectedAttemptId) ??
     results.results[0]!;
+  const backLink = getRecruiterQuizResultsBackLink(selected);
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -148,7 +152,7 @@ export default function RecruiterQuizResultsPage() {
           </p>
         </div>
         <Button asChild variant="outline">
-          <Link href={"/recruiter/quizzes" as Route}>Back to quizzes</Link>
+          <Link href={backLink.href as Route}>{backLink.label}</Link>
         </Button>
       </div>
 
