@@ -441,12 +441,12 @@ export function InternshipForm(props: InternshipFormProps) {
             </Field>
 
             <Field data-invalid={!!form.formState.errors.stipend}>
-              <FieldLabel htmlFor="stipend">Stipend (USD / month)</FieldLabel>
+              <FieldLabel htmlFor="stipend">Stipend (NPR / month)</FieldLabel>
               <Input
                 id="stipend"
                 type="number"
                 min={0}
-                placeholder="400"
+                placeholder="25000"
                 aria-invalid={!!form.formState.errors.stipend}
                 {...form.register("stipend")}
               />

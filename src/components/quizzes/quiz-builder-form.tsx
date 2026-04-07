@@ -413,47 +413,17 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 lg:p-6"
       onSubmit={(event) => event.preventDefault()}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {props.scope === "recruiter"
-              ? props.mode === "edit"
-                ? "Edit Recruitment Quiz"
-                : "Create Recruitment Quiz"
-              : "Create Sample Quiz"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Build timed quizzes with multiple choice and short answer questions.
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={isSubmitting}
-            onClick={() => router.push(destination as Route)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={isSubmitting}
-            onClick={() => void save("draft")}
-          >
-            {submitIntent === "draft" ? <Spinner /> : null}
-            Save Draft
-          </Button>
-          <Button
-            type="button"
-            disabled={isSubmitting}
-            onClick={() => void save("publish")}
-          >
-            {submitIntent === "publish" ? <Spinner /> : null}
-            Publish
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {props.scope === "recruiter"
+            ? props.mode === "edit"
+              ? "Edit Recruitment Quiz"
+              : "Create Recruitment Quiz"
+            : "Create Sample Quiz"}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Build timed quizzes with multiple choice and short answer questions.
+        </p>
       </div>
 
       <Card>
@@ -505,31 +475,6 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
           </FieldGroup>
         </CardContent>
       </Card>
-
-      <div className="flex flex-wrap gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            questionsArray.append(createQuestion("multiple_choice"))
-          }
-        >
-          <PlusIcon data-icon="inline-start" />
-          Add MCQ
-        </Button>
-        {props.scope === "recruiter" ? (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() =>
-              questionsArray.append(createQuestion("short_answer"))
-            }
-          >
-            <PlusIcon data-icon="inline-start" />
-            Add Short Answer
-          </Button>
-        ) : null}
-      </div>
 
       {questionsArray.fields.map((field, index) => {
         const question = questions[index] ?? createInitialQuestion();
@@ -754,6 +699,59 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
           </Card>
         );
       })}
+
+      <div className="flex flex-wrap gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            questionsArray.append(createQuestion("multiple_choice"))
+          }
+        >
+          <PlusIcon data-icon="inline-start" />
+          Add MCQ
+        </Button>
+        {props.scope === "recruiter" ? (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              questionsArray.append(createQuestion("short_answer"))
+            }
+          >
+            <PlusIcon data-icon="inline-start" />
+            Add Short Answer
+          </Button>
+        ) : null}
+      </div>
+
+      <div className="flex flex-col gap-3 border-t pt-6 sm:flex-row sm:justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={isSubmitting}
+          onClick={() => router.push(destination as Route)}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isSubmitting}
+          onClick={() => void save("draft")}
+        >
+          {submitIntent === "draft" ? <Spinner /> : null}
+          Save Draft
+        </Button>
+        <Button
+          type="button"
+          disabled={isSubmitting}
+          onClick={() => void save("publish")}
+        >
+          {submitIntent === "publish" ? <Spinner /> : null}
+          Publish
+        </Button>
+      </div>
     </form>
   );
 }
