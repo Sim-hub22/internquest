@@ -1,7 +1,7 @@
 import { convexTest } from "convex-test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { api } from "@/convex/_generated/api";
+import { api, internal } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import schema from "@/convex/schema";
 import { modules } from "@/convex/test.setup";
@@ -62,6 +62,36 @@ function createInternshipSeed(
     maxApplications: 20,
     viewCount: 0,
     createdAt: overrides?.createdAt ?? now,
+    updatedAt: now,
+  };
+}
+
+function createRecruitmentQuizSeed(
+  creatorId: Id<"users">,
+  internshipId: Id<"internships">
+) {
+  const now = Date.now();
+
+  return {
+    creatorId,
+    title: "Screening Quiz",
+    type: "recruitment" as const,
+    internshipId,
+    questions: [
+      {
+        id: "question-1",
+        type: "multiple_choice" as const,
+        question: "What is TypeScript?",
+        points: 1,
+        options: [
+          { id: "option-a", text: "A superset of JavaScript" },
+          { id: "option-b", text: "A database" },
+        ],
+        correctOptionId: "option-a",
+      },
+    ],
+    isPublished: false,
+    createdAt: now,
     updatedAt: now,
   };
 }
@@ -277,6 +307,245 @@ describe("convex/internships", () => {
       t.withIdentity(otherIdentity).mutation(api.internships.updateStatus, {
         internshipId,
         status: "closed",
+      })
+    ).rejects.toThrow("FORBIDDEN");
+  });
+
+  it("returns delete metadata for a deletable recruiter listing", async () => {
+    const t = convexTest(schema, modules);
+    const identity = { subject: "recruiter_delete_state" };
+
+    const internshipId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser(identity.subject, "recruiter")
+      );
+
+      return await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, { status: "draft" })
+      );
+    });
+
+    const internship = await t
+      .withIdentity(identity)
+      .query(api.internships.getForRecruiter, {
+        internshipId,
+      });
+
+    expect(internship?.canDelete).toBe(true);
+    expect(internship?.deleteDisabledReason).toBeNull();
+  });
+
+  it("blocks deleting recruiter listings that already have applications", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_delete_blocked" };
+    const candidateIdentity = { subject: "candidate_delete_blocked" };
+    const resumeStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    const internshipId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser(recruiterIdentity.subject, "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createTestUser(candidateIdentity.subject, "candidate")
+      );
+      const internshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, { status: "open" })
+      );
+
+      await ctx.db.insert("applications", {
+        internshipId,
+        candidateId,
+        resumeStorageId,
+        status: "applied",
+        statusHistory: [
+          {
+            status: "applied",
+            changedAt: Date.now(),
+            changedBy: candidateIdentity.subject,
+          },
+        ],
+        appliedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      return internshipId;
+    });
+
+    const internship = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.internships.getForRecruiter, {
+        internshipId,
+      });
+
+    expect(internship?.canDelete).toBe(false);
+    expect(internship?.deleteDisabledReason).toContain("applications");
+
+    await expect(
+      t.withIdentity(recruiterIdentity).mutation(api.internships.remove, {
+        internshipId,
+      })
+    ).rejects.toThrow("applications");
+  });
+
+  it("blocks deleting recruiter listings that are still linked to a quiz", async () => {
+    const t = convexTest(schema, modules);
+    const identity = { subject: "recruiter_delete_linked_quiz" };
+
+    const internshipId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser(identity.subject, "recruiter")
+      );
+      const internshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, { status: "draft" })
+      );
+
+      await ctx.db.insert(
+        "quizzes",
+        createRecruitmentQuizSeed(recruiterId, internshipId)
+      );
+
+      return internshipId;
+    });
+
+    const internship = await t
+      .withIdentity(identity)
+      .query(api.internships.getForRecruiter, {
+        internshipId,
+      });
+
+    expect(internship?.canDelete).toBe(false);
+    expect(internship?.deleteDisabledReason).toContain("recruitment quiz");
+
+    await expect(
+      t.withIdentity(identity).mutation(api.internships.remove, {
+        internshipId,
+      })
+    ).rejects.toThrow("recruitment quiz");
+  });
+
+  it("deletes a recruiter listing and removes related views and reports", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_delete_success" };
+    const candidateIdentity = { subject: "candidate_reporter" };
+
+    const { internshipId, unrelatedReportId } = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser(recruiterIdentity.subject, "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createTestUser(candidateIdentity.subject, "candidate")
+      );
+      const internshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, { status: "draft" })
+      );
+
+      await ctx.db.insert("internshipViews", {
+        internshipId,
+        viewerId: candidateId,
+        viewerKey: `user:${candidateId}`,
+        viewedAt: Date.now(),
+      });
+      await ctx.db.insert("internshipViews", {
+        internshipId,
+        viewerKey: "anon-browser",
+        viewedAt: Date.now(),
+      });
+
+      await ctx.db.insert("reports", {
+        reporterId: candidateId,
+        targetType: "internship",
+        targetId: internshipId,
+        reason: "spam",
+        status: "pending",
+        createdAt: Date.now(),
+      });
+      const unrelatedReportId = await ctx.db.insert("reports", {
+        reporterId: candidateId,
+        targetType: "user",
+        targetId: candidateId,
+        reason: "spam",
+        status: "pending",
+        createdAt: Date.now(),
+      });
+
+      return { internshipId, unrelatedReportId };
+    });
+
+    await t.withIdentity(recruiterIdentity).mutation(api.internships.remove, {
+      internshipId,
+    });
+
+    const snapshot = await t.run(async (ctx) => {
+      const internship = await ctx.db.get(internshipId);
+      const views = await ctx.db
+        .query("internshipViews")
+        .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+        .collect();
+      const internshipReports = (
+        await ctx.db
+          .query("reports")
+          .withIndex("by_targetType", (q) => q.eq("targetType", "internship"))
+          .collect()
+      ).filter((report) => report.targetId === internshipId);
+      const unrelatedReport = await ctx.db.get(unrelatedReportId);
+
+      return { internship, views, internshipReports, unrelatedReport };
+    });
+
+    expect(snapshot.internship).toBeNull();
+    expect(snapshot.views).toHaveLength(0);
+    expect(snapshot.internshipReports).toHaveLength(0);
+    expect(snapshot.unrelatedReport).not.toBeNull();
+  });
+
+  it("blocks deleting listings for non-owners and non-recruiters", async () => {
+    const t = convexTest(schema, modules);
+    const ownerIdentity = { subject: "recruiter_delete_owner" };
+    const otherRecruiterIdentity = { subject: "recruiter_delete_other" };
+    const candidateIdentity = { subject: "candidate_delete_other" };
+
+    const internshipId = await t.run(async (ctx) => {
+      const ownerId = await ctx.db.insert(
+        "users",
+        createTestUser(ownerIdentity.subject, "recruiter")
+      );
+      await ctx.db.insert(
+        "users",
+        createTestUser(otherRecruiterIdentity.subject, "recruiter")
+      );
+      await ctx.db.insert(
+        "users",
+        createTestUser(candidateIdentity.subject, "candidate")
+      );
+
+      return await ctx.db.insert(
+        "internships",
+        createInternshipSeed(ownerId, { status: "draft" })
+      );
+    });
+
+    await expect(
+      t
+        .withIdentity(otherRecruiterIdentity)
+        .mutation(api.internships.remove, { internshipId })
+    ).rejects.toThrow("FORBIDDEN");
+
+    await expect(
+      t.withIdentity(candidateIdentity).mutation(api.internships.remove, {
+        internshipId,
       })
     ).rejects.toThrow("FORBIDDEN");
   });

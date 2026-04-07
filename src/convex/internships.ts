@@ -1,9 +1,10 @@
 import { ConvexError, v } from "convex/values";
 
 import { internal } from "@/convex/_generated/api";
-import { Doc } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import {
   MutationCtx,
+  QueryCtx,
   internalMutation,
   mutation,
   query,
@@ -82,6 +83,42 @@ async function scheduleMatchingInternshipNotifications(
       internshipId,
     }
   );
+}
+
+async function getInternshipDeleteState(
+  ctx: QueryCtx | MutationCtx,
+  internshipId: Id<"internships">
+) {
+  const [application] = await ctx.db
+    .query("applications")
+    .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+    .take(1);
+
+  if (application) {
+    return {
+      canDelete: false,
+      deleteDisabledReason:
+        "This listing already has applications, so it must stay in history.",
+    };
+  }
+
+  const [linkedQuiz] = await ctx.db
+    .query("quizzes")
+    .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+    .take(1);
+
+  if (linkedQuiz) {
+    return {
+      canDelete: false,
+      deleteDisabledReason:
+        "This listing is linked to a recruitment quiz, so remove or unlink that quiz first.",
+    };
+  }
+
+  return {
+    canDelete: true,
+    deleteDisabledReason: null,
+  };
 }
 
 export const create = mutation({
@@ -230,6 +267,54 @@ export const updateStatus = mutation({
   },
 });
 
+export const remove = mutation({
+  args: {
+    internshipId: v.id("internships"),
+  },
+  handler: async (ctx, args) => {
+    const recruiter = await requireRole(ctx, "recruiter");
+    const internship = await ctx.db.get(args.internshipId);
+
+    if (!internship) {
+      throw new ConvexError("Internship not found");
+    }
+
+    if (internship.recruiterId !== recruiter._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    assertRecruiterCanManageInternship(internship);
+
+    const deleteState = await getInternshipDeleteState(ctx, internship._id);
+
+    if (!deleteState.canDelete) {
+      throw new ConvexError(
+        deleteState.deleteDisabledReason ?? "This listing cannot be deleted"
+      );
+    }
+
+    const internshipViews = await ctx.db
+      .query("internshipViews")
+      .withIndex("by_internship", (q) => q.eq("internshipId", internship._id))
+      .collect();
+    const internshipReports = (
+      await ctx.db
+        .query("reports")
+        .withIndex("by_targetType", (q) => q.eq("targetType", "internship"))
+        .collect()
+    ).filter((report) => report.targetId === internship._id);
+
+    await Promise.all([
+      ...internshipViews.map((view) => ctx.db.delete(view._id)),
+      ...internshipReports.map((report) => ctx.db.delete(report._id)),
+    ]);
+
+    await ctx.db.delete(internship._id);
+
+    return null;
+  },
+});
+
 export const getPublic = query({
   args: {
     internshipId: v.id("internships"),
@@ -249,7 +334,7 @@ export const getForRecruiter = query({
   args: {
     internshipId: v.id("internships"),
   },
-  handler: async (ctx, args): Promise<Doc<"internships"> | null> => {
+  handler: async (ctx, args) => {
     const recruiter = await getCurrentUser(ctx);
     if (!recruiter || recruiter.role !== "recruiter") {
       return null;
@@ -265,7 +350,12 @@ export const getForRecruiter = query({
       throw new ConvexError("FORBIDDEN");
     }
 
-    return internship;
+    const deleteState = await getInternshipDeleteState(ctx, internship._id);
+
+    return {
+      ...internship,
+      ...deleteState,
+    };
   },
 });
 

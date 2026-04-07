@@ -2,9 +2,12 @@
 
 import type { Route } from "next";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 
 import type { Preloaded } from "convex/react";
 import { useMutation, usePreloadedQuery } from "convex/react";
+import { ChevronDownIcon, Trash2Icon, TriangleAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { InternshipAnalyticsSection } from "@/components/analytics/internship-analytics-section";
@@ -14,10 +17,34 @@ import {
   toDisplayLabel,
 } from "@/components/internships/constants";
 import { RichTextContent } from "@/components/rich-text-content";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { api } from "@/convex/_generated/api";
 
 const STATUS_FLOW: Record<
@@ -36,8 +63,14 @@ type RecruiterInternshipDetailPageProps = {
 export function RecruiterInternshipDetailPage({
   preloadedInternship,
 }: RecruiterInternshipDetailPageProps) {
+  const router = useRouter();
+  const destination = "/recruiter/internships" as Route;
   const internship = usePreloadedQuery(preloadedInternship);
   const updateStatus = useMutation(api.internships.updateStatus);
+  const removeInternship = useMutation(api.internships.remove);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isUpdatingStatus, startStatusTransition] = useTransition();
+  const [isDeleting, startDeleteTransition] = useTransition();
 
   const onStatusChange = async (status: "draft" | "open" | "closed") => {
     if (!internship) return;
@@ -49,6 +82,25 @@ export function RecruiterInternshipDetailPage({
       console.error(error);
       toast.error("Failed to update listing status");
     }
+  };
+
+  const onDelete = () => {
+    if (!internship) {
+      return;
+    }
+
+    startDeleteTransition(async () => {
+      try {
+        await removeInternship({ internshipId: internship._id });
+        toast.success("Listing deleted");
+        setIsDeleteDialogOpen(false);
+        router.push(destination);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Failed to delete listing";
+        toast.error(message);
+      }
+    });
   };
 
   if (!internship) {
@@ -100,15 +152,56 @@ export function RecruiterInternshipDetailPage({
             View Applications
           </Link>
         </Button>
-        {STATUS_FLOW[internship.status].map((status) => (
-          <Button
-            key={`${internship._id}-${status}`}
-            variant="outline"
-            onClick={() => onStatusChange(status)}
-          >
-            Move to {toDisplayLabel(status)}
-          </Button>
-        ))}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" disabled={isUpdatingStatus || isDeleting}>
+              Actions
+              <ChevronDownIcon data-icon="inline-end" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="min-w-48">
+            <DropdownMenuGroup>
+              {STATUS_FLOW[internship.status].map((status) => (
+                <DropdownMenuItem
+                  key={`${internship._id}-${status}`}
+                  disabled={isUpdatingStatus || isDeleting}
+                  onSelect={() => {
+                    startStatusTransition(() => {
+                      void onStatusChange(status);
+                    });
+                  }}
+                >
+                  Move to {toDisplayLabel(status)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+            {internship.canDelete ? (
+              <DropdownMenuItem
+                disabled={isUpdatingStatus || isDeleting}
+                onSelect={() => setIsDeleteDialogOpen(true)}
+                variant="destructive"
+              >
+                <Trash2Icon />
+                Delete listing
+              </DropdownMenuItem>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <DropdownMenuItem disabled variant="destructive">
+                      <Trash2Icon />
+                      Delete listing
+                    </DropdownMenuItem>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {internship.deleteDisabledReason}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Separator />
@@ -134,6 +227,38 @@ export function RecruiterInternshipDetailPage({
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!isDeleting) {
+            setIsDeleteDialogOpen(open);
+          }
+        }}
+      >
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10 text-destructive">
+              <TriangleAlertIcon />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete this listing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes {`"${internship.title}"`}, along with its
+              view history and moderation reports. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isDeleting}
+              onClick={onDelete}
+              variant="destructive"
+            >
+              Delete listing
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
