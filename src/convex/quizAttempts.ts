@@ -95,6 +95,31 @@ function buildResultQuestions(quiz: Doc<"quizzes">, answers: QuizAnswer[]) {
   });
 }
 
+function buildFreshSampleAttemptDocument(
+  quiz: Doc<"quizzes">,
+  candidateId: Id<"users">,
+  startedAt: number
+) {
+  const deadlineAt = quiz.timeLimit
+    ? startedAt + quiz.timeLimit * 60 * 1000
+    : undefined;
+
+  return {
+    attempt: {
+      quizId: quiz._id,
+      candidateId,
+      attemptType: "sample" as const,
+      answers: [],
+      maxScore: calculateMaxScore(quiz.questions),
+      startedAt,
+      ...(deadlineAt ? { deadlineAt } : {}),
+      ...(quiz.timeLimit ? { timeLimit: quiz.timeLimit } : {}),
+      status: "in_progress" as const,
+    },
+    deadlineAt,
+  };
+}
+
 async function getAttemptOrThrow(
   ctx: MutationCtx,
   attemptId: Id<"quizAttempts">
@@ -387,7 +412,6 @@ export const start = mutation({
     applicationId: v.optional(v.id("applications")),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
     const quiz = await ctx.db.get(args.quizId);
 
     if (!quiz || !quiz.isPublished) {
@@ -454,11 +478,13 @@ export const start = mutation({
       return attemptId;
     }
 
+    const candidate = await requireRole(ctx, "candidate");
+
     const existingSampleAttempt = await ctx.db
       .query("quizAttempts")
       .withIndex("by_candidate_and_quiz_and_attemptType", (q) =>
         q
-          .eq("candidateId", user._id)
+          .eq("candidateId", candidate._id)
           .eq("quizId", quiz._id)
           .eq("attemptType", "sample")
       )
@@ -469,20 +495,9 @@ export const start = mutation({
     }
 
     const startedAt = Date.now();
-    const deadlineAt = quiz.timeLimit
-      ? startedAt + quiz.timeLimit * 60 * 1000
-      : undefined;
-    const attemptId = await ctx.db.insert("quizAttempts", {
-      quizId: quiz._id,
-      candidateId: user._id,
-      attemptType: "sample",
-      answers: [],
-      maxScore: calculateMaxScore(quiz.questions),
-      startedAt,
-      ...(deadlineAt ? { deadlineAt } : {}),
-      ...(quiz.timeLimit ? { timeLimit: quiz.timeLimit } : {}),
-      status: "in_progress",
-    });
+    const { attempt: nextAttempt, deadlineAt } =
+      buildFreshSampleAttemptDocument(quiz, candidate._id, startedAt);
+    const attemptId = await ctx.db.insert("quizAttempts", nextAttempt);
 
     if (deadlineAt) {
       await ctx.scheduler.runAfter(
@@ -556,6 +571,48 @@ export const saveAnswer = mutation({
     ].sort((left, right) => left.questionId.localeCompare(right.questionId));
 
     await ctx.db.patch(attempt._id, { answers });
+    return null;
+  },
+});
+
+export const restartSampleAttempt = mutation({
+  args: {
+    attemptId: v.id("quizAttempts"),
+  },
+  handler: async (ctx, args): Promise<null> => {
+    const candidate = await requireRole(ctx, "candidate");
+    const { attempt, quiz } = await getAttemptOrThrow(ctx, args.attemptId);
+
+    if (attempt.candidateId !== candidate._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    if (
+      !quiz.isPublished ||
+      quiz.type !== "sample" ||
+      attempt.attemptType !== "sample"
+    ) {
+      throw new ConvexError("Only sample attempts can be restarted");
+    }
+
+    if (attempt.status === "in_progress") {
+      throw new ConvexError("This sample quiz is already in progress");
+    }
+
+    const startedAt = Date.now();
+    const { attempt: nextAttempt, deadlineAt } =
+      buildFreshSampleAttemptDocument(quiz, candidate._id, startedAt);
+
+    await ctx.db.replace(args.attemptId, nextAttempt);
+
+    if (deadlineAt) {
+      await ctx.scheduler.runAfter(
+        deadlineAt - startedAt,
+        internal.quizAttempts.submitTimedOutAttempt,
+        { attemptId: args.attemptId }
+      );
+    }
+
     return null;
   },
 });
@@ -791,7 +848,6 @@ export const getCandidateAttempt = query({
     applicationId: v.optional(v.id("applications")),
   },
   handler: async (ctx, args) => {
-    const user = await requireUser(ctx);
     const quiz = await ctx.db.get(args.quizId);
 
     if (!quiz || !quiz.isPublished) {
@@ -854,11 +910,12 @@ export const getCandidateAttempt = query({
       throw new ConvexError("Sample quizzes require a sample quiz id");
     }
 
+    const candidate = await requireRole(ctx, "candidate");
     const attempt = await ctx.db
       .query("quizAttempts")
       .withIndex("by_candidate_and_quiz_and_attemptType", (q) =>
         q
-          .eq("candidateId", user._id)
+          .eq("candidateId", candidate._id)
           .eq("quizId", quiz._id)
           .eq("attemptType", "sample")
       )
@@ -918,11 +975,12 @@ export const getCandidateResult = query({
         .unique();
       internship = await ctx.db.get(applicationDoc.internshipId);
     } else {
+      const candidate = await requireRole(ctx, "candidate");
       attempt = await ctx.db
         .query("quizAttempts")
         .withIndex("by_candidate_and_quiz_and_attemptType", (q) =>
           q
-            .eq("candidateId", user._id)
+            .eq("candidateId", candidate._id)
             .eq("quizId", quiz._id)
             .eq("attemptType", "sample")
         )

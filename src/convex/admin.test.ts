@@ -226,6 +226,7 @@ describe("convex/admin", () => {
     const t = convexTest(schema, modules);
     const adminIdentity = { subject: "admin_suspend_owner" };
     const candidateIdentity = { subject: "candidate_suspend_target" };
+    const suspensionReason = "Repeatedly ignored moderation guidance.";
 
     await t.run(async (ctx) => {
       await ctx.db.insert(
@@ -242,7 +243,20 @@ describe("convex/admin", () => {
       userId: (await t
         .withIdentity(candidateIdentity)
         .query(api.users.current, {}))!._id,
+      reason: suspensionReason,
     });
+
+    await expect(
+      t.withIdentity(adminIdentity).query(api.admin.listUsers, {})
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          clerkId: candidateIdentity.subject,
+          isSuspended: true,
+          suspensionReason,
+        }),
+      ])
+    );
 
     await expect(
       t.withIdentity(candidateIdentity).query(api.candidateProfiles.current, {})

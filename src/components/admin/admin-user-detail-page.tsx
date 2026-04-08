@@ -39,6 +39,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
@@ -191,6 +192,7 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
   const suspendUser = useMutation(api.admin.suspendUser);
   const unsuspendUser = useMutation(api.admin.unsuspendUser);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [suspensionNote, setSuspensionNote] = useState("");
   const [isMutating, startTransition] = useTransition();
 
   if (detail === undefined) {
@@ -239,6 +241,7 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
   const actionLabel = detail.user.isSuspended
     ? "Unsuspend user"
     : "Suspend user";
+  const isSuspending = !detail.user.isSuspended;
 
   const primaryMetrics =
     detail.activitySummary.kind === "candidate"
@@ -312,10 +315,14 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
           await unsuspendUser({ userId: detail.user._id });
           toast.success("User unsuspended");
         } else {
-          await suspendUser({ userId: detail.user._id });
+          await suspendUser({
+            userId: detail.user._id,
+            reason: suspensionNote,
+          });
           toast.success("User suspended");
         }
         setIsDialogOpen(false);
+        setSuspensionNote("");
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Unable to update user"
@@ -594,7 +601,15 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
         </section>
       </div>
 
-      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <AlertDialog
+        open={isDialogOpen}
+        onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) {
+            setSuspensionNote("");
+          }
+        }}
+      >
         <AlertDialogContent size="sm">
           <AlertDialogHeader>
             <AlertDialogMedia
@@ -617,6 +632,22 @@ export function AdminUserDetailPage({ userId }: { userId: Id<"users"> }) {
                 : `${detail.user.name} will be redirected away from protected routes and blocked from role-gated Convex APIs.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {isSuspending ? (
+            <div className="space-y-2 px-1">
+              <p className="text-sm font-medium">Suspension note</p>
+              <Textarea
+                value={suspensionNote}
+                onChange={(event) => setSuspensionNote(event.target.value)}
+                placeholder="Add context for why this account is being suspended."
+                rows={4}
+                disabled={isMutating}
+              />
+              <p className="text-xs leading-5 text-muted-foreground">
+                This note will be saved as the latest moderation note for the
+                account.
+              </p>
+            </div>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
             <AlertDialogAction

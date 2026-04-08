@@ -145,6 +145,11 @@ type QuizBuilderFormProps =
   | {
       scope: "admin";
       mode: "create";
+    }
+  | {
+      scope: "admin";
+      mode: "edit";
+      quizId: Id<"quizzes">;
     };
 
 function getPublishQuizSchema(scope: QuizBuilderFormProps["scope"]) {
@@ -271,6 +276,12 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
       ? { quizId: props.quizId }
       : "skip"
   );
+  const adminQuiz = useQuery(
+    api.quizzes.getForAdmin,
+    props.scope === "admin" && props.mode === "edit"
+      ? { quizId: props.quizId }
+      : "skip"
+  );
   const form = useForm<QuizBuilderFormValues>({
     resolver: zodResolver(draftQuizSchema),
     defaultValues: DEFAULT_VALUES,
@@ -285,24 +296,21 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
       control: form.control,
       name: "questions",
     }) ?? DEFAULT_VALUES.questions;
+  const editableQuiz = props.scope === "admin" ? adminQuiz : recruiterQuiz;
 
   useEffect(() => {
-    if (
-      !recruiterQuiz ||
-      props.scope !== "recruiter" ||
-      props.mode !== "edit"
-    ) {
+    if (!editableQuiz || props.mode !== "edit") {
       return;
     }
 
     form.reset({
-      title: recruiterQuiz.title,
-      description: recruiterQuiz.description ?? "",
+      title: editableQuiz.title,
+      description: editableQuiz.description ?? "",
       timeLimit:
-        recruiterQuiz.timeLimit !== undefined
-          ? String(recruiterQuiz.timeLimit)
+        editableQuiz.timeLimit !== undefined
+          ? String(editableQuiz.timeLimit)
           : "",
-      questions: recruiterQuiz.questions.map((question) => ({
+      questions: editableQuiz.questions.map((question) => ({
         id: question.id,
         type: question.type,
         question: question.question,
@@ -312,11 +320,19 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
         sampleAnswer: question.sampleAnswer ?? "",
       })),
     });
-  }, [form, props.mode, props.scope, recruiterQuiz]);
+  }, [editableQuiz, form, props.mode]);
 
   const destination =
     props.scope === "recruiter" ? "/recruiter/quizzes" : "/admin/quizzes";
   const isSubmitting = submitIntent !== null;
+
+  if (props.mode === "edit" && editableQuiz === undefined) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center p-4 lg:p-6">
+        <Spinner />
+      </div>
+    );
+  }
 
   const updateQuestion = (
     questionIndex: number,
@@ -419,10 +435,14 @@ export function QuizBuilderForm(props: QuizBuilderFormProps) {
             ? props.mode === "edit"
               ? "Edit Recruitment Quiz"
               : "Create Recruitment Quiz"
-            : "Create Sample Quiz"}
+            : props.mode === "edit"
+              ? "Edit Sample Quiz"
+              : "Create Sample Quiz"}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Build timed quizzes with multiple choice and short answer questions.
+          {props.scope === "admin"
+            ? "Build timed sample quizzes with multiple choice questions."
+            : "Build timed quizzes with multiple choice and short answer questions."}
         </p>
       </div>
 

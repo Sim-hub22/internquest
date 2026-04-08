@@ -490,14 +490,246 @@ describe("convex/quizAttempts", () => {
     ).rejects.toThrow("This attempt can no longer be updated");
   });
 
-  it("keeps sample quiz previews public while requiring authentication to start attempts", async () => {
+  it("restarts sample quizzes by resetting the existing attempt", async () => {
     const t = convexTest(schema, modules);
-    const adminIdentity = { subject: "sample_public_preview_admin" };
+    const adminIdentity = { subject: "sample_restart_admin" };
+    const candidateIdentity = { subject: "sample_restart_candidate" };
 
     await t.run(async (ctx) => {
       await ctx.db.insert(
         "users",
         createUserSeed(adminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+    });
+
+    const sampleQuizId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Restartable Sample Quiz",
+        description: "Public practice",
+        type: "sample",
+        timeLimit: 1,
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which hook stores local state in React?",
+            points: 3,
+            options: [
+              { id: "a", text: "useState" },
+              { id: "b", text: "useContext" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await t.withIdentity(adminIdentity).mutation(api.quizzes.publish, {
+      quizId: sampleQuizId,
+    });
+
+    const attemptId = await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.start, {
+        quizId: sampleQuizId,
+      });
+
+    await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.saveAnswer, {
+        attemptId,
+        questionId: "q1",
+        selectedOptionId: "a",
+      });
+
+    await t.withIdentity(candidateIdentity).mutation(api.quizAttempts.submit, {
+      attemptId,
+    });
+
+    const completedAttempt = await t
+      .withIdentity(candidateIdentity)
+      .query(api.quizAttempts.getCandidateAttempt, {
+        quizId: sampleQuizId,
+      });
+
+    expect(completedAttempt?.attempt?._id).toBe(attemptId);
+    expect(completedAttempt?.attempt?.status).toBe("graded");
+    expect(completedAttempt?.attempt?.score).toBe(3);
+    expect(completedAttempt?.attempt?.autoScore).toBe(3);
+    expect(completedAttempt?.attempt?.manualScore).toBe(0);
+    expect(completedAttempt?.attempt?.submittedAt).toBeTypeOf("number");
+    expect(completedAttempt?.attempt?.gradedAt).toBeTypeOf("number");
+    expect(completedAttempt?.attempt?.submissionMode).toBe("manual");
+
+    vi.advanceTimersByTime(10_000);
+
+    await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.restartSampleAttempt, {
+        attemptId,
+      });
+
+    const restartedAttempt = await t
+      .withIdentity(candidateIdentity)
+      .query(api.quizAttempts.getCandidateAttempt, {
+        quizId: sampleQuizId,
+      });
+
+    expect(restartedAttempt?.attempt?._id).toBe(attemptId);
+    expect(restartedAttempt?.attempt?.status).toBe("in_progress");
+    expect(restartedAttempt?.attempt?.answers).toEqual([]);
+    expect(restartedAttempt?.attempt?.score).toBeUndefined();
+    expect(restartedAttempt?.attempt?.autoScore).toBeUndefined();
+    expect(restartedAttempt?.attempt?.manualScore).toBeUndefined();
+    expect(restartedAttempt?.attempt?.submittedAt).toBeUndefined();
+    expect(restartedAttempt?.attempt?.gradedAt).toBeUndefined();
+    expect(restartedAttempt?.attempt?.submissionMode).toBeUndefined();
+    expect(restartedAttempt?.attempt?.policyViolationType).toBeUndefined();
+    expect(restartedAttempt?.attempt?.policyViolationAt).toBeUndefined();
+    expect(restartedAttempt?.attempt?.startedAt).toBeGreaterThan(
+      completedAttempt!.attempt!.startedAt
+    );
+    expect(restartedAttempt?.attempt?.deadlineAt).toBeGreaterThan(
+      completedAttempt!.attempt!.deadlineAt!
+    );
+
+    await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.saveAnswer, {
+        attemptId,
+        questionId: "q1",
+        selectedOptionId: "a",
+      });
+
+    await t.withIdentity(candidateIdentity).mutation(api.quizAttempts.submit, {
+      attemptId,
+    });
+
+    const restartedResult = await t
+      .withIdentity(candidateIdentity)
+      .query(api.quizAttempts.getCandidateResult, {
+        quizId: sampleQuizId,
+      });
+
+    expect(restartedResult?.attempt._id).toBe(attemptId);
+    expect(restartedResult?.attempt.status).toBe("graded");
+    expect(restartedResult?.attempt.score).toBe(3);
+    expect(restartedResult?.attempt.submissionMode).toBe("manual");
+  });
+
+  it("limits sample restarts to the owning candidate and rejects recruitment attempts", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "sample_restart_guard_admin" };
+    const candidateIdentity = { subject: "sample_restart_guard_candidate" };
+    const otherCandidateIdentity = {
+      subject: "sample_restart_guard_candidate_other",
+    };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(otherCandidateIdentity.subject, "candidate")
+      );
+    });
+
+    const sampleQuizId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Guarded Sample Quiz",
+        description: "Public practice",
+        type: "sample",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which hook reads context?",
+            points: 2,
+            options: [
+              { id: "a", text: "useContext" },
+              { id: "b", text: "useState" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await t.withIdentity(adminIdentity).mutation(api.quizzes.publish, {
+      quizId: sampleQuizId,
+    });
+
+    const sampleAttemptId = await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.start, {
+        quizId: sampleQuizId,
+      });
+
+    await t.withIdentity(candidateIdentity).mutation(api.quizAttempts.submit, {
+      attemptId: sampleAttemptId,
+    });
+
+    await expect(
+      t
+        .withIdentity(otherCandidateIdentity)
+        .mutation(api.quizAttempts.restartSampleAttempt, {
+          attemptId: sampleAttemptId,
+        })
+    ).rejects.toThrow("FORBIDDEN");
+
+    const recruitment = await seedRecruitmentQuizScenario(t, [
+      {
+        id: "q1",
+        type: "multiple_choice",
+        question: "What does HTML stand for?",
+        points: 2,
+        options: [
+          { id: "a", text: "HyperText Markup Language" },
+          { id: "b", text: "HighText Machine Language" },
+        ],
+        correctOptionId: "a",
+      },
+    ]);
+
+    const applicationAttemptId = await t
+      .withIdentity(recruitment.candidateIdentity)
+      .mutation(api.quizAttempts.start, {
+        quizId: recruitment.quizId,
+        applicationId: recruitment.applicationId,
+      });
+
+    await expect(
+      t
+        .withIdentity(recruitment.candidateIdentity)
+        .mutation(api.quizAttempts.restartSampleAttempt, {
+          attemptId: applicationAttemptId,
+        })
+    ).rejects.toThrow("Only sample attempts can be restarted");
+  });
+
+  it("keeps sample quiz previews public while requiring authentication to start attempts", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "sample_public_preview_admin" };
+    const recruiterIdentity = { subject: "sample_public_preview_recruiter" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
       );
     });
 
@@ -529,13 +761,61 @@ describe("convex/quizAttempts", () => {
     const preview = await t.query(api.quizzes.getPublishedSample, {
       quizId: sampleQuizId,
     });
+    const adminPreview = await t
+      .withIdentity(adminIdentity)
+      .query(api.quizzes.getPublishedSample, {
+        quizId: sampleQuizId,
+      });
+    const recruiterPreview = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.quizzes.getPublishedSample, {
+        quizId: sampleQuizId,
+      });
 
     expect(preview?.quiz.title).toBe("Preview Before Practice");
     expect(preview?.viewerAttempt).toBeNull();
+    expect(adminPreview?.viewerAttempt).toBeNull();
+    expect(recruiterPreview?.viewerAttempt).toBeNull();
     await expect(
       t.mutation(api.quizAttempts.start, {
         quizId: sampleQuizId,
       })
     ).rejects.toThrow("UNAUTHENTICATED");
+    await expect(
+      t.withIdentity(adminIdentity).mutation(api.quizAttempts.start, {
+        quizId: sampleQuizId,
+      })
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t
+        .withIdentity(adminIdentity)
+        .query(api.quizAttempts.getCandidateAttempt, {
+          quizId: sampleQuizId,
+        })
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t.withIdentity(adminIdentity).query(api.quizAttempts.getCandidateResult, {
+        quizId: sampleQuizId,
+      })
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t.withIdentity(recruiterIdentity).mutation(api.quizAttempts.start, {
+        quizId: sampleQuizId,
+      })
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t
+        .withIdentity(recruiterIdentity)
+        .query(api.quizAttempts.getCandidateAttempt, {
+          quizId: sampleQuizId,
+        })
+    ).rejects.toThrow("FORBIDDEN");
+    await expect(
+      t
+        .withIdentity(recruiterIdentity)
+        .query(api.quizAttempts.getCandidateResult, {
+          quizId: sampleQuizId,
+        })
+    ).rejects.toThrow("FORBIDDEN");
   });
 });

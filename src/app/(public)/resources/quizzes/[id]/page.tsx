@@ -29,20 +29,23 @@ export default function PublicSampleQuizDetailPage() {
   const router = useRouter();
   const quizId = params.id as Id<"quizzes">;
   const currentUser = useQuery(api.users.current, {});
+  const isCandidateViewer = currentUser?.role === "candidate";
   const sample = useQuery(api.quizzes.getPublishedSample, { quizId });
   const session = useQuery(
     api.quizAttempts.getCandidateAttempt,
-    currentUser ? { quizId } : "skip"
+    isCandidateViewer ? { quizId } : "skip"
   );
   const result = useQuery(
     api.quizAttempts.getCandidateResult,
-    currentUser ? { quizId } : "skip"
+    isCandidateViewer ? { quizId } : "skip"
   );
   const startAttempt = useMutation(api.quizAttempts.start);
+  const restartAttempt = useMutation(api.quizAttempts.restartSampleAttempt);
   const saveAnswer = useMutation(api.quizAttempts.saveAnswer);
   const submitAttempt = useMutation(api.quizAttempts.submit);
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
-  const [hasRequestedStart, setHasRequestedStart] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [isRestarting, setIsRestarting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tick, setTick] = useState(Date.now());
 
@@ -66,26 +69,6 @@ export default function PublicSampleQuizDetailPage() {
 
     setAnswerDrafts(nextDrafts);
   }, [session?.attempt]);
-
-  useEffect(() => {
-    if (
-      !currentUser ||
-      !session ||
-      session.attempt ||
-      hasRequestedStart ||
-      result !== null
-    ) {
-      return;
-    }
-
-    setHasRequestedStart(true);
-    startAttempt({ quizId }).catch((error) => {
-      const message =
-        error instanceof Error ? error.message : "Failed to start sample quiz";
-      toast.error(message);
-      setHasRequestedStart(false);
-    });
-  }, [currentUser, hasRequestedStart, quizId, result, session, startAttempt]);
 
   useEffect(() => {
     if (
@@ -113,7 +96,11 @@ export default function PublicSampleQuizDetailPage() {
       .finally(() => setIsSubmitting(false));
   }, [isSubmitting, router, session, submitAttempt, tick]);
 
-  if (sample === undefined || currentUser === undefined) {
+  if (
+    sample === undefined ||
+    currentUser === undefined ||
+    (isCandidateViewer && (session === undefined || result === undefined))
+  ) {
     return (
       <main className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-10 lg:px-6">
         <Skeleton className="h-24 w-full" />
@@ -143,6 +130,36 @@ export default function PublicSampleQuizDetailPage() {
 
   const signInHref =
     `/sign-in?redirect_url=${encodeURIComponent(pathname)}` as Route;
+
+  const startSampleAttempt = async () => {
+    try {
+      setIsStarting(true);
+      await startAttempt({ quizId });
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Failed to start sample quiz";
+      toast.error(message);
+    } finally {
+      setIsStarting(false);
+    }
+  };
+
+  const restartSampleQuiz = async (attemptId: Id<"quizAttempts">) => {
+    try {
+      setIsRestarting(true);
+      await restartAttempt({ attemptId });
+      setAnswerDrafts({});
+      router.refresh();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Failed to restart sample quiz";
+      toast.error(message);
+    } finally {
+      setIsRestarting(false);
+    }
+  };
 
   const persistShortAnswer = async (
     attemptId: Id<"quizAttempts">,
@@ -217,7 +234,7 @@ export default function PublicSampleQuizDetailPage() {
             {formatMinutesLabel(sample.quiz.timeLimit)}
           </Badge>
           <Badge variant="outline">
-            {currentUser
+            {isCandidateViewer
               ? formatScore(sample.viewerAttempt?.score, sample.maxScore)
               : `${sample.maxScore} max points`}
           </Badge>
@@ -251,28 +268,68 @@ export default function PublicSampleQuizDetailPage() {
 
           {previewCards}
         </div>
+      ) : !isCandidateViewer ? (
+        <div className="flex flex-col gap-4">
+          <Card className="border-border/70 bg-muted/10">
+            <CardHeader>
+              <CardTitle>Preview only</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Practice attempts are available only to candidate accounts.
+                Admins and recruiters can review the quiz content here in
+                read-only mode.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button asChild variant="outline">
+                  <Link href={"/resources/quizzes" as Route}>
+                    Back to quizzes
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {previewCards}
+        </div>
       ) : result && result.attempt.status !== "in_progress" ? (
         <div className="flex flex-col gap-4">
           <Card>
             <CardHeader>
               <CardTitle>Sample Quiz Result</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2 text-sm text-muted-foreground">
+            <CardContent className="flex flex-col gap-4 text-sm text-muted-foreground">
               <div className="text-3xl font-semibold text-foreground">
                 {formatScore(result.attempt.score, result.attempt.maxScore)}
               </div>
-              <p>
-                Submitted {formatDate(result.attempt.submittedAt) ?? "just now"}
-              </p>
-              {result.attempt.gradedAt ? (
-                <p>Graded {formatDate(result.attempt.gradedAt)}</p>
-              ) : null}
-              {result.pendingManualReview ? (
+              <div className="flex flex-col gap-2">
                 <p>
-                  Manual grading is still in progress, so the detailed breakdown
-                  will appear later.
+                  Submitted{" "}
+                  {formatDate(result.attempt.submittedAt) ?? "just now"}
                 </p>
-              ) : null}
+                {result.attempt.gradedAt ? (
+                  <p>Graded {formatDate(result.attempt.gradedAt)}</p>
+                ) : null}
+                {result.pendingManualReview ? (
+                  <p>
+                    Manual grading is still in progress, so the detailed
+                    breakdown will appear later.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  disabled={isRestarting}
+                  onClick={() => void restartSampleQuiz(result.attempt._id)}
+                >
+                  Restart sample quiz
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={"/resources/quizzes" as Route}>
+                    Back to quizzes
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -321,6 +378,36 @@ export default function PublicSampleQuizDetailPage() {
                 </Card>
               ))
             : null}
+        </div>
+      ) : result === null ? (
+        <div className="flex flex-col gap-4">
+          <Card className="border-border/70 bg-muted/10">
+            <CardHeader>
+              <CardTitle>Ready to practice?</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-2xl text-sm text-muted-foreground">
+                Review the questions first, then start when you are ready for
+                the timed practice flow, automatic submission, and saved
+                results.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  disabled={isStarting}
+                  onClick={() => void startSampleAttempt()}
+                >
+                  Start practice
+                </Button>
+                <Button asChild variant="outline">
+                  <Link href={"/resources/quizzes" as Route}>
+                    Back to quizzes
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {previewCards}
         </div>
       ) : session?.attempt ? (
         <div className="flex flex-col gap-4">

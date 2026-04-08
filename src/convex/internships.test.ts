@@ -550,6 +550,52 @@ describe("convex/internships", () => {
     ).rejects.toThrow("FORBIDDEN");
   });
 
+  it("closes recruiter internships before deleting the Clerk-backed user", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterClerkId = "recruiter_deleted_from_clerk";
+
+    const { recruiterId, openInternshipId, draftInternshipId } = await t.run(
+      async (ctx) => {
+        const recruiterId = await ctx.db.insert(
+          "users",
+          createTestUser(recruiterClerkId, "recruiter")
+        );
+        const openInternshipId = await ctx.db.insert(
+          "internships",
+          createInternshipSeed(recruiterId, {
+            title: "Open Before Delete",
+            status: "open",
+          })
+        );
+        const draftInternshipId = await ctx.db.insert(
+          "internships",
+          createInternshipSeed(recruiterId, {
+            title: "Draft Before Delete",
+            status: "draft",
+          })
+        );
+
+        return { recruiterId, openInternshipId, draftInternshipId };
+      }
+    );
+
+    await t.mutation(internal.users.deleteFromClerk, {
+      clerkUserId: recruiterClerkId,
+    });
+
+    const snapshot = await t.run(async (ctx) => {
+      const recruiter = await ctx.db.get(recruiterId);
+      const openInternship = await ctx.db.get(openInternshipId);
+      const draftInternship = await ctx.db.get(draftInternshipId);
+
+      return { recruiter, openInternship, draftInternship };
+    });
+
+    expect(snapshot.recruiter).toBeNull();
+    expect(snapshot.openInternship?.status).toBe("closed");
+    expect(snapshot.draftInternship?.status).toBe("closed");
+  });
+
   it("lists only open internships publicly with filters and sorting", async () => {
     const t = convexTest(schema, modules);
 
@@ -631,6 +677,52 @@ describe("convex/internships", () => {
     ]);
   });
 
+  it("hides orphaned open internships from the public list", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      const visibleRecruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_visible_public", "recruiter")
+      );
+      const orphanedRecruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_orphaned_public", "recruiter")
+      );
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(visibleRecruiterId, {
+          title: "Visible Public Internship",
+          status: "open",
+        })
+      );
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(orphanedRecruiterId, {
+          title: "Orphaned Public Internship",
+          status: "open",
+        })
+      );
+
+      await ctx.db.delete(orphanedRecruiterId);
+    });
+
+    const results = await t.query(api.internships.listPublic, {
+      category: undefined,
+      locationType: undefined,
+      sortBy: "newest",
+      paginationOpts: { numItems: 20, cursor: null },
+    });
+
+    expect(results.page.map((item) => item.title)).toContain(
+      "Visible Public Internship"
+    );
+    expect(results.page.map((item) => item.title)).not.toContain(
+      "Orphaned Public Internship"
+    );
+  });
+
   it("returns empty results for blank search and matches open listings by title", async () => {
     const t = convexTest(schema, modules);
 
@@ -682,6 +774,79 @@ describe("convex/internships", () => {
 
     expect(results.page).toHaveLength(1);
     expect(results.page[0]?.title).toBe("Frontend Engineering Internship");
+  });
+
+  it("hides orphaned open internships from public search", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      const visibleRecruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_search_visible", "recruiter")
+      );
+      const orphanedRecruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_search_orphaned", "recruiter")
+      );
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(visibleRecruiterId, {
+          title: "Frontend Visible Internship",
+          status: "open",
+        })
+      );
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(orphanedRecruiterId, {
+          title: "Frontend Orphaned Internship",
+          status: "open",
+        })
+      );
+
+      await ctx.db.delete(orphanedRecruiterId);
+    });
+
+    const results = await t.query(api.internships.searchPublic, {
+      query: "frontend",
+      category: undefined,
+      locationType: undefined,
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(results.page.map((item) => item.title)).toContain(
+      "Frontend Visible Internship"
+    );
+    expect(results.page.map((item) => item.title)).not.toContain(
+      "Frontend Orphaned Internship"
+    );
+  });
+
+  it("returns null for direct public access to orphaned open internships", async () => {
+    const t = convexTest(schema, modules);
+
+    const orphanedInternshipId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_detail_orphaned", "recruiter")
+      );
+      const internshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Detail Orphaned Internship",
+          status: "open",
+        })
+      );
+
+      await ctx.db.delete(recruiterId);
+      return internshipId;
+    });
+
+    const internship = await t.query(api.internships.getPublic, {
+      internshipId: orphanedInternshipId,
+    });
+
+    expect(internship).toBeNull();
   });
 
   it("tracks anonymous and signed-in public views, excludes owners, and deduplicates within one hour", async () => {

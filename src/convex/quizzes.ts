@@ -683,17 +683,18 @@ export const getPublishedSample = query({
       "admin",
     ]).catch(() => null);
 
-    const existingAttempt = user
-      ? await ctx.db
-          .query("quizAttempts")
-          .withIndex("by_candidate_and_quiz_and_attemptType", (q) =>
-            q
-              .eq("candidateId", user._id)
-              .eq("quizId", quiz._id)
-              .eq("attemptType", "sample")
-          )
-          .unique()
-      : null;
+    const existingAttempt =
+      user?.role === "candidate"
+        ? await ctx.db
+            .query("quizAttempts")
+            .withIndex("by_candidate_and_quiz_and_attemptType", (q) =>
+              q
+                .eq("candidateId", user._id)
+                .eq("quizId", quiz._id)
+                .eq("attemptType", "sample")
+            )
+            .unique()
+        : null;
 
     return {
       quiz: sanitizeQuizForTaker(quiz),

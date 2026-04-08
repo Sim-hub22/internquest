@@ -119,6 +119,19 @@ export const deleteFromClerk = internalMutation({
   handler: async (ctx, { clerkUserId }) => {
     const user = await userByClerkId(ctx, clerkUserId);
     if (user) {
+      if (user.role === "recruiter") {
+        for await (const internship of ctx.db
+          .query("internships")
+          .withIndex("by_recruiter", (q) => q.eq("recruiterId", user._id))) {
+          if (internship.status !== "closed") {
+            await ctx.db.patch(internship._id, {
+              status: "closed",
+              updatedAt: Date.now(),
+            });
+          }
+        }
+      }
+
       await ctx.db.delete(user._id);
     } else {
       console.warn(`No Convex user found for Clerk ID: ${clerkUserId}`);

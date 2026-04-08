@@ -10,6 +10,7 @@ import {
   ArrowUpDownIcon,
   EyeIcon,
   MoreHorizontalIcon,
+  PencilIcon,
   Trash2Icon,
   TriangleAlertIcon,
 } from "lucide-react";
@@ -157,6 +158,30 @@ export default function AdminQuizzesPage() {
                   Preview
                 </Link>
               </DropdownMenuItem>
+              {row.original.canDelete ? (
+                <DropdownMenuItem asChild>
+                  <Link
+                    href={`/admin/quizzes/${row.original._id}/edit` as Route}
+                  >
+                    <PencilIcon />
+                    Edit
+                  </Link>
+                </DropdownMenuItem>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <DropdownMenuItem disabled>
+                        <PencilIcon />
+                        Edit
+                      </DropdownMenuItem>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">
+                    {row.original.deleteDisabledReason}
+                  </TooltipContent>
+                </Tooltip>
+              )}
               {row.original.canDelete ? (
                 <DropdownMenuItem
                   onClick={() =>

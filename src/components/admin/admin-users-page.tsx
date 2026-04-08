@@ -52,6 +52,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 import { cn } from "@/lib/utils";
@@ -112,6 +113,7 @@ export function AdminUsersPage() {
   const [pendingTarget, setPendingTarget] = useState<SuspensionTarget | null>(
     null
   );
+  const [suspensionNote, setSuspensionNote] = useState("");
   const [isMutating, startTransition] = useTransition();
 
   const filteredUsers = useMemo(() => {
@@ -214,13 +216,14 @@ export function AdminUsersPage() {
               {row.original.role !== "admin" ? (
                 <DropdownMenuItem
                   className="whitespace-nowrap"
-                  onClick={() =>
+                  onClick={() => {
                     setPendingTarget({
                       userId: row.original._id,
                       name: row.original.name,
                       isSuspended: row.original.isSuspended,
-                    })
-                  }
+                    });
+                    setSuspensionNote("");
+                  }}
                   variant={row.original.isSuspended ? "default" : "destructive"}
                 >
                   {row.original.isSuspended ? (
@@ -249,10 +252,14 @@ export function AdminUsersPage() {
           await unsuspendUser({ userId: pendingTarget.userId });
           toast.success("User unsuspended");
         } else {
-          await suspendUser({ userId: pendingTarget.userId });
+          await suspendUser({
+            userId: pendingTarget.userId,
+            reason: suspensionNote,
+          });
           toast.success("User suspended");
         }
         setPendingTarget(null);
+        setSuspensionNote("");
       } catch (error) {
         toast.error(
           error instanceof Error ? error.message : "Unable to update user"
@@ -333,6 +340,7 @@ export function AdminUsersPage() {
         onOpenChange={(open) => {
           if (!open) {
             setPendingTarget(null);
+            setSuspensionNote("");
           }
         }}
       >
@@ -364,6 +372,22 @@ export function AdminUsersPage() {
                 : "Update this account's access status."}
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {pendingTarget && !pendingTarget.isSuspended ? (
+            <div className="space-y-2 px-1">
+              <p className="text-sm font-medium">Suspension note</p>
+              <Textarea
+                value={suspensionNote}
+                onChange={(event) => setSuspensionNote(event.target.value)}
+                placeholder="Add context for why this account is being suspended."
+                rows={4}
+                disabled={isMutating}
+              />
+              <p className="text-xs leading-5 text-muted-foreground">
+                This note will be saved as the latest moderation note for the
+                account.
+              </p>
+            </div>
+          ) : null}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={isMutating}>Cancel</AlertDialogCancel>
             <AlertDialogAction

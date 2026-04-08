@@ -72,6 +72,34 @@ function includesMatchingCategory(
   return preferredCategories?.includes(internshipCategory) ?? false;
 }
 
+async function isInternshipPubliclyVisible(
+  ctx: QueryCtx | MutationCtx,
+  internship: Doc<"internships"> | null
+): Promise<boolean> {
+  if (!internship || internship.status !== "open") {
+    return false;
+  }
+
+  const recruiter = await ctx.db.get(internship.recruiterId);
+  return recruiter !== null;
+}
+
+async function filterPublicInternships(
+  ctx: QueryCtx,
+  internships: Doc<"internships">[]
+) {
+  const visibility = await Promise.all(
+    internships.map(async (internship) => ({
+      internship,
+      isVisible: await isInternshipPubliclyVisible(ctx, internship),
+    }))
+  );
+
+  return visibility
+    .filter((entry) => entry.isVisible)
+    .map((entry) => entry.internship);
+}
+
 async function scheduleMatchingInternshipNotifications(
   ctx: MutationCtx,
   internshipId: Doc<"internships">["_id"]
@@ -322,7 +350,7 @@ export const getPublic = query({
   handler: async (ctx, args): Promise<Doc<"internships"> | null> => {
     const internship = await ctx.db.get(args.internshipId);
 
-    if (!internship || internship.status !== "open") {
+    if (!(await isInternshipPubliclyVisible(ctx, internship))) {
       return null;
     }
 
@@ -429,7 +457,11 @@ export const listPublic = query({
         .order("asc")
         .paginate(args.paginationOpts);
 
-      const page = paginated.page.filter((internship) => {
+      const visibleInternships = await filterPublicInternships(
+        ctx,
+        paginated.page
+      );
+      const page = visibleInternships.filter((internship) => {
         if (args.category && internship.category !== args.category) {
           return false;
         }
@@ -456,8 +488,12 @@ export const listPublic = query({
         .withIndex("by_status", (q) => q.eq("status", "open"))
         .order("desc")
         .take(500);
+      const visibleInternships = await filterPublicInternships(
+        ctx,
+        internships
+      );
 
-      const filtered = internships.filter((internship) => {
+      const filtered = visibleInternships.filter((internship) => {
         if (args.category && internship.category !== args.category) {
           return false;
         }
@@ -504,7 +540,10 @@ export const listPublic = query({
         .order("desc")
         .paginate(args.paginationOpts);
 
-      return paginated;
+      return {
+        ...paginated,
+        page: await filterPublicInternships(ctx, paginated.page),
+      };
     }
 
     if (args.category) {
@@ -515,34 +554,51 @@ export const listPublic = query({
         )
         .order("desc")
         .paginate(args.paginationOpts);
+      const visibleInternships = await filterPublicInternships(
+        ctx,
+        paginated.page
+      );
 
       if (!args.locationType) {
-        return paginated;
+        return {
+          ...paginated,
+          page: visibleInternships,
+        };
       }
 
       return {
         ...paginated,
-        page: paginated.page.filter(
+        page: visibleInternships.filter(
           (internship) => internship.locationType === args.locationType
         ),
       };
     }
 
     if (args.locationType) {
-      return await ctx.db
+      const paginated = await ctx.db
         .query("internships")
         .withIndex("by_status_and_locationType", (q) =>
           q.eq("status", "open").eq("locationType", args.locationType!)
         )
         .order("desc")
         .paginate(args.paginationOpts);
+
+      return {
+        ...paginated,
+        page: await filterPublicInternships(ctx, paginated.page),
+      };
     }
 
-    return await ctx.db
+    const paginated = await ctx.db
       .query("internships")
       .withIndex("by_status", (q) => q.eq("status", "open"))
       .order("desc")
       .paginate(args.paginationOpts);
+
+    return {
+      ...paginated,
+      page: await filterPublicInternships(ctx, paginated.page),
+    };
   },
 });
 
@@ -581,7 +637,10 @@ export const searchPublic = query({
       })
       .paginate(args.paginationOpts);
 
-    return results;
+    return {
+      ...results,
+      page: await filterPublicInternships(ctx, results.page),
+    };
   },
 });
 
