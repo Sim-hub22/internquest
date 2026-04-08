@@ -1,4 +1,5 @@
 import {
+  BanknoteIcon,
   BriefcaseBusinessIcon,
   Building2Icon,
   CircleCheckIcon,
@@ -23,6 +24,8 @@ export const INTERNSHIP_CATEGORIES = [
 export const LOCATION_TYPES = ["remote", "onsite", "hybrid"] as const;
 
 export const INTERNSHIP_STATUSES = ["draft", "open", "closed"] as const;
+
+const STIPEND_FORMATTER = new Intl.NumberFormat("en-NP");
 
 export function toDisplayLabel(value: string) {
   return value
@@ -61,10 +64,12 @@ export function InternshipMeta({
   company,
   locationType,
   duration,
+  stipend,
 }: {
   company: string;
   locationType: string;
   duration: string;
+  stipend?: number;
 }) {
   return (
     <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
@@ -80,6 +85,12 @@ export function InternshipMeta({
         <Clock3Icon className="size-4" />
         {duration}
       </span>
+      {stipend !== undefined ? (
+        <span className="inline-flex items-center gap-1">
+          <BanknoteIcon className="size-4" />
+          NPR {STIPEND_FORMATTER.format(stipend)} / month
+        </span>
+      ) : null}
     </div>
   );
 }

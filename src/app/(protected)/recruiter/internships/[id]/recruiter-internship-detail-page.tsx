@@ -134,6 +134,7 @@ export function RecruiterInternshipDetailPage({
           company={internship.company}
           locationType={internship.locationType}
           duration={internship.duration}
+          stipend={internship.stipend}
         />
       </div>
 

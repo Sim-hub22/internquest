@@ -61,14 +61,10 @@ export function InternshipCard({
           company={internship.company}
           locationType={internship.locationType}
           duration={internship.duration}
+          stipend={internship.stipend}
         />
         <p className="text-sm text-muted-foreground">
           Apply by {formattedDeadline} UTC
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {internship.stipend
-            ? `Stipend: $${internship.stipend.toLocaleString()} / month`
-            : "Stipend not specified"}
         </p>
       </CardContent>
       <CardFooter className="mt-auto">

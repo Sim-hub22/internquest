@@ -222,6 +222,7 @@ export function InternshipDetailPage({
           company={internship.company}
           locationType={internship.locationType}
           duration={internship.duration}
+          stipend={internship.stipend}
         />
         <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
           <CalendarClockIcon className="size-4" />
