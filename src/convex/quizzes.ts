@@ -8,7 +8,7 @@ import {
   mutation,
   query,
 } from "@/convex/_generated/server";
-import { requireAnyRole, requireRole } from "@/convex/lib/auth";
+import { getCurrentUser, requireAnyRole, requireRole } from "@/convex/lib/auth";
 import { createNotification } from "@/convex/lib/notifications";
 import {
   type QuizQuestion,
@@ -609,6 +609,63 @@ export const getForAdmin = query({
       ...quiz,
       maxScore: calculateMaxScore(quiz.questions),
     };
+  },
+});
+
+export const getBreadcrumbLabel = query({
+  args: {
+    quizId: v.id("quizzes"),
+    applicationId: v.optional(v.id("applications")),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+
+    if (!user) {
+      return null;
+    }
+
+    const quiz = await ctx.db.get(args.quizId);
+
+    if (!quiz) {
+      return null;
+    }
+
+    if (user.role === "admin") {
+      if (quiz.type !== "sample" || quiz.creatorId !== user._id) {
+        return null;
+      }
+
+      return quiz.title;
+    }
+
+    if (user.role === "recruiter") {
+      if (quiz.type !== "recruitment" || quiz.creatorId !== user._id) {
+        return null;
+      }
+
+      return quiz.title;
+    }
+
+    if (user.role !== "candidate" || !args.applicationId || !quiz.isPublished) {
+      return null;
+    }
+
+    const application = await ctx.db.get(args.applicationId);
+
+    if (!application) {
+      return null;
+    }
+
+    if (application.candidateId !== user._id) {
+      return null;
+    }
+
+    if (application.assignedQuizId !== quiz._id) {
+      return null;
+    }
+
+    return quiz.title;
   },
 });
 

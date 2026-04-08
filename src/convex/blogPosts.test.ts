@@ -103,6 +103,68 @@ describe("convex/blogPosts", () => {
     expect(hidden).toBeNull();
   });
 
+  it("returns blog breadcrumb labels only for the owning admin", async () => {
+    const t = convexTest(schema, modules);
+    const ownerIdentity = { subject: "admin_blog_breadcrumb_owner" };
+    const otherAdminIdentity = { subject: "admin_blog_breadcrumb_other" };
+    const recruiterIdentity = { subject: "recruiter_blog_breadcrumb_denied" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(ownerIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(otherAdminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+    });
+
+    const postId = await t
+      .withIdentity(ownerIdentity)
+      .mutation(api.blogPosts.create, {
+        title: "Breadcrumb Resource",
+        slug: "breadcrumb-resource",
+        excerpt: "Excerpt",
+        content: "<p>Content</p>",
+        category: "general",
+        tags: [],
+        draft: true,
+      });
+
+    await expect(
+      t.withIdentity(ownerIdentity).query(api.blogPosts.getBreadcrumbLabel, {
+        postId,
+      })
+    ).resolves.toBe("Breadcrumb Resource");
+
+    await expect(
+      t
+        .withIdentity(otherAdminIdentity)
+        .query(api.blogPosts.getBreadcrumbLabel, {
+          postId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t
+        .withIdentity(recruiterIdentity)
+        .query(api.blogPosts.getBreadcrumbLabel, {
+          postId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t.query(api.blogPosts.getBreadcrumbLabel, {
+        postId,
+      })
+    ).resolves.toBeNull();
+  });
+
   it("rejects duplicate slugs and keeps owner preview private", async () => {
     const t = convexTest(schema, modules);
     const ownerIdentity = { subject: "admin_blog_preview_owner" };

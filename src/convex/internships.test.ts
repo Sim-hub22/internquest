@@ -195,6 +195,67 @@ describe("convex/internships", () => {
     expect(created?.viewCount).toBe(0);
   });
 
+  it("returns breadcrumb labels only to the recruiter who owns the internship", async () => {
+    const t = convexTest(schema, modules);
+    const ownerIdentity = { subject: "recruiter_breadcrumb_owner" };
+    const otherRecruiterIdentity = { subject: "recruiter_breadcrumb_other" };
+    const candidateIdentity = { subject: "candidate_breadcrumb_viewer" };
+
+    const internshipId = await t.run(async (ctx) => {
+      const ownerId = await ctx.db.insert(
+        "users",
+        createTestUser(ownerIdentity.subject, "recruiter")
+      );
+
+      await ctx.db.insert(
+        "users",
+        createTestUser(otherRecruiterIdentity.subject, "recruiter")
+      );
+      await ctx.db.insert(
+        "users",
+        createTestUser(candidateIdentity.subject, "candidate")
+      );
+
+      return await ctx.db.insert(
+        "internships",
+        createInternshipSeed(ownerId, {
+          title: "Breadcrumb Internship",
+          status: "draft",
+        })
+      );
+    });
+
+    await expect(
+      t
+        .withIdentity(ownerIdentity)
+        .query(api.internships.getRecruiterBreadcrumbLabel, {
+          internshipId,
+        })
+    ).resolves.toBe("Breadcrumb Internship");
+
+    await expect(
+      t
+        .withIdentity(otherRecruiterIdentity)
+        .query(api.internships.getRecruiterBreadcrumbLabel, {
+          internshipId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t
+        .withIdentity(candidateIdentity)
+        .query(api.internships.getRecruiterBreadcrumbLabel, {
+          internshipId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t.query(api.internships.getRecruiterBreadcrumbLabel, {
+        internshipId,
+      })
+    ).resolves.toBeNull();
+  });
+
   it("rejects create and update when deadline is not in the future", async () => {
     const t = convexTest(schema, modules);
     const identity = { subject: "recruiter_2" };

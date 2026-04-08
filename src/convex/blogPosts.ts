@@ -496,6 +496,28 @@ export const getForAdmin = query({
   },
 });
 
+export const getBreadcrumbLabel = query({
+  args: {
+    postId: v.id("blogPosts"),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const admin = await requireRole(ctx, "admin").catch(() => null);
+
+    if (!admin) {
+      return null;
+    }
+
+    const post = await ctx.db.get(args.postId);
+
+    if (!post || post.authorId !== admin._id) {
+      return null;
+    }
+
+    return post.title;
+  },
+});
+
 export const getOwnerPreview = query({
   args: {
     postId: v.id("blogPosts"),

@@ -177,6 +177,226 @@ describe("convex/quizzes", () => {
     ).rejects.toThrow("FORBIDDEN");
   });
 
+  it("returns quiz breadcrumb labels for the accessible owner role", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_quiz_breadcrumb_owner" };
+    const otherRecruiterIdentity = {
+      subject: "recruiter_quiz_breadcrumb_other",
+    };
+    const adminIdentity = { subject: "admin_quiz_breadcrumb_owner" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(otherRecruiterIdentity.subject, "recruiter")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+    });
+
+    const recruitmentQuizId = await t
+      .withIdentity(recruiterIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Recruiter Breadcrumb Quiz",
+        type: "recruitment",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which hook updates local state?",
+            points: 1,
+            options: [
+              { id: "a", text: "useState" },
+              { id: "b", text: "useRouter" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    const sampleQuizId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Admin Breadcrumb Quiz",
+        type: "sample",
+        questions: [
+          {
+            id: "sample-q1",
+            type: "multiple_choice",
+            question: "What does CSS stand for?",
+            points: 1,
+            options: [
+              { id: "a", text: "Cascading Style Sheets" },
+              { id: "b", text: "Computer Style Syntax" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await expect(
+      t.withIdentity(recruiterIdentity).query(api.quizzes.getBreadcrumbLabel, {
+        quizId: recruitmentQuizId,
+      })
+    ).resolves.toBe("Recruiter Breadcrumb Quiz");
+
+    await expect(
+      t
+        .withIdentity(otherRecruiterIdentity)
+        .query(api.quizzes.getBreadcrumbLabel, {
+          quizId: recruitmentQuizId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t.withIdentity(adminIdentity).query(api.quizzes.getBreadcrumbLabel, {
+        quizId: sampleQuizId,
+      })
+    ).resolves.toBe("Admin Breadcrumb Quiz");
+
+    await expect(
+      t.withIdentity(recruiterIdentity).query(api.quizzes.getBreadcrumbLabel, {
+        quizId: sampleQuizId,
+      })
+    ).resolves.toBeNull();
+  });
+
+  it("returns candidate quiz breadcrumb labels only for the assigned application", async () => {
+    const t = convexTest(schema, modules);
+    const seeded = await seedShortlistedApplication(t);
+    const otherCandidateIdentity = {
+      subject: "quiz_breadcrumb_other_candidate",
+    };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(otherCandidateIdentity.subject, "candidate")
+      );
+    });
+
+    const quizId = await t
+      .withIdentity(seeded.recruiterIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Candidate Breadcrumb Quiz",
+        description: "Assigned quiz",
+        type: "recruitment",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which API handles local state?",
+            points: 2,
+            options: [
+              { id: "a", text: "useState" },
+              { id: "b", text: "usePathname" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await t
+      .withIdentity(seeded.recruiterIdentity)
+      .mutation(api.quizzes.publish, {
+        quizId,
+      });
+    await t
+      .withIdentity(seeded.recruiterIdentity)
+      .mutation(api.quizzes.assignToApplication, {
+        applicationId: seeded.applicationId,
+        quizId,
+      });
+
+    const wrongApplicationId = await (async () => {
+      const resumeStorageId = (await t.action(
+        internal.testHelpers.createTestPdfStorage,
+        {}
+      )) as Id<"_storage">;
+
+      return await t.run(async (ctx) => {
+        const internshipId = await ctx.db.insert("internships", {
+          recruiterId: seeded.recruiterId,
+          title: "Wrong Breadcrumb Internship",
+          company: "InternQuest",
+          description: "desc",
+          category: "technology",
+          location: "Kathmandu",
+          locationType: "remote",
+          duration: "3 months",
+          requirements: ["React"],
+          status: "open",
+          applicationDeadline: Date.now() + 86_400_000,
+          viewCount: 0,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+
+        return await ctx.db.insert("applications", {
+          internshipId,
+          candidateId: seeded.candidateId,
+          resumeStorageId,
+          status: "shortlisted",
+          statusHistory: [
+            {
+              status: "applied",
+              changedAt: Date.now() - 2_000,
+              changedBy: seeded.candidateId,
+            },
+            {
+              status: "shortlisted",
+              changedAt: Date.now() - 1_000,
+              changedBy: seeded.recruiterId,
+            },
+          ],
+          appliedAt: Date.now() - 2_000,
+          updatedAt: Date.now() - 1_000,
+        });
+      });
+    })();
+
+    await expect(
+      t
+        .withIdentity(seeded.candidateIdentity)
+        .query(api.quizzes.getBreadcrumbLabel, {
+          applicationId: seeded.applicationId,
+          quizId,
+        })
+    ).resolves.toBe("Candidate Breadcrumb Quiz");
+
+    await expect(
+      t
+        .withIdentity(seeded.candidateIdentity)
+        .query(api.quizzes.getBreadcrumbLabel, {
+          quizId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t
+        .withIdentity(seeded.candidateIdentity)
+        .query(api.quizzes.getBreadcrumbLabel, {
+          applicationId: wrongApplicationId,
+          quizId,
+        })
+    ).resolves.toBeNull();
+
+    await expect(
+      t
+        .withIdentity(otherCandidateIdentity)
+        .query(api.quizzes.getBreadcrumbLabel, {
+          applicationId: seeded.applicationId,
+          quizId,
+        })
+    ).resolves.toBeNull();
+  });
+
   it("allows incomplete quizzes to be saved as drafts", async () => {
     const t = convexTest(schema, modules);
     const recruiterIdentity = { subject: "recruiter_quiz_draft_owner" };

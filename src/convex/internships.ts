@@ -387,6 +387,28 @@ export const getForRecruiter = query({
   },
 });
 
+export const getRecruiterBreadcrumbLabel = query({
+  args: {
+    internshipId: v.id("internships"),
+  },
+  returns: v.union(v.string(), v.null()),
+  handler: async (ctx, args) => {
+    const recruiter = await getCurrentUser(ctx);
+
+    if (!recruiter || recruiter.role !== "recruiter") {
+      return null;
+    }
+
+    const internship = await ctx.db.get(args.internshipId);
+
+    if (!internship || internship.recruiterId !== recruiter._id) {
+      return null;
+    }
+
+    return internship.title;
+  },
+});
+
 export const listForRecruiter = query({
   args: {
     status: v.optional(internshipStatusValidator),
