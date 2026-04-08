@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 
 import { useQuery } from "convex/react";
 
+import { shouldShowCandidateApplicationQuizCard } from "@/components/candidate/candidate-application-quiz-visibility";
 import { RichTextContent } from "@/components/rich-text-content";
 import { Button } from "@/components/ui/button";
 import {
@@ -69,9 +70,12 @@ export default function CandidateApplicationDetailPage() {
     );
   }
 
-  const showQuizCta =
-    detail.application.status === "quiz_assigned" ||
-    detail.application.status === "quiz_completed";
+  const showQuizCta = shouldShowCandidateApplicationQuizCard({
+    status: detail.application.status,
+    hasAssignedQuiz: detail.assignedQuiz !== null,
+    hasQuizAttempt: detail.quizAttempt !== null,
+    quizAssignedAt: detail.quizAssignedAt,
+  });
   const quizHref = detail.assignedQuiz
     ? (`/candidate/quizzes/${detail.assignedQuiz._id}?applicationId=${applicationId}` as Route)
     : ("/candidate/quizzes" as Route);
