@@ -17,6 +17,14 @@ import { canRecruiterManageInternship } from "@/components/internships/manage-li
 import { ReportContentButton } from "@/components/report-content-button";
 import { RichTextContent } from "@/components/rich-text-content";
 import { Badge } from "@/components/ui/badge";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -208,6 +216,27 @@ export function InternshipDetailPage({
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 lg:p-6">
       <div className="space-y-3">
+        <Breadcrumb>
+          <BreadcrumbList className="text-xs sm:text-sm">
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={"/" as Route}>Home</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link href={"/internships" as Route}>Internships</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="min-w-0">
+              <BreadcrumbPage className="block max-w-48 truncate sm:max-w-80 lg:max-w-full">
+                {internship.title}
+              </BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{toDisplayLabel(internship.category)}</Badge>
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
