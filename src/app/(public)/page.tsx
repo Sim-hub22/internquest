@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -332,7 +332,7 @@ export default function HomePage() {
               variant="outline"
               className="h-11 rounded-full border-slate-200 bg-white/80 px-6 text-sm text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-950/60 dark:text-slate-100"
             >
-              <Link href="/sign-up">Create Account</Link>
+              <Link href={"/sign-up" as Route}>Create Account</Link>
             </Button>
           </div>
         </div>
@@ -789,10 +789,10 @@ export default function HomePage() {
               Get started
             </p>
             <div className="flex flex-col gap-3 text-sm text-slate-300">
-              <Link href="/sign-up" className="hover:text-white">
+              <Link href={"/sign-up" as Route} className="hover:text-white">
                 Create account
               </Link>
-              <Link href="/sign-in" className="hover:text-white">
+              <Link href={"/sign-in" as Route} className="hover:text-white">
                 Sign in
               </Link>
               <Link href="/internships" className="hover:text-white">
