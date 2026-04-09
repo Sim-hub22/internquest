@@ -43,6 +43,8 @@ import { api } from "@/convex/_generated/api";
 type InternshipsBrowseProps = {
   showCreateCta?: boolean;
   preloadedListResults: Preloaded<typeof api.internships.listPublic>;
+  initialSearch?: string;
+  initialCategory?: "all" | InternshipCategory;
 };
 
 type InternshipCategory = (typeof INTERNSHIP_CATEGORIES)[number];
@@ -53,9 +55,13 @@ const PAGE_SIZE = 9;
 export function InternshipsBrowse({
   showCreateCta = false,
   preloadedListResults,
+  initialSearch = "",
+  initialCategory = "all",
 }: InternshipsBrowseProps) {
-  const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<"all" | InternshipCategory>("all");
+  const [search, setSearch] = useState(initialSearch);
+  const [category, setCategory] = useState<"all" | InternshipCategory>(
+    initialCategory
+  );
   const [locationType, setLocationType] = useState<
     "all" | InternshipLocationType
   >("all");
