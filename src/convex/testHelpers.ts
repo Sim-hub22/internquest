@@ -15,6 +15,22 @@ export const createTestPdfStorage = internalAction({
   },
 });
 
+export const createTestLargePdfStorage = internalAction({
+  args: {},
+  handler: async (ctx) => {
+    const payload = new Uint8Array(5 * 1024 * 1024 + 1);
+    payload.set(new TextEncoder().encode("%PDF-1.4\n"));
+
+    const storageId = await ctx.storage.store(
+      new Blob([payload], {
+        type: "application/pdf",
+      })
+    );
+
+    return storageId;
+  },
+});
+
 export const createTestTextStorage = internalAction({
   args: {},
   handler: async (ctx) => {

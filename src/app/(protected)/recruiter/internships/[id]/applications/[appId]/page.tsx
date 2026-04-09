@@ -175,9 +175,22 @@ function RecruiterApplicationReviewContent({
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">Cover letter</p>
-              <div className="rounded-md bg-muted/40 p-3 text-sm whitespace-pre-wrap">
-                {detail.application.coverLetter || "No cover letter provided."}
-              </div>
+              {detail.coverLetterUrl ? (
+                <Button asChild variant="outline">
+                  <a
+                    href={detail.coverLetterUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    Open cover letter PDF
+                  </a>
+                </Button>
+              ) : (
+                <div className="rounded-md bg-muted/40 p-3 text-sm whitespace-pre-wrap">
+                  {detail.application.coverLetter ||
+                    "No cover letter provided."}
+                </div>
+              )}
             </div>
 
             {detail.candidateProfile ? (

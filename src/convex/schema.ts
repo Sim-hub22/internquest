@@ -132,6 +132,7 @@ export default defineSchema({
     internshipId: v.id("internships"),
     candidateId: v.id("users"),
     resumeStorageId: v.id("_storage"),
+    coverLetterStorageId: v.optional(v.id("_storage")),
     coverLetter: v.optional(v.string()),
     assignedQuizId: v.optional(v.id("quizzes")),
     quizAssignedAt: v.optional(v.number()),

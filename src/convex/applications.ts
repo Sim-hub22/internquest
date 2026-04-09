@@ -27,7 +27,7 @@ const paginationOptsValidator = v.object({
   id: v.optional(v.number()),
 });
 
-const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_APPLICATION_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 const APP_URL = process.env.APP_URL?.replace(/\/$/, "") ?? "";
 
 type ApplicationStatus =
@@ -51,11 +51,6 @@ const allowedStatusTransitions: Record<
   accepted: [],
   rejected: [],
 };
-
-function normalizeOptionalText(value: string | undefined) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
 
 function toStatusLabel(status: ApplicationStatus) {
   return status
@@ -165,6 +160,59 @@ async function applicationByCandidateAndInternship(
     .unique();
 }
 
+export function getUploadedPdfValidationError(
+  metadata: {
+    size: number;
+    contentType?: string;
+  },
+  label: string
+) {
+  if (metadata.size > MAX_APPLICATION_FILE_SIZE_BYTES) {
+    return `${label} must be 5MB or smaller`;
+  }
+
+  const contentType = metadata.contentType?.toLowerCase();
+
+  // Some environments (including test/runtime adapters) may not persist
+  // contentType on _storage metadata. Reject only when a non-PDF type is
+  // explicitly present, while size checks still guard against abuse.
+  if (contentType && !contentType.includes("pdf")) {
+    return `${label} must be a PDF file`;
+  }
+
+  return null;
+}
+
+async function assertValidUploadedPdf(
+  ctx: MutationCtx,
+  storageId: Id<"_storage">,
+  label: string
+) {
+  const metadata = await ctx.db.system.get("_storage", storageId);
+
+  if (!metadata) {
+    throw new ConvexError(`${label} upload not found`);
+  }
+
+  const validationError = getUploadedPdfValidationError(metadata, label);
+
+  if (validationError) {
+    await ctx.storage.delete(storageId);
+    throw new ConvexError(validationError);
+  }
+}
+
+async function resolveStorageUrl(
+  ctx: QueryCtx,
+  storageId: Id<"_storage"> | undefined
+) {
+  if (!storageId) {
+    return null;
+  }
+
+  return await ctx.storage.getUrl(storageId);
+}
+
 async function getQuizStateForApplication(
   ctx: QueryCtx | MutationCtx,
   application: Doc<"applications">
@@ -209,7 +257,7 @@ export const apply = mutation({
   args: {
     internshipId: v.id("internships"),
     resumeStorageId: v.id("_storage"),
-    coverLetter: v.optional(v.string()),
+    coverLetterStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const candidate = await requireRole(ctx, "candidate");
@@ -250,44 +298,30 @@ export const apply = mutation({
       }
     }
 
-    const resumeMetadata = await ctx.db.system.get(
-      "_storage",
-      args.resumeStorageId
-    );
+    await assertValidUploadedPdf(ctx, args.resumeStorageId, "Resume");
 
-    if (!resumeMetadata) {
-      throw new ConvexError("Resume upload not found");
-    }
-
-    if (resumeMetadata.size > MAX_RESUME_SIZE_BYTES) {
-      await ctx.storage.delete(args.resumeStorageId);
-      throw new ConvexError("Resume must be 5MB or smaller");
-    }
-
-    const resumeContentType = resumeMetadata.contentType?.toLowerCase();
-
-    // Some environments (including test/runtime adapters) may not persist
-    // contentType on _storage metadata. Reject only when a non-PDF type is
-    // explicitly present, while size checks still guard against abuse.
-
-    if (resumeContentType && !resumeContentType.includes("pdf")) {
-      await ctx.storage.delete(args.resumeStorageId);
-      throw new ConvexError("Resume must be a PDF file");
+    if (args.coverLetterStorageId) {
+      await assertValidUploadedPdf(
+        ctx,
+        args.coverLetterStorageId,
+        "Cover letter"
+      );
     }
 
     const appliedAt = Date.now();
-    const coverLetter = normalizeOptionalText(args.coverLetter);
     const applicationId = await ctx.db.insert("applications", {
       internshipId: internship._id,
       candidateId: candidate._id,
       resumeStorageId: args.resumeStorageId,
+      ...(args.coverLetterStorageId
+        ? { coverLetterStorageId: args.coverLetterStorageId }
+        : {}),
       status: "applied",
       statusHistory: [
         createStatusHistoryEntry("applied", candidate._id, appliedAt),
       ],
       appliedAt,
       updatedAt: appliedAt,
-      ...(coverLetter ? { coverLetter } : {}),
     });
 
     const recruiter = await ctx.db.get(internship.recruiterId);
@@ -528,13 +562,18 @@ export const getCandidateDetail = query({
     }
 
     const internship = await ctx.db.get(application.internshipId);
-    const resumeUrl = await ctx.storage.getUrl(application.resumeStorageId);
+    const resumeUrl = await resolveStorageUrl(ctx, application.resumeStorageId);
+    const coverLetterUrl = await resolveStorageUrl(
+      ctx,
+      application.coverLetterStorageId
+    );
     const quizState = await getQuizStateForApplication(ctx, application);
 
     return {
       application,
       internship,
       resumeUrl,
+      coverLetterUrl,
       ...quizState,
     };
   },
@@ -679,7 +718,11 @@ export const getRecruiterDetail = query({
           .withIndex("by_userId", (q) => q.eq("userId", candidate._id))
           .unique()
       : null;
-    const resumeUrl = await ctx.storage.getUrl(application.resumeStorageId);
+    const resumeUrl = await resolveStorageUrl(ctx, application.resumeStorageId);
+    const coverLetterUrl = await resolveStorageUrl(
+      ctx,
+      application.coverLetterStorageId
+    );
     const quizState = await getQuizStateForApplication(ctx, application);
 
     return {
@@ -688,6 +731,7 @@ export const getRecruiterDetail = query({
       candidate,
       candidateProfile,
       resumeUrl,
+      coverLetterUrl,
       ...quizState,
     };
   },

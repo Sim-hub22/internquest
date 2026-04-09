@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { api, internal } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
+import { getUploadedPdfValidationError } from "@/convex/applications";
 import schema from "@/convex/schema";
 import { modules } from "@/convex/test.setup";
 
@@ -22,6 +23,41 @@ function createUserSeed(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+async function seedOpenInternship(
+  t: ReturnType<typeof convexTest>,
+  recruiterIdentity: { subject: string },
+  candidateIdentity: { subject: string },
+  title: string
+) {
+  return await t.run(async (ctx) => {
+    const recruiterId = await ctx.db.insert(
+      "users",
+      createUserSeed(recruiterIdentity.subject, "recruiter")
+    );
+    await ctx.db.insert(
+      "users",
+      createUserSeed(candidateIdentity.subject, "candidate")
+    );
+
+    return await ctx.db.insert("internships", {
+      recruiterId,
+      title,
+      company: "InternQuest",
+      description: "desc",
+      category: "technology",
+      location: "Kathmandu",
+      locationType: "remote",
+      duration: "3 months",
+      requirements: ["React"],
+      status: "open",
+      applicationDeadline: Date.now() + 86_400_000,
+      viewCount: 0,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  });
 }
 
 describe("convex/applications", () => {
@@ -85,40 +121,23 @@ describe("convex/applications", () => {
     ).rejects.toThrow("UNAUTHENTICATED");
   });
 
-  it("creates application from candidate, blocks duplicate apply, and supports recruiter status updates", async () => {
+  it("creates applications with optional PDF cover letters, blocks duplicate apply, and supports recruiter status updates", async () => {
     const t = convexTest(schema, modules);
     const recruiterIdentity = { subject: "recruiter_apply_1" };
     const candidateIdentity = { subject: "candidate_apply_1" };
 
-    const internshipId = await t.run(async (ctx) => {
-      const recruiterId = await ctx.db.insert(
-        "users",
-        createUserSeed(recruiterIdentity.subject, "recruiter")
-      );
-      await ctx.db.insert(
-        "users",
-        createUserSeed(candidateIdentity.subject, "candidate")
-      );
-
-      return await ctx.db.insert("internships", {
-        recruiterId,
-        title: "Backend Intern",
-        company: "InternQuest",
-        description: "desc",
-        category: "technology",
-        location: "Kathmandu",
-        locationType: "remote",
-        duration: "3 months",
-        requirements: ["Node.js"],
-        status: "open",
-        applicationDeadline: Date.now() + 86_400_000,
-        viewCount: 0,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      });
-    });
+    const internshipId = await seedOpenInternship(
+      t,
+      recruiterIdentity,
+      candidateIdentity,
+      "Backend Intern"
+    );
 
     const resumeStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+    const coverLetterStorageId = (await t.action(
       internal.testHelpers.createTestPdfStorage,
       {}
     )) as Id<"_storage">;
@@ -128,19 +147,26 @@ describe("convex/applications", () => {
       .mutation(api.applications.apply, {
         internshipId,
         resumeStorageId,
-        coverLetter: "  Ready to contribute from day one.  ",
+        coverLetterStorageId,
       });
 
-    const candidateView = await t
+    const candidateDetail = await t
       .withIdentity(candidateIdentity)
-      .query(api.applications.getForCandidate, {
+      .query(api.applications.getCandidateDetail, {
+        applicationId,
+      });
+    const recruiterDetail = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.applications.getRecruiterDetail, {
         applicationId,
       });
 
-    expect(candidateView?.status).toBe("applied");
-    expect(candidateView?.coverLetter).toBe(
-      "Ready to contribute from day one."
+    expect(candidateDetail?.application.status).toBe("applied");
+    expect(candidateDetail?.application.coverLetterStorageId).toBe(
+      coverLetterStorageId
     );
+    expect(candidateDetail?.coverLetterUrl).toBeTruthy();
+    expect(recruiterDetail?.coverLetterUrl).toBeTruthy();
 
     const secondResumeStorageId = (await t.action(
       internal.testHelpers.createTestPdfStorage,
@@ -177,6 +203,95 @@ describe("convex/applications", () => {
     expect(
       notifications.some((item) => item.type === "application_status")
     ).toBe(true);
+  });
+
+  it("flags non-PDF cover letter metadata", () => {
+    expect(
+      getUploadedPdfValidationError(
+        {
+          size: 128,
+          contentType: "text/plain",
+        },
+        "Cover letter"
+      )
+    ).toBe("Cover letter must be a PDF file");
+  });
+
+  it("flags oversized cover letter metadata", () => {
+    expect(
+      getUploadedPdfValidationError(
+        {
+          size: 5 * 1024 * 1024 + 1,
+          contentType: "application/pdf",
+        },
+        "Cover letter"
+      )
+    ).toBe("Cover letter must be 5MB or smaller");
+  });
+
+  it("keeps legacy text cover letters readable in detail views", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_apply_legacy" };
+    const candidateIdentity = { subject: "candidate_apply_legacy" };
+    const seededStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    const applicationId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+      const internshipId = await ctx.db.insert("internships", {
+        recruiterId,
+        title: "Legacy Intern",
+        company: "InternQuest",
+        description: "desc",
+        category: "technology",
+        location: "Kathmandu",
+        locationType: "remote",
+        duration: "3 months",
+        requirements: ["React"],
+        status: "open",
+        applicationDeadline: Date.now() + 86_400_000,
+        viewCount: 0,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+
+      return await ctx.db.insert("applications", {
+        internshipId,
+        candidateId,
+        resumeStorageId: seededStorageId,
+        coverLetter: "Legacy plain text cover letter",
+        status: "applied",
+        statusHistory: [
+          {
+            status: "applied",
+            changedAt: Date.now(),
+            changedBy: candidateId,
+          },
+        ],
+        appliedAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const detail = await t
+      .withIdentity(candidateIdentity)
+      .query(api.applications.getCandidateDetail, {
+        applicationId,
+      });
+
+    expect(detail?.application.coverLetter).toBe(
+      "Legacy plain text cover letter"
+    );
+    expect(detail?.coverLetterUrl).toBeNull();
   });
 
   it("enforces status transition and authorization rules", async () => {

@@ -7,7 +7,6 @@ import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 
 import { shouldShowCandidateApplicationQuizCard } from "@/components/candidate/candidate-application-quiz-visibility";
-import { RichTextContent } from "@/components/rich-text-content";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -123,6 +122,13 @@ export default function CandidateApplicationDetailPage() {
               </a>
             </Button>
           ) : null}
+          {detail.coverLetterUrl ? (
+            <Button asChild size="sm" variant="secondary">
+              <a href={detail.coverLetterUrl} target="_blank" rel="noreferrer">
+                Open uploaded cover letter
+              </a>
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -178,13 +184,28 @@ export default function CandidateApplicationDetailPage() {
         </Card>
       ) : null}
 
-      {detail.application.coverLetter ? (
+      {detail.coverLetterUrl ? (
         <Card>
           <CardHeader>
             <CardTitle>Cover letter</CardTitle>
           </CardHeader>
           <CardContent>
-            <RichTextContent html={detail.application.coverLetter} />
+            <Button asChild variant="outline">
+              <a href={detail.coverLetterUrl} target="_blank" rel="noreferrer">
+                Open cover letter PDF
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : detail.application.coverLetter ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Cover letter</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md bg-muted/40 p-4 text-sm whitespace-pre-wrap">
+              {detail.application.coverLetter}
+            </div>
           </CardContent>
         </Card>
       ) : null}
