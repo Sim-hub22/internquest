@@ -24,7 +24,10 @@ import {
   AnalyticsMetricCard,
   formatWholeNumber,
 } from "@/components/analytics/analytics-primitives";
-import { toDisplayLabel } from "@/components/internships/constants";
+import {
+  formatInternshipStipend,
+  toDisplayLabel,
+} from "@/components/internships/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -62,12 +65,6 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   timeStyle: "short",
 });
 
-const CURRENCY_FORMATTER = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
 function statusVariant(status: string) {
   switch (status) {
     case "accepted":
@@ -84,11 +81,7 @@ function statusVariant(status: string) {
 }
 
 function formatStipend(stipend?: number) {
-  if (stipend === undefined) {
-    return "Stipend not listed";
-  }
-
-  return `${CURRENCY_FORMATTER.format(stipend)} / month`;
+  return formatInternshipStipend(stipend, "Stipend not listed");
 }
 
 function getQuizHref(item: {

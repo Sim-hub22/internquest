@@ -1,0 +1,535 @@
+
+--- PAGE 1 ---
+ 
+ 
+  
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Student Name  : Simran Shrestha 
+University ID  : 2431175 
+Supervisor   : Mr. Suraj Pandey 
+Reader    : Mr. Ankit Tamrakar 
+Submission Date  : Nov 28, 2025 
+ 
+ 
+6CS007 – Project and Professionalism 
+Literature Review 
+ InternQuest 
+
+--- PAGE 2 ---
+ 
+ 
+Abstract 
+This literature review explores the existing research and systems related to internship and training 
+management platforms. The emphasis has been on how digital solutions can enable students to 
+discover verified opportunities, prepare for those opportunities, and connect effectively with 
+employers. Key studies on Work Integrated Learning (WIL), online assessment, and internshi p 
+portals have been highlighted; these indicate that such centralized platforms make internship 
+processes more organized, transparent, and accessible. However, most of these existing systems 
+lack verification features, progress tracking, and learning suppo rt for students. Based on both the 
+review of academic research and the existing applications, the identified gaps are used to guide the 
+design of InternQuest, a secure, user -friendly, educationally supportive web platform developed 
+to bridge the gap between students and verified recruiters in Nepal. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 3 ---
+ 
+ 
+Table of Contents 
+ 
+1. Introduction ........................................................................................................................... 1 
+2. Literature Review ..................................................................................................................... 2 
+2.1 Enhancing Internship Experiences: A Comprehensive Study of Internship Portals in 
+Educational Institutions ........................................................................................................... 2 
+2.2 Using Internship Management System to Improve the Relationship between 
+Internship Seekers, Employers, and Educational Institutions . ........................................... 2 
+2.3 Enhancing Employability Through Work Integrated Learning .................................... 3 
+2.4 An Evaluation of Online Proctoring Tools ........................................................................ 3 
+2.5 How does quiz activity affect summative assessment outcomes? ................................... 4 
+2.6 Assessing Education Students’ Self-directed Learning Experiences for Optimal 
+Online Learning ........................................................................................................................ 4 
+2.7 A Review on Factors Affecting the Success of Online Proctoring System ..................... 5 
+2.8 Defining Common Elements of Quality Work-Integrated Learning with a   Literature 
+Review ........................................................................................................................................ 5 
+2.9 Self-directed learning: assessment of students’ abilities and their perspective ............. 6 
+2.10 A Systematic-Narrative Review of Online Proctoring Systems and a Case for Open 
+Standards ................................................................................................................................... 6 
+3. Literature Review Gap Analysis .............................................................................................. 7 
+4. System Review ........................................................................................................................... 8 
+4.1 InternSathi ........................................................................................................................... 8 
+4.2 Intern Nepal ......................................................................................................................... 8 
+4.3 NepalDev .............................................................................................................................. 9 
+4.4 Internshala ........................................................................................................................... 9 
+4.5 InternDekho....................................................................................................................... 10 
+5. System Review Gap Analysis ..................................................................................................11 
+6. Implications for InternQuest ................................................................................................. 12 
+7. References ................................................................................................................................ 13 
+
+--- PAGE 4 ---
+1 
+ 
+ 
+1. Introduction 
+Internships are an important part of a student’s learning journey as they help connect 
+classroom knowledge with real-world experience. However, finding reliable and verified 
+internship opportunities in Nepal is often a challenge for a student. The different portals 
+available are either outdated, unorganized, or lack verification and tracking mechanisms, 
+making it difficult for students to trust the validity and manage their job applications. 
+With the rapidly increasing reliance on digital platforms, web -based systems will provide 
+easy access to and management of internships in a much more transparent way. Research 
+into Work-Integrated Learning and online internship systems identifies the need to link 
+opportunity management with skills development, monitoring, and feedback tools. These 
+findings identify a need for a platform like InternQuest, which will provide connections 
+between students and companies but also support learning and preparation through 
+embedded resources and assessments. 
+It looks at previous studies, systems, and online internship platforms to understand what 
+has been done in this area and what gaps still exist. These findings are helpful in shaping 
+InternQuest, a platform designed to make internships more accessible, veri fied, and 
+educationally supportive for students and employers in Nepal. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 5 ---
+2 
+ 
+2. Literature Review 
+2.1 Enhancing Internship Experiences: A Comprehensive Study of 
+Internship Portals in Educational Institutions 
+Studies have shown that students who participate in internships sourced through portals 
+demonstrate higher levels of job readiness and are more competitive in the job market. This 
+paper researched the use of internship portals in educational institutions f or improvement in 
+the overall internship process. The paper describes different existing portals, comparing their 
+features, benefits, and challenges. The internship portals work as digital bridges between 
+students and employers, facilitating the posting of  jobs, applications, approvals, and tracking 
+of performance on one platform. 
+The study underlines that such systems make internships more accessible and inclusive, thus 
+giving students from different backgrounds the possibility to explore more opportunities. It 
+also mentions some problems, such as unequal access for students, a lac k of quality control, 
+and low transparency regarding how the internships are handled. The authors indicate that 
+future systems should be accompanied by an improved user experience, data analytics, and 
+intelligent matching tools that will eventually link students to suitable employers. (Shriwas, et 
+al., 2024) 
+2.2 Using Internship Management System to Improve the Relationship 
+between Internship Seekers, Employers, and Educational Institutions  
+ 
+The authors examine the possibilities offered by a centralized Internship Management System 
+(IMS) to enhance communication and coordination among students, employers, and 
+universities. They are interested in the use of digital tools to decrease the manual work and 
+make the management of internships more efficient. Their study relies on survey information 
+of businesses in Kosovo, North Macedonia, and Albania on the need, design requirements, and 
+technical structures of such a system. 
+ 
+One of the outstanding results of this research is the high request on a centralized management 
+of internship programs as 87 percent of companies stated that they were in support of using a 
+web-based IMS tools. The authors suggest to use MVC (Model-View-Controller) architecture 
+and open-source web technologies such as PHP, MySQL and Bootstrap to create scalable and 
+maintainable systems that can help the three stakeholders engage in constant interaction. The 
+role of clear system design and structure in enha ncing collaboration between all the three 
+stakeholders: students, academic mentors, and employers is also highlighted in the paper.  
+(Mydyti & Kadriu, 2020)  
+
+--- PAGE 6 ---
+3 
+ 
+2.3 Enhancing Employability Through Work Integrated Learning  
+This article  explores how Work-Integrated Learning (WIL) , including internships, helps 
+prepare graduates for real -world employment. Their study looks at how universities and 
+industries can work together to give students meaningful learning experiences that build both 
+technical and soft skills. They argue that internships play a major role in connecting what 
+students learn in classrooms to what employers expect in the workplace. 
+The paper identifies several challenges, such as weak coordination between universities and 
+employers, unequal access to quality placements, and poor systems for tracking student 
+outcomes. Despite these issues, the research shows that well -structured internship programs 
+can improve students’ confidence, employability, and readiness for the job market. The authors 
+also suggest that digital internship platforms can help overcome many of these challenges by 
+improving coordination, communication, and feedback b etween students, educators, and 
+employers. (Kenaphoom & Niyomves, 2023) 
+2.4 An Evaluation of Online Proctoring Tools 
+A study was carried out at the University of the South Pacific to evaluate popular online 
+proctoring systems that became widely used during the COVID -19 pandemic. The research 
+examined several tools, including ProctorU, Respondus, and Proctorio, using a fo ur-step 
+process that involved background research, expert reviews, test trials, and feedback from both 
+students and teachers. 
+Results showed that online proctoring, while effective in maintaining the honesty of exams 
+through its features such as ID checks, webcam monitoring, browser lockdown, and fraud 
+detection, also raises some very critical issues regarding privacy, accessibil ity, cost, and 
+comfort. Many students felt uncomfortable with being constantly video monitored , some of 
+them also reported technical issues during setup and authentication. The authors concluded 
+from these findings that although online proctoring has a role in protecting academic integrity, 
+it is not a one -size-fits-all solution. They recommend that institutions use it carefully, 
+considering factors like infrastructure, ethics, and inclusivity before implementing such 
+systems. (Hussein, et al., 2020) 
+ 
+ 
+
+--- PAGE 7 ---
+4 
+ 
+2.5 How does quiz activity affect summative assessment outcomes?  
+This paper examined the influence of formative quizzes on students' final examination scores. 
+The study involved 217 first-year medical students over three years, required students to attend 
+a medical informatics course. Students had an option to voluntarily undertake quizzes as self-
+directed learning ( SDL) using the Moodle platform. The results indicated that students who 
+took quizzes performed better in the final exams compared to those who did not take them. 
+While students who repeatedly took the quizzes  scored slightly higher than one -timers, the 
+difference was too small to reach a level of statistical significance. 
+Results also indicated that no strong correlation was found between quiz scores and final exam 
+marks, suggesting that the most important benefit of quizzes came from the process of learning 
+itself rather than from the scores obtained. The author further ad ded that formative quizzes 
+motivate students to study continuously, allow them to identify their learning gaps, and take 
+more responsibility towards their learning. The study corroborates earlier literature on how 
+repeated testing, along with formative ass essment, aids knowledge retention, motivation, and 
+overall academic achievement. Overall, the results indicated that quizzes are a useful tool in 
+fostering self-directed and effective learning in education. (Oh & Hyunyong, 2022) 
+2.6 Assessing Education Students’ Self-directed Learning Experiences for 
+Optimal Online Learning 
+A survey was conducted with 154 education students at Caraga State University to study self-
+directed learning in online environments. The research looked at students’ motivation, learning 
+styles, and readiness to use technology. The findings showed that most students were highly 
+motivated and good at managing their learning, setting goals, and completing tasks even with 
+distractions. 
+However, the same study also revealed that students liked materials that were audio-visual and 
+multimodal, said they felt less motivated when teachers were not actively present, and 
+sometimes felt anxious or confused when confronted with less familiar digi tal tools. While 
+most of the students were comfortable users of technology and saw the internet as an important 
+resource, some had difficulty evaluating information found online and using particular devices. 
+On the basis of these findings, the authors iden tify three priorities in the design of online 
+learning materials: include multimodal content like audio, visuals, and small chunks of text, 
+matching learning preferences and internet limits; include frequent, low -stakes quizzes and 
+rapid feedback by instructors or automated systems that keep students motivated; and include 
+simple guides and support materials to minimize technology -related stress and ensure equity 
+of access. (Beray, et al., 14) 
+
+--- PAGE 8 ---
+5 
+ 
+2.7 A Review on Factors Affecting the Success of Online Proctoring System 
+This paper reviews the recent research on online proctoring systems and discuss the factors 
+that determine the success of the systems in actual educational contexts. They find that online 
+proctoring may be useful to preserve academic integrity, but its success involves a lot of stable 
+technology, effective communication and readiness to use it. Lots of students and teachers 
+indicated that they felt privacy was at risk, that they were worrying because they were being 
+watched all the time and that there were technical problems like untrusty internet connection 
+or malfunctioning software. Another issue that the authors emphasize is the disparity in digital 
+access and familiarity with technology that may cause unequal experience to students, and 
+make the system seem unfair to some students. 
+The paper also highlights the fact that effective online proctoring does not only rely on the 
+tools, but the institutions also have to promote the use of the tools. Instruction, practice, and 
+technical support of students can alleviate the stress of the st udents and will enhance their 
+acceptance. The authors however indicate that most of the available literature have small 
+sample sizes or are based in one institution and it is hard to generalize findings. They suggest 
+greater assessment systems and more focus on ethical and equity concerns. (Al Najar & Ahmad, 
+2024) 
+ 
+2.8 Defining Common Elements of Quality Work-Integrated Learning with a   
+Literature Review 
+A literature review has been performed in this paper to determine the fundamental aspects that 
+render the Work-Integrated Learning (WIL) experiences effective and quality to students. This 
+paper integrates the results of different models of WIL, including internships, placements and 
+project-based learning, to establish what good industry education partnerships ought to be. The 
+review identifies a number of shared features of quality WIL such as articulated learning 
+outcomes, meaningful workplace activities,  guided supervision, reflective opportunities as 
+well as effective communication between institutions and employers. The points that this paper 
+stresses are that WIL is only effective when students have expectations and feedback 
+frequently and when they ar e in a setting that actually favors learning as opposed to mere 
+sources of labor.  
+Another observation in the paper is that even with the increased application of WIL, most of 
+the programs are faced with inconsistent supervision, ambiguous methods of assessment and 
+lack of preparation of both the students and the host organizations. Fent on states that the 
+institutions should have standardised guidelines and more supportive structures so that the 
+placements are fair and even have similar quality. (Fenton, 2025) 
+
+--- PAGE 9 ---
+6 
+ 
+2.9 Self-directed learning: assessment of students’ abilities and their 
+perspective 
+The paper discusses self -directed learning (SDL) skills of students in the setting of Indian 
+transition to competency-based medical education. The study conducted a study using a validated 
+questionnaire (SDLI) among 74 students and discovered that learners  were generally highly 
+motivated, aware of their strengths and weaknesses, and were willing to improve and take 
+responsibility of their learning. Students said that they like to discover answers by themselves and 
+can tend to set goals, track progress, and assess results. Nevertheless, the outcomes also showed 
+some weak points with time management, the skill of oral communication, and the inability to find 
+the appropriate learning materials being the most prominent ones.  
+The qualitative data revealed that students tend to think that SDL is most effective when they are 
+concentrated, motivated, and encouraged in an appropriate learning environment. They further 
+stressed on the need to conduct frequent interactive sessions like group discussions, presentations, 
+quizzes, and peer teaching to make them active and interested. In general, the analysis indicates 
+that, although the students feel positive about SDL, they require a systematic support, proper 
+direction, and the development of skills, particularly in communication and selection of resources, 
+so that they can be successful in their role of being independent learners. (Bhandari, et al., 2020) 
+ 
+2.10 A Systematic-Narrative Review of Online Proctoring Systems and a Case 
+for Open Standards 
+The paper examines the role of online practice test in student learning in virtual courses. Through 
+analysis of the student use of practice quizzes, student perception and the results of their 
+assessment, the authors discovered that frequent use of practice tests is beneficial in assisting the 
+student to comprehend course material better and to be more prepared to take the high stakes test. 
+Students noted that such quizzes helped them to know more about the expectations and to point 
+out the important topics and lowered the anxiety levels by enabling them to familiarize with the 
+format of the exam. 
+The results also indicate that students who habitually filled in practice quizzes were more likely to 
+achieve better results in their end tests and as such, there exists a positive correlation between 
+repeated testing and better academic performance. Nevertheless, the authors underline that the 
+success of such quizzes is predetermined by their alignment with learning goals and the feedback 
+opportunities, which the students can receive. (Heinrich, 2025) 
+
+--- PAGE 10 ---
+7 
+ 
+3. Literature Review Gap Analysis 
+Enhancing Internship Experiences article provides a broad understanding of how internship portals 
+operate and their role in improving the overall internship process. However, their study focuses 
+more on describing existing systems rather than improving them. It does not clearly show how 
+these portals can be made more user -friendly, data -driven, or personalized for students and 
+employers. Using Internship Management System to Improve the Relationship between Internship 
+Seekers, Employers, and Educational Institutions paper contributes by emphasizing the importance 
+of a centralized Internship Management System (IMS) that strengthens communication between 
+students, employers, and institutions. While their study explains the technical design very well, it 
+pays less attention to the user experience or how such systems actually help students grow and 
+prepare for jobs.  Enhancing Employability Through Work Integrated Learning article discusses 
+internships from an educational point of view, showing how Work -Integrated Learning (WIL) 
+helps students become more career -ready. However, the study does not explore how technology 
+or digital systems can support these learning experiences. It points out challenges in connecting 
+universities and industries but does not offer digital solutions to fix them. 
+Empirical Evaluation of Popular Proctoring Tools gives a detailed comparison of popular online 
+proctoring systems and how they work to prevent cheating during online exams. However, the 
+study mainly looks at advanced and strict proctoring tools that rely on cameras, AI, and lockdown 
+software. It does not cons ider lighter or less intrusive methods that could protect exam integrity 
+while reducing privacy concerns.  Analysis of self-directed learning (SDL) showed that formative 
+quizzes can help improve student s’ performance by supporting self -directed learning, but some 
+gaps remain. The study only focused on first-year medical students from one course, so the results 
+may not apply to other subjects or groups. It also used only numerical data and did not explore  
+students’ opinions or experiences.  Assessing Education Students’ Self -Directed Learning offers 
+valuable insights into the self -directed learning abilities and technology readiness of education 
+students engaged in online learning.  However, the study mainly describes learners’ attitudes and 
+preferences without showing how these can be directly applied to improve online course design. 
+It does not test whether specific types of learning materials or quizzes actually enhance self -
+directed learning.  
+ 
+ 
+
+--- PAGE 11 ---
+8 
+ 
+4. System Review 
+4.1 InternSathi 
+ 
+InternSathi is a Nepal-based internship platform that positions itself as a bridge between freshers 
+and companies looking for interns or junior staff. Being founded in around 2021 their website 
+indicates that it has helped over 2,500 freshers secure internships, works with more than 435 
+companies, and is connected to more than 20 training institutes. 
+For candidates, InternSathi allows profile creation, CV uploads, browsing of internship (and 
+entry-level job) listings, and applying directly via the portal. For employers, it offers a way to post 
+internships for free and access a pool of registered candid ates. The platform also claims to offer 
+cost-effective solutions for companies, brand visibility among the young talent pool, and training 
+partner integrations. The primary strength of InternSathi is that it is a local -oriented company, 
+which is tailored t o the Nepali market. This will enable it to be more knowledgeable about the 
+local needs, establish contacts with the local institutions, and provide services to the students and 
+companies more efficiently. Its free posting option and the broad variety of i nternship type make 
+it a convenient site to both the job seekers and the employers. 
+ 
+4.2 Intern Nepal 
+Intern Nepal is another Nepal-based site that is aimed at providing internship and entry level job 
+placements in Nepal. It was established in 2022, the purpose of which is to match young candidates 
+with internship opportunities and assist organizations in finding new talents. 
+The site enables candidates to create accounts, post their resumes and apply to jobs or internship 
+opportunities on advertised positions. Conversely, employers are able to sign up to post 
+opportunities and hire interns. Besides the placement facilitation, Intern Nepal has short 
+professional courses and workshops that aim at building job -specific skills prior to the internship 
+or during the internship. This aspect of training contributes to the difference between it and other 
+platforms and assists in bridging the gap of skills which is usually evident among fresh graduates. 
+Intern Nepal is also a holistic career development platform not a matching service by combining 
+internship listing and skill development. 
+ 
+ 
+ 
+
+--- PAGE 12 ---
+9 
+ 
+4.3 NepalDev  
+NepalDev is a user-friendly internship application  that targets fresh graduates and young job 
+hunters in Nepal. Its well -structured and clean interface has a simple and well -structured 
+navigation bar that makes the site easily intuitive to the first time user. The site boasts of useful 
+functionality, inclu ding job searches, internship programs, creating a profile, and accessing a 
+variety of career resources. It also invites people to search jobs or create a professional profile 
+within a few seconds. The resources section of NepalDev seems to be the most pro mising part of 
+the platform, with the help of professional design, favourable statistics, and regular security 
+protocols, and released policies.  
+However, the platform is not as functional in practice as smooth as it may appear. Users cannot 
+create an account, log in or even view the key functions it boasts of such as the resources section 
+itself. This brings about issues of the operational preparedness of  the platform and its general 
+reliability to the job seekers.  
+ 
+4.4 Internshala 
+Internshala is one of the major Indian job -tech platforms that can be used to match students and 
+fresh graduates with entry -level job and internship opportunities. It has more than 300,000 
+companies and 21 million candidates, having been founded in 2010 by Sarvesh Agrawal. Besides 
+listing internships, the site also provides on -line training opportunities and certification courses 
+which help in improving the employability skills in different fields. 
+The site enables students to make profiles, construct resumes and apply to internships with the 
+help of filters like location, duration, stipend and work mode. A centralized dashboard allows 
+students to monitor applications, employers to post internships, manage applicants, and get 
+premium services to increase visibility. The fact that Internshala combines both the skill 
+development and the recruitment process, i.e. it provides certification courses, placement courses 
+with AI and online degrees is what makes it unlike the traditional job boards and makes it widely 
+used. 
+ 
+ 
+ 
+
+--- PAGE 13 ---
+10 
+ 
+4.5 InternDekho 
+InternDekho refers itself as a mechanism between a group of aspiring interns and employers in 
+different fields in India. InternDekho focuses on the ease of use, wide range of internship 
+opportunities, and a corresponding algorithm that matches the candidat es with the opportunities, 
+depending on their preferences and skills. 
+The strong points of InternDekho are its unambiguous statements of matching technology and 
+quality assurance: it emphasizes on the strong matching algorithm, quality assurance of employers, 
+and real time notifications to keep the users informed. The design is easy to use and intuitive which 
+is advantageous considering the fact that the design is focusing on younger students or freshers 
+who might not be very conversant with the internship search platform. In addition, the emphasis 
+on the diversification of o pportunities in the industries enables it to cover more ground and 
+therefore non-technical students can also be useful in the platform. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 14 ---
+11 
+ 
+5. System Review Gap Analysis 
+Platforms such as Internshala and InternDekho which operate in India are much more functional 
+and user-friendly than the current internship websites in Nepal. They have well-developed systems 
+with interesting features that provide an extensive variety of s ervices such as internship 
+opportunities, training, and career support. But this richness of features can at times overwhelm 
+the interface making it look crowded and the user may experience being overwhelmed or be unable 
+to navigate the interface effectively. 
+However, Nepal-based websites like InternSathi or Intern Nepal have evident functionality and 
+usability deficiencies. An example is that, where Internshala only needs users to fill in their profile 
+and application form one time, and thus the user can easil y apply to several internships with the 
+same saved CV, the InternSathi application process is still long and repetitive and can be 
+discouraging. Moreover, in the case of Intern Nepal, users are allowed to enroll into paid training 
+programs without proper verification or payment confirmation, which is a security and reliability 
+concern. The majority of local platforms also lack a resource or training section to assist the 
+students in advancing their skills, hence, it is less effective in terms of career growth on the whole. 
+Such findings reveal how a more organized, easy-to-use, and open internship platform in Nepal is 
+necessary, one that does not only simplify the application process but also incorporates verified 
+training materials and improve the general user confidence and interest. 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 15 ---
+12 
+ 
+6. Implications for InternQuest 
+The review of studies and system analyses has shown that there is a need for an integrated, web -
+based platform that links students, employers, and institutions of learning effectively. Researchers 
+such as  (Shriwas, et al., 2024)  and (Mydyti & Kadriu, 2020)  have indicated how web -based 
+systems ease internship coordination by promoting transparency. Further, the review of the 
+existing system indicates that existing Nepali platforms like InternSathi, NepalDev, and Intern 
+Nepal either have weak verification mech anisms, are outdated, or provide weak mechanisms for 
+tracking. Based on the findings, InternQuest should focus on developing an integrated, reliable 
+system where students will find verified opportunities, apply with ease, and track their progress in 
+real time. 
+(Kenaphoom & Niyomves, 2023)  also illustrate that work -integrated learning raises students' 
+preparedness for work. Thus, InternQuest should not be limited to a mere listing of opportunities 
+but should offer features to students in their preparation for internships, such as study resou rces, 
+quizzes for self-assessment, and progress tracking. These tools will help users highlight skill gaps 
+and thus be more confident and capable when applying, aligning the platform with both academic 
+and professional goals. 
+Research related to online assessment and proctoring indicates that there are challenges related to 
+privacy, accessibility, and user comfort . (Oh & Hyunyong, 2022) , (Hussein, et al., 2020)  These 
+findings suggest that InternQuest can incorporate lightweight assessment features like timed 
+quizzes or tab -focus tracking instead of using intrusive AI systems. InternQuest attempts to 
+implement or combine lessons learned from both academic research and this review of the system 
+in its quest to be a trusted, user -friendly platform that is supportive of education as it bridges the 
+students with verified employers and address the weaknesses in existing systems. 
+ 
+ 
+ 
+ 
+ 
+ 
+
+--- PAGE 16 ---
+13 
+ 
+7. References 
+ 
+Al Najar, G. & Ahmad, M. N., 2024. A Review on Factors Affecting the success of Online 
+Proctoring System. Journal of Information Systems Research and Practice, V olume 2, pp. 56-70. 
+Beray, M. J. M., Cubero, A., Robegine , C. & Rhessan, C., 14. Assessing education students’ 
+self-directed learning experiences for optimal online learning. International Journal of 
+Evaluation and Research in Education (IJERE), V olume 2025, p. 2781. 
+Bhandari, B., Chopra, D. & Singh, K., 2020. Self-directed learning: assessment of students’ 
+abilities and their perspective. Advances in physiology education, V olume 3, pp. 383-386. 
+Fenton, D., 2025. Defining Common Elements of Quality Work-Integrated Learning with a 
+Literature Review}. Sage Open, V olume 15, p. 21582440251357683. 
+Heinrich, E., 2025. A systematic-narrative review of online proctoring systems and a case for 
+open standards. Open Praxis, V olume 17, pp. 485-499. 
+Hussein, M. J. et al., 2020. An evaluation of online proctoring tools. Open Praxis, V olume 12, 
+pp. 509-525. 
+Kenaphoom, S. & Niyomves, B., 2023. Enhancing Employability Through Work Integrated 
+Learning. Asian Education and Learning Review, V olume 1, pp. 27-47. 
+Mydyti, H. & Kadriu, A., 2020. Using Internship Management System to Improve the 
+Relationship between Internship Seekers, Employers and Educational Institutions. 
+ENTRENOVA-ENTerprise REsearch InNOVAtion, V olume 6, pp. 97-104. 
+Oh, C. E. & Hyunyong, H., 2022. How does quiz activity affect summative assessment 
+outcomes? An analysis of three consecutive years’ data on self-directed learning. Kosin Med J, 
+V olume 37, pp. 228-35. 
+Shriwas, Y . K., Bhusari, D. N. & Tikhat, D. B., 2024. Enhancing Internship Experiences: A 
+Comprehensive Study of Internship Portals in Educational Institutions. International Journal of 
+Innovative Research in Technology and Science, V olume 12, pp. 384-390. 
+ 
+ 
+ 
+ 
+ 

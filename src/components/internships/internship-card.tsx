@@ -64,7 +64,7 @@ export function InternshipCard({
           stipend={internship.stipend}
         />
         <p className="text-sm text-muted-foreground">
-          Apply by {formattedDeadline} UTC
+          Apply by {formattedDeadline}
         </p>
       </CardContent>
       <CardFooter className="mt-auto">

@@ -27,6 +27,14 @@ export const INTERNSHIP_STATUSES = ["draft", "open", "closed"] as const;
 
 const STIPEND_FORMATTER = new Intl.NumberFormat("en-NP");
 
+export function formatInternshipStipend(stipend?: number, emptyLabel?: string) {
+  if (stipend === undefined) {
+    return emptyLabel ?? null;
+  }
+
+  return `NPR ${STIPEND_FORMATTER.format(stipend)} / month`;
+}
+
 export function toDisplayLabel(value: string) {
   return value
     .split("_")
@@ -88,7 +96,7 @@ export function InternshipMeta({
       {stipend !== undefined ? (
         <span className="inline-flex items-center gap-1">
           <BanknoteIcon className="size-4" />
-          NPR {STIPEND_FORMATTER.format(stipend)} / month
+          {formatInternshipStipend(stipend)}
         </span>
       ) : null}
     </div>

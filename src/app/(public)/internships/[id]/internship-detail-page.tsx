@@ -65,10 +65,8 @@ type PdfUploadFieldProps = {
 const ANONYMOUS_VIEWER_STORAGE_KEY = "internquest-anonymous-viewer-key";
 const MAX_APPLICATION_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
-const DEADLINE_DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+const DEADLINE_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "short",
-  timeStyle: "medium",
-  timeZone: "UTC",
 });
 
 function formatFileSize(bytes: number) {
@@ -229,7 +227,7 @@ export function InternshipDetailPage({
   const trackView = useMutation(api.internships.trackView);
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
   const applyToInternship = useMutation(api.applications.apply);
-  const formattedDeadline = DEADLINE_DATE_TIME_FORMATTER.format(
+  const formattedDeadline = DEADLINE_DATE_FORMATTER.format(
     internship ? new Date(internship.applicationDeadline) : new Date(0)
   );
   const canApply =
@@ -437,7 +435,7 @@ export function InternshipDetailPage({
         />
         <p className="inline-flex items-center gap-1 text-sm text-muted-foreground">
           <CalendarClockIcon className="size-4" />
-          Apply by {formattedDeadline} UTC
+          Apply by {formattedDeadline}
         </p>
       </div>
 

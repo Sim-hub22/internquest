@@ -24,6 +24,7 @@ import { DataTable } from "@/components/data-table";
 import {
   INTERNSHIP_STATUSES,
   InternshipStatusBadge,
+  formatInternshipStipend,
   toDisplayLabel,
 } from "@/components/internships/constants";
 import { Button } from "@/components/ui/button";
@@ -203,10 +204,7 @@ const columns = [
         <ArrowUpDownIcon data-icon="inline-end" />
       </Button>
     ),
-    cell: ({ getValue }) => {
-      const value = getValue();
-      return value != null ? `$${value} / mo` : "—";
-    },
+    cell: ({ getValue }) => formatInternshipStipend(getValue(), "-"),
   }),
   columnHelper.accessor("viewCount", {
     id: "views",
