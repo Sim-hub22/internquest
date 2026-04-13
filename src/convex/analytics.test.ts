@@ -895,6 +895,14 @@ describe("convex/analytics", () => {
           applicationDeadline: Date.parse("2026-04-04T12:00:00.000Z"),
         })
       );
+      const expiredMatchingInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired UX Internship",
+          category: "technology",
+          applicationDeadline: Date.parse("2026-03-20T12:00:00.000Z"),
+        })
+      );
 
       const appliedApplicationId = await ctx.db.insert("applications", {
         internshipId: appliedInternshipId,
@@ -997,6 +1005,7 @@ describe("convex/analytics", () => {
         appliedInternshipId,
         matchingInternshipId,
         fallbackInternshipId,
+        expiredMatchingInternshipId,
         appliedApplicationId,
         quizApplicationId,
       };
@@ -1028,6 +1037,9 @@ describe("convex/analytics", () => {
     expect(
       result.matchingInternships.map((internship) => internship.internshipId)
     ).not.toContain(seededIds.appliedInternshipId);
+    expect(
+      result.matchingInternships.map((internship) => internship.internshipId)
+    ).not.toContain(seededIds.expiredMatchingInternshipId);
     expect(
       result.matchingInternships.map((internship) => internship.internshipId)
     ).toEqual([seededIds.matchingInternshipId, seededIds.fallbackInternshipId]);

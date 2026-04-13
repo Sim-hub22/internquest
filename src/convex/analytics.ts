@@ -321,6 +321,33 @@ function internshipMatchesProfile(
   return matchesCategory && matchesLocationType;
 }
 
+async function listVisibleOpenInternshipsByDeadline(
+  ctx: QueryCtx,
+  limit: number,
+  now = Date.now()
+) {
+  const scanLimit = Math.min(Math.max(limit * 4, limit), 200);
+  const internships = await ctx.db
+    .query("internships")
+    .withIndex("by_status_and_deadline", (q) =>
+      q.eq("status", "open").gt("applicationDeadline", now)
+    )
+    .order("asc")
+    .take(scanLimit);
+
+  const visibility = await Promise.all(
+    internships.map(async (internship) => ({
+      internship,
+      recruiter: await ctx.db.get(internship.recruiterId),
+    }))
+  );
+
+  return visibility
+    .filter((entry) => entry.recruiter !== null)
+    .map((entry) => entry.internship)
+    .slice(0, limit);
+}
+
 export const getInternshipAnalytics = query({
   args: {
     internshipId: v.id("internships"),
@@ -769,11 +796,7 @@ export const getCandidateDashboardOverview = query({
       )
     ).filter((item) => item !== null);
 
-    const openInternships = await ctx.db
-      .query("internships")
-      .withIndex("by_status_and_deadline", (q) => q.eq("status", "open"))
-      .order("asc")
-      .take(50);
+    const openInternships = await listVisibleOpenInternshipsByDeadline(ctx, 50);
     const appliedInternshipIds = new Set(
       applications.map((application) => application.internshipId)
     );

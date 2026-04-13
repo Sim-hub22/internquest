@@ -41,6 +41,13 @@ const paginationOptsValidator = v.object({
 });
 
 const APP_URL = process.env.APP_URL?.replace(/\/$/, "") ?? "";
+const MAX_PUBLIC_INTERNSHIP_SCAN = 500;
+
+type PublicInternshipsPage = {
+  page: Doc<"internships">[];
+  isDone: boolean;
+  continueCursor: string;
+};
 
 function ensureFutureDeadline(timestamp: number) {
   if (timestamp <= Date.now()) {
@@ -72,11 +79,23 @@ function includesMatchingCategory(
   return preferredCategories?.includes(internshipCategory) ?? false;
 }
 
+function isInternshipPubliclyActive(
+  internship: Pick<Doc<"internships">, "status" | "applicationDeadline"> | null,
+  now = Date.now()
+) {
+  return (
+    internship !== null &&
+    internship.status === "open" &&
+    internship.applicationDeadline > now
+  );
+}
+
 async function isInternshipPubliclyVisible(
   ctx: QueryCtx | MutationCtx,
-  internship: Doc<"internships"> | null
+  internship: Doc<"internships"> | null,
+  now = Date.now()
 ): Promise<boolean> {
-  if (!internship || internship.status !== "open") {
+  if (!internship || !isInternshipPubliclyActive(internship, now)) {
     return false;
   }
 
@@ -86,18 +105,58 @@ async function isInternshipPubliclyVisible(
 
 async function filterPublicInternships(
   ctx: QueryCtx,
-  internships: Doc<"internships">[]
+  internships: Doc<"internships">[],
+  now = Date.now()
 ) {
   const visibility = await Promise.all(
     internships.map(async (internship) => ({
       internship,
-      isVisible: await isInternshipPubliclyVisible(ctx, internship),
+      isVisible: await isInternshipPubliclyVisible(ctx, internship, now),
     }))
   );
 
   return visibility
     .filter((entry) => entry.isVisible)
     .map((entry) => entry.internship);
+}
+
+function paginateInternshipSlice(
+  internships: Doc<"internships">[],
+  paginationOpts: { numItems: number; cursor: string | null }
+): PublicInternshipsPage {
+  const start = paginationOpts.cursor
+    ? Number.parseInt(paginationOpts.cursor, 10)
+    : 0;
+  const end = start + paginationOpts.numItems;
+  const page = internships.slice(start, end);
+  const isDone = end >= internships.length;
+
+  return {
+    page,
+    isDone,
+    continueCursor: isDone ? "" : String(end),
+  };
+}
+
+function matchesPublicInternshipFilters(
+  internship: Doc<"internships">,
+  filters: {
+    category?: Doc<"internships">["category"];
+    locationType?: Doc<"internships">["locationType"];
+  }
+) {
+  if (filters.category && internship.category !== filters.category) {
+    return false;
+  }
+
+  if (
+    filters.locationType &&
+    internship.locationType !== filters.locationType
+  ) {
+    return false;
+  }
+
+  return true;
 }
 
 async function scheduleMatchingInternshipNotifications(
@@ -191,7 +250,12 @@ export const create = mutation({
         : { maxApplications: args.maxApplications }),
     });
 
-    if (args.status === "open") {
+    if (
+      isInternshipPubliclyActive({
+        status: args.status,
+        applicationDeadline: args.applicationDeadline,
+      })
+    ) {
       await scheduleMatchingInternshipNotifications(ctx, internshipId);
     }
 
@@ -232,7 +296,11 @@ export const update = mutation({
     ensureFutureDeadline(args.applicationDeadline);
 
     const shouldNotifyMatches =
-      internship.status !== "open" && args.status === "open";
+      !isInternshipPubliclyActive(internship) &&
+      isInternshipPubliclyActive({
+        status: args.status,
+        applicationDeadline: args.applicationDeadline,
+      });
 
     await ctx.db.patch(args.internshipId, {
       title: args.title.trim(),
@@ -278,6 +346,10 @@ export const updateStatus = mutation({
     }
 
     assertRecruiterCanManageInternship(internship);
+
+    if (args.status === "open") {
+      ensureFutureDeadline(internship.applicationDeadline);
+    }
 
     const shouldNotifyMatches =
       internship.status !== "open" && args.status === "open";
@@ -472,36 +544,29 @@ export const listPublic = query({
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    if (args.sortBy === "deadline") {
-      const paginated = await ctx.db
-        .query("internships")
-        .withIndex("by_status_and_deadline", (q) => q.eq("status", "open"))
-        .order("asc")
-        .paginate(args.paginationOpts);
-
-      const visibleInternships = await filterPublicInternships(
-        ctx,
-        paginated.page
-      );
-      const page = visibleInternships.filter((internship) => {
-        if (args.category && internship.category !== args.category) {
-          return false;
-        }
-
-        if (
-          args.locationType &&
-          internship.locationType !== args.locationType
-        ) {
-          return false;
-        }
-
-        return true;
+    const now = Date.now();
+    const matchesFilters = (internship: Doc<"internships">) =>
+      matchesPublicInternshipFilters(internship, {
+        category: args.category,
+        locationType: args.locationType,
       });
+    const buildResponse = async (internships: Doc<"internships">[]) => {
+      const filtered = (
+        await filterPublicInternships(ctx, internships, now)
+      ).filter(matchesFilters);
+      return paginateInternshipSlice(filtered, args.paginationOpts);
+    };
 
-      return {
-        ...paginated,
-        page,
-      };
+    if (args.sortBy === "deadline") {
+      const internships = await ctx.db
+        .query("internships")
+        .withIndex("by_status_and_deadline", (q) =>
+          q.eq("status", "open").gt("applicationDeadline", now)
+        )
+        .order("asc")
+        .take(MAX_PUBLIC_INTERNSHIP_SCAN);
+
+      return await buildResponse(internships);
     }
 
     if (args.sortBy === "stipend") {
@@ -512,23 +577,11 @@ export const listPublic = query({
         .take(500);
       const visibleInternships = await filterPublicInternships(
         ctx,
-        internships
+        internships,
+        now
       );
 
-      const filtered = visibleInternships.filter((internship) => {
-        if (args.category && internship.category !== args.category) {
-          return false;
-        }
-
-        if (
-          args.locationType &&
-          internship.locationType !== args.locationType
-        ) {
-          return false;
-        }
-
-        return true;
-      });
+      const filtered = visibleInternships.filter(matchesFilters);
 
       filtered.sort((a, b) => {
         const aStipend = a.stipend ?? -1;
@@ -551,7 +604,7 @@ export const listPublic = query({
     }
 
     if (args.category && args.locationType) {
-      const paginated = await ctx.db
+      const internships = await ctx.db
         .query("internships")
         .withIndex("by_category_and_status_and_locationType", (q) =>
           q
@@ -560,67 +613,42 @@ export const listPublic = query({
             .eq("locationType", args.locationType!)
         )
         .order("desc")
-        .paginate(args.paginationOpts);
+        .take(MAX_PUBLIC_INTERNSHIP_SCAN);
 
-      return {
-        ...paginated,
-        page: await filterPublicInternships(ctx, paginated.page),
-      };
+      return await buildResponse(internships);
     }
 
     if (args.category) {
-      const paginated = await ctx.db
+      const internships = await ctx.db
         .query("internships")
         .withIndex("by_category_and_status", (q) =>
           q.eq("category", args.category!).eq("status", "open")
         )
         .order("desc")
-        .paginate(args.paginationOpts);
-      const visibleInternships = await filterPublicInternships(
-        ctx,
-        paginated.page
-      );
+        .take(MAX_PUBLIC_INTERNSHIP_SCAN);
 
-      if (!args.locationType) {
-        return {
-          ...paginated,
-          page: visibleInternships,
-        };
-      }
-
-      return {
-        ...paginated,
-        page: visibleInternships.filter(
-          (internship) => internship.locationType === args.locationType
-        ),
-      };
+      return await buildResponse(internships);
     }
 
     if (args.locationType) {
-      const paginated = await ctx.db
+      const internships = await ctx.db
         .query("internships")
         .withIndex("by_status_and_locationType", (q) =>
           q.eq("status", "open").eq("locationType", args.locationType!)
         )
         .order("desc")
-        .paginate(args.paginationOpts);
+        .take(MAX_PUBLIC_INTERNSHIP_SCAN);
 
-      return {
-        ...paginated,
-        page: await filterPublicInternships(ctx, paginated.page),
-      };
+      return await buildResponse(internships);
     }
 
-    const paginated = await ctx.db
+    const internships = await ctx.db
       .query("internships")
       .withIndex("by_status", (q) => q.eq("status", "open"))
       .order("desc")
-      .paginate(args.paginationOpts);
+      .take(MAX_PUBLIC_INTERNSHIP_SCAN);
 
-    return {
-      ...paginated,
-      page: await filterPublicInternships(ctx, paginated.page),
-    };
+    return await buildResponse(internships);
   },
 });
 
@@ -633,6 +661,7 @@ export const searchPublic = query({
   },
   handler: async (ctx, args) => {
     const searchTerm = args.query.trim();
+    const now = Date.now();
 
     if (!searchTerm) {
       return {
@@ -642,7 +671,7 @@ export const searchPublic = query({
       };
     }
 
-    const results = await ctx.db
+    const internships = await ctx.db
       .query("internships")
       .withSearchIndex("search_internships", (q) => {
         let scoped = q.search("title", searchTerm).eq("status", "open");
@@ -657,12 +686,10 @@ export const searchPublic = query({
 
         return scoped;
       })
-      .paginate(args.paginationOpts);
+      .take(MAX_PUBLIC_INTERNSHIP_SCAN);
 
-    return {
-      ...results,
-      page: await filterPublicInternships(ctx, results.page),
-    };
+    const filtered = await filterPublicInternships(ctx, internships, now);
+    return paginateInternshipSlice(filtered, args.paginationOpts);
   },
 });
 
@@ -673,7 +700,10 @@ export const trackView = mutation({
   },
   handler: async (ctx, args): Promise<null> => {
     const internship = await ctx.db.get(args.internshipId);
-    if (!internship || internship.status !== "open") {
+    if (!(await isInternshipPubliclyVisible(ctx, internship))) {
+      return null;
+    }
+    if (!internship) {
       return null;
     }
 
@@ -729,7 +759,10 @@ export const notifyMatchingCandidates = internalMutation({
   handler: async (ctx, args): Promise<null> => {
     const internship = await ctx.db.get(args.internshipId);
 
-    if (!internship || internship.status !== "open") {
+    if (!(await isInternshipPubliclyVisible(ctx, internship))) {
+      return null;
+    }
+    if (!internship) {
       return null;
     }
 

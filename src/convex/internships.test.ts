@@ -701,6 +701,18 @@ describe("convex/internships", () => {
           stipend: 900,
         })
       );
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired Design Hybrid",
+          category: "design",
+          locationType: "hybrid",
+          status: "open",
+          applicationDeadline: Date.now() - 86_400_000,
+          stipend: 1_200,
+        })
+      );
     });
 
     const allOpen = await t.query(api.internships.listPublic, {
@@ -725,6 +737,18 @@ describe("convex/internships", () => {
     expect(technologyRemote.page).toHaveLength(1);
     expect(technologyRemote.page[0]?.title).toBe("Open Technology Remote");
 
+    const deadlineSorted = await t.query(api.internships.listPublic, {
+      category: undefined,
+      locationType: undefined,
+      sortBy: "deadline",
+      paginationOpts: { numItems: 20, cursor: null },
+    });
+
+    expect(deadlineSorted.page.map((item) => item.title)).toEqual([
+      "Open Technology Remote",
+      "Open Business Onsite",
+    ]);
+
     const stipendSorted = await t.query(api.internships.listPublic, {
       category: undefined,
       locationType: undefined,
@@ -735,6 +759,45 @@ describe("convex/internships", () => {
     expect(stipendSorted.page.map((item) => item.title)).toEqual([
       "Open Technology Remote",
       "Open Business Onsite",
+    ]);
+  });
+
+  it("fills deadline-sorted public pages past expired listings", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_deadline_fill", "recruiter")
+      );
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired First Deadline",
+          status: "open",
+          applicationDeadline: Date.now() - 1,
+        })
+      );
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Visible Second Deadline",
+          status: "open",
+          applicationDeadline: Date.now() + 86_400_000,
+        })
+      );
+    });
+
+    const results = await t.query(api.internships.listPublic, {
+      category: undefined,
+      locationType: undefined,
+      sortBy: "deadline",
+      paginationOpts: { numItems: 1, cursor: null },
+    });
+
+    expect(results.page.map((item) => item.title)).toEqual([
+      "Visible Second Deadline",
     ]);
   });
 
@@ -883,6 +946,48 @@ describe("convex/internships", () => {
     );
   });
 
+  it("hides expired open internships from public search", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_search_expired", "recruiter")
+      );
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Frontend Active Internship",
+          status: "open",
+          applicationDeadline: Date.now() + 86_400_000,
+        })
+      );
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Frontend Expired Internship",
+          status: "open",
+          applicationDeadline: Date.now() - 1,
+        })
+      );
+    });
+
+    const results = await t.query(api.internships.searchPublic, {
+      query: "frontend",
+      category: undefined,
+      locationType: undefined,
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+
+    expect(results.page.map((item) => item.title)).toContain(
+      "Frontend Active Internship"
+    );
+    expect(results.page.map((item) => item.title)).not.toContain(
+      "Frontend Expired Internship"
+    );
+  });
+
   it("returns null for direct public access to orphaned open internships", async () => {
     const t = convexTest(schema, modules);
 
@@ -910,14 +1015,68 @@ describe("convex/internships", () => {
     expect(internship).toBeNull();
   });
 
+  it("returns null for direct public access to expired open internships", async () => {
+    const t = convexTest(schema, modules);
+
+    const expiredInternshipId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_detail_expired", "recruiter")
+      );
+
+      return await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Detail Expired Internship",
+          status: "open",
+          applicationDeadline: Date.now() - 1,
+        })
+      );
+    });
+
+    const internship = await t.query(api.internships.getPublic, {
+      internshipId: expiredInternshipId,
+    });
+
+    expect(internship).toBeNull();
+  });
+
+  it("rejects reopening an expired listing through status-only updates", async () => {
+    const t = convexTest(schema, modules);
+    const identity = { subject: "recruiter_expired_reopen" };
+
+    const internshipId = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser(identity.subject, "recruiter")
+      );
+
+      return await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired Draft Internship",
+          status: "draft",
+          applicationDeadline: Date.now() - 1,
+        })
+      );
+    });
+
+    await expect(
+      t.withIdentity(identity).mutation(api.internships.updateStatus, {
+        internshipId,
+        status: "open",
+      })
+    ).rejects.toThrow("Application deadline must be in the future");
+  });
+
   it("tracks anonymous and signed-in public views, excludes owners, and deduplicates within one hour", async () => {
     const t = convexTest(schema, modules);
     const candidateIdentity = { subject: "candidate_viewer" };
     const recruiterIdentity = { subject: "recruiter_viewer" };
     const ownerIdentity = { subject: "recruiter_views" };
 
-    const { openInternshipId, closedInternshipId } = await t.run(
-      async (ctx) => {
+    const { openInternshipId, closedInternshipId, expiredInternshipId } =
+      await t.run(async (ctx) => {
         const recruiterId = await ctx.db.insert(
           "users",
           createTestUser(ownerIdentity.subject, "recruiter")
@@ -945,10 +1104,17 @@ describe("convex/internships", () => {
             title: "Do Not Track",
           })
         );
+        const expiredInternshipId = await ctx.db.insert(
+          "internships",
+          createInternshipSeed(recruiterId, {
+            status: "open",
+            title: "Expired Do Not Track",
+            applicationDeadline: Date.parse("2026-03-12T12:00:00.000Z"),
+          })
+        );
 
-        return { openInternshipId, closedInternshipId };
-      }
-    );
+        return { openInternshipId, closedInternshipId, expiredInternshipId };
+      });
 
     vi.setSystemTime(new Date("2026-03-13T00:00:00.000Z"));
 
@@ -1085,5 +1251,25 @@ describe("convex/internships", () => {
 
     expect(closedSnapshot.internship?.viewCount).toBe(0);
     expect(closedSnapshot.viewsCount).toBe(0);
+
+    await t.mutation(api.internships.trackView, {
+      internshipId: expiredInternshipId,
+      viewerKey: "anon-browser-1",
+    });
+
+    const expiredSnapshot = await t.run(async (ctx) => {
+      const internship = await ctx.db.get(expiredInternshipId);
+      const views = await ctx.db
+        .query("internshipViews")
+        .withIndex("by_internship", (q) =>
+          q.eq("internshipId", expiredInternshipId)
+        )
+        .collect();
+
+      return { internship, viewsCount: views.length };
+    });
+
+    expect(expiredSnapshot.internship?.viewCount).toBe(0);
+    expect(expiredSnapshot.viewsCount).toBe(0);
   });
 });
