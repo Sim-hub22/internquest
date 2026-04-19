@@ -7,6 +7,12 @@ import { calculateProfileCompleteness } from "@/lib/profile-completeness";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TREND_DAY_COUNT = 30;
+const TOP_PERFORMING_INTERNSHIPS_LIMIT = 5;
+const RECRUITER_RECENT_APPLICATIONS_LIMIT = 5;
+const CANDIDATE_RECENT_APPLICATIONS_LIMIT = 5;
+const CANDIDATE_PENDING_QUIZZES_LIMIT = 3;
+const CANDIDATE_UNREAD_NOTIFICATIONS_LIMIT = 3;
+const CANDIDATE_MATCHING_INTERNSHIPS_LIMIT = 4;
 
 const APPLICATION_STATUSES = [
   "applied",
@@ -311,9 +317,13 @@ function internshipMatchesProfile(
   internship: Doc<"internships">,
   profile: Doc<"candidateProfiles"> | null
 ) {
-  const matchesCategory =
-    !profile?.preferredCategories?.length ||
-    profile.preferredCategories.includes(internship.category);
+  if (!profile?.preferredCategories?.length) {
+    return false;
+  }
+
+  const matchesCategory = profile.preferredCategories.includes(
+    internship.category
+  );
   const matchesLocationType =
     !profile?.preferredLocationType ||
     profile.preferredLocationType === internship.locationType;
@@ -527,7 +537,7 @@ export const getRecruiterAnalyticsDashboard = query({
 
         return left.title.localeCompare(right.title);
       })
-      .slice(0, 5);
+      .slice(0, TOP_PERFORMING_INTERNSHIPS_LIMIT);
 
     return {
       summary: {
@@ -651,7 +661,7 @@ export const getRecruiterDashboardOverview = query({
           }))
         )
         .sort((left, right) => right.appliedAt - left.appliedAt)
-        .slice(0, 5),
+        .slice(0, RECRUITER_RECENT_APPLICATIONS_LIMIT),
       listingsNeedingAttention: internshipStats
         .filter(
           (stat) =>
@@ -728,7 +738,7 @@ export const getCandidateDashboardOverview = query({
     const recentApplications = applications
       .slice()
       .sort((left, right) => right.updatedAt - left.updatedAt)
-      .slice(0, 5)
+      .slice(0, CANDIDATE_RECENT_APPLICATIONS_LIMIT)
       .map((application) => {
         const internship = internshipMap.get(application.internshipId);
 
@@ -808,23 +818,11 @@ export const getCandidateDashboardOverview = query({
       locationType: Doc<"internships">["locationType"];
       applicationDeadline: number;
       stipend?: number;
-    }[] = [];
-    const seenInternshipIds = new Set<Id<"internships">>();
-
-    for (const internship of [
-      ...openInternships.filter((entry) =>
-        internshipMatchesProfile(entry, profile)
-      ),
-      ...openInternships,
-    ]) {
-      if (
-        appliedInternshipIds.has(internship._id) ||
-        seenInternshipIds.has(internship._id)
-      ) {
-        continue;
-      }
-
-      matchingInternships.push({
+    }[] = openInternships
+      .filter((internship) => !appliedInternshipIds.has(internship._id))
+      .filter((internship) => internshipMatchesProfile(internship, profile))
+      .slice(0, CANDIDATE_MATCHING_INTERNSHIPS_LIMIT)
+      .map((internship) => ({
         internshipId: internship._id,
         title: internship.title,
         company: internship.company,
@@ -834,13 +832,7 @@ export const getCandidateDashboardOverview = query({
         ...(internship.stipend === undefined
           ? {}
           : { stipend: internship.stipend }),
-      });
-      seenInternshipIds.add(internship._id);
-
-      if (matchingInternships.length === 4) {
-        break;
-      }
-    }
+      }));
 
     return {
       summary: {
@@ -860,9 +852,12 @@ export const getCandidateDashboardOverview = query({
       },
       applicationStatusBreakdown: buildStatusBreakdown(applications),
       recentApplications,
-      pendingQuizItems: pendingQuizItems.slice(0, 3),
+      pendingQuizItems: pendingQuizItems.slice(
+        0,
+        CANDIDATE_PENDING_QUIZZES_LIMIT
+      ),
       unreadNotifications: unreadNotifications
-        .slice(0, 3)
+        .slice(0, CANDIDATE_UNREAD_NOTIFICATIONS_LIMIT)
         .map((notification) => ({
           notificationId: notification._id,
           type: notification.type,

@@ -242,8 +242,8 @@ export function CandidateDashboardPage() {
           <CardHeader>
             <CardTitle>Matching Opportunities</CardTitle>
             <CardDescription>
-              A compact shortlist of open internships based on your preferences,
-              with fallbacks so the page never feels empty.
+              A compact shortlist of open internships that match your saved
+              preferences.
             </CardDescription>
           </CardHeader>
           <CardContent className="h-full">

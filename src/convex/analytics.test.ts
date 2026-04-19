@@ -837,10 +837,10 @@ describe("convex/analytics", () => {
     expect(result.profile.missingProfileSteps).toContain("Add a headline");
     expect(result.recentApplications).toEqual([]);
     expect(result.pendingQuizItems).toEqual([]);
-    expect(result.matchingInternships).toHaveLength(2);
+    expect(result.matchingInternships).toEqual([]);
   });
 
-  it("returns candidate dashboard aggregates, pending quizzes, updates, and excludes applied roles from matches", async () => {
+  it("returns candidate dashboard aggregates, pending quizzes, updates, and only includes matching unapplied roles", async () => {
     const t = convexTest(schema, modules);
     const candidateIdentity = { subject: "candidate_dashboard_full" };
     const seededStorageId = (await t.action(
@@ -887,7 +887,7 @@ describe("convex/analytics", () => {
           applicationDeadline: Date.parse("2026-04-02T12:00:00.000Z"),
         })
       );
-      const fallbackInternshipId = await ctx.db.insert(
+      await ctx.db.insert(
         "internships",
         createInternshipSeed(recruiterId, {
           title: "Fallback Finance Internship",
@@ -1004,7 +1004,6 @@ describe("convex/analytics", () => {
       return {
         appliedInternshipId,
         matchingInternshipId,
-        fallbackInternshipId,
         expiredMatchingInternshipId,
         appliedApplicationId,
         quizApplicationId,
@@ -1042,6 +1041,6 @@ describe("convex/analytics", () => {
     ).not.toContain(seededIds.expiredMatchingInternshipId);
     expect(
       result.matchingInternships.map((internship) => internship.internshipId)
-    ).toEqual([seededIds.matchingInternshipId, seededIds.fallbackInternshipId]);
+    ).toEqual([seededIds.matchingInternshipId]);
   });
 });
