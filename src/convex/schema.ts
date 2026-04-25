@@ -74,6 +74,20 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_userId", ["userId"]),
 
+  candidateResumes: defineTable({
+    userId: v.id("users"),
+    storageId: v.id("_storage"),
+    label: v.string(),
+    originalFilename: v.string(),
+    isArchived: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    lastUsedAt: v.optional(v.number()),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_userId_and_isArchived", ["userId", "isArchived"])
+    .index("by_storageId", ["storageId"]),
+
   // ─── Internships ─────────────────────────────────────────────────────────────
 
   internships: defineTable({
@@ -132,6 +146,7 @@ export default defineSchema({
     internshipId: v.id("internships"),
     candidateId: v.id("users"),
     resumeStorageId: v.id("_storage"),
+    candidateResumeId: v.optional(v.id("candidateResumes")),
     coverLetterStorageId: v.optional(v.id("_storage")),
     coverLetter: v.optional(v.string()),
     assignedQuizId: v.optional(v.id("quizzes")),
@@ -158,6 +173,7 @@ export default defineSchema({
     .index("by_internship", ["internshipId"])
     .index("by_internship_and_appliedAt", ["internshipId", "appliedAt"])
     .index("by_candidate", ["candidateId"])
+    .index("by_candidateResumeId", ["candidateResumeId"])
     .index("by_assigned_quiz", ["assignedQuizId"])
     .index("by_candidate_and_internship", ["candidateId", "internshipId"])
     .index("by_internship_and_status", ["internshipId", "status"])

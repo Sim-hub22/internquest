@@ -12,6 +12,7 @@ import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod/v3";
 
+import { CandidateResumeLibrarySection } from "@/components/candidate-resume-library-section";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -340,6 +341,8 @@ export function CandidateProfileForm() {
             </Field>
           </CardContent>
         </Card>
+
+        <CandidateResumeLibrarySection />
 
         <Card>
           <CardHeader>

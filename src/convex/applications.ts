@@ -257,6 +257,7 @@ export const apply = mutation({
   args: {
     internshipId: v.id("internships"),
     resumeStorageId: v.id("_storage"),
+    candidateResumeId: v.optional(v.id("candidateResumes")),
     coverLetterStorageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
@@ -300,6 +301,22 @@ export const apply = mutation({
 
     await assertValidUploadedPdf(ctx, args.resumeStorageId, "Resume");
 
+    if (args.candidateResumeId) {
+      const candidateResume = await ctx.db.get(args.candidateResumeId);
+
+      if (!candidateResume || candidateResume.userId !== candidate._id) {
+        throw new ConvexError("Resume not found");
+      }
+
+      if (candidateResume.isArchived) {
+        throw new ConvexError("Resume not found");
+      }
+
+      if (candidateResume.storageId !== args.resumeStorageId) {
+        throw new ConvexError("Selected resume does not match uploaded file");
+      }
+    }
+
     if (args.coverLetterStorageId) {
       await assertValidUploadedPdf(
         ctx,
@@ -313,6 +330,9 @@ export const apply = mutation({
       internshipId: internship._id,
       candidateId: candidate._id,
       resumeStorageId: args.resumeStorageId,
+      ...(args.candidateResumeId
+        ? { candidateResumeId: args.candidateResumeId }
+        : {}),
       ...(args.coverLetterStorageId
         ? { coverLetterStorageId: args.coverLetterStorageId }
         : {}),
@@ -323,6 +343,13 @@ export const apply = mutation({
       appliedAt,
       updatedAt: appliedAt,
     });
+
+    if (args.candidateResumeId) {
+      await ctx.db.patch(args.candidateResumeId, {
+        lastUsedAt: appliedAt,
+        updatedAt: appliedAt,
+      });
+    }
 
     const recruiter = await ctx.db.get(internship.recruiterId);
 

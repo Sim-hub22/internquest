@@ -17,7 +17,7 @@ function createUserSeed(
     clerkId,
     username: clerkId,
     name: `${clerkId} name`,
-    email: `${clerkId}@example.com`,
+    email: "",
     role,
     onboardingComplete: true,
     createdAt: now,
@@ -203,6 +203,125 @@ describe("convex/applications", () => {
     expect(
       notifications.some((item) => item.type === "application_status")
     ).toBe(true);
+  });
+
+  it("applies with a saved resume and keeps historical resume access after library removal", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_apply_saved_resume" };
+    const candidateIdentity = { subject: "candidate_apply_saved_resume" };
+
+    const internshipId = await seedOpenInternship(
+      t,
+      recruiterIdentity,
+      candidateIdentity,
+      "Platform Intern"
+    );
+
+    const resumeStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    const createdResume = await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.candidateResumes.create, {
+        storageId: resumeStorageId,
+        originalFilename: "platform-resume.pdf",
+        label: "Platform Resume",
+      });
+
+    const applicationId = await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.applications.apply, {
+        internshipId,
+        resumeStorageId,
+        candidateResumeId: createdResume.candidateResumeId,
+      });
+
+    const application = await t
+      .withIdentity(candidateIdentity)
+      .query(api.applications.getForCandidate, {
+        applicationId,
+      });
+
+    expect(application?.candidateResumeId).toBe(
+      createdResume.candidateResumeId
+    );
+
+    const savedResumeBeforeRemoval = await t.run(async (ctx) => {
+      return await ctx.db.get(createdResume.candidateResumeId);
+    });
+
+    expect(savedResumeBeforeRemoval?.lastUsedAt).toBeDefined();
+
+    await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.candidateResumes.remove, {
+        candidateResumeId: createdResume.candidateResumeId,
+      });
+
+    const savedResumes = await t
+      .withIdentity(candidateIdentity)
+      .query(api.candidateResumes.listForCurrentUser, {});
+
+    expect(savedResumes).toHaveLength(0);
+
+    const archivedResume = await t.run(async (ctx) => {
+      return await ctx.db.get(createdResume.candidateResumeId);
+    });
+
+    expect(archivedResume?.isArchived).toBe(true);
+
+    const candidateDetail = await t
+      .withIdentity(candidateIdentity)
+      .query(api.applications.getCandidateDetail, {
+        applicationId,
+      });
+    const recruiterDetail = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.applications.getRecruiterDetail, {
+        applicationId,
+      });
+
+    expect(candidateDetail?.resumeUrl).toBeTruthy();
+    expect(recruiterDetail?.resumeUrl).toBeTruthy();
+  });
+
+  it("rejects applying with a saved resume id that does not match the submitted storage id", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_apply_mismatch" };
+    const candidateIdentity = { subject: "candidate_apply_mismatch" };
+
+    const internshipId = await seedOpenInternship(
+      t,
+      recruiterIdentity,
+      candidateIdentity,
+      "Mismatch Intern"
+    );
+
+    const savedResumeStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+    const otherResumeStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    const createdResume = await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.candidateResumes.create, {
+        storageId: savedResumeStorageId,
+        originalFilename: "saved-resume.pdf",
+      });
+
+    await expect(
+      t.withIdentity(candidateIdentity).mutation(api.applications.apply, {
+        internshipId,
+        resumeStorageId: otherResumeStorageId,
+        candidateResumeId: createdResume.candidateResumeId,
+      })
+    ).rejects.toThrow("Selected resume does not match uploaded file");
   });
 
   it("flags non-PDF cover letter metadata", () => {

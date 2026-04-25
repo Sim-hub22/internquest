@@ -2,32 +2,25 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import {
-  type ChangeEvent,
-  type RefObject,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
 import type { Preloaded } from "convex/react";
 import { useMutation, usePreloadedQuery, useQuery } from "convex/react";
 import {
   CalendarClockIcon,
-  CheckCircle2Icon,
   CircleAlertIcon,
   EyeIcon,
   FileTextIcon,
-  UploadIcon,
-  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { ApplicationResumePicker } from "@/components/internships/application-resume-picker";
 import {
   InternshipMeta,
   toDisplayLabel,
 } from "@/components/internships/constants";
 import { canRecruiterManageInternship } from "@/components/internships/manage-listing-access";
+import { PdfUploadField } from "@/components/pdf-upload-field";
 import { ReportContentButton } from "@/components/report-content-button";
 import { RichTextContent } from "@/components/rich-text-content";
 import { Badge } from "@/components/ui/badge";
@@ -41,165 +34,21 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldContent, FieldLabel } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-import { cn } from "@/lib/utils";
+import { uploadFileToConvexStorage } from "@/lib/convex-file-upload";
+import { getPdfValidationMessage } from "@/lib/pdf-files";
 
 type InternshipDetailPageProps = {
   preloadedInternship: Preloaded<typeof api.internships.getPublic>;
 };
 
-type PdfUploadFieldProps = {
-  id: string;
-  label: string;
-  buttonLabel: string;
-  file: File | null;
-  inputRef: RefObject<HTMLInputElement | null>;
-  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
-  onRemove: () => void;
-  required?: boolean;
-};
-
 const ANONYMOUS_VIEWER_STORAGE_KEY = "internquest-anonymous-viewer-key";
-const MAX_APPLICATION_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 
 const DEADLINE_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "short",
 });
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getPdfValidationMessage(
-  file: File | null,
-  label: string,
-  required = false
-) {
-  if (!file) {
-    return required ? `Please upload your ${label.toLowerCase()} (PDF)` : null;
-  }
-
-  const fileType = file.type.toLowerCase();
-  const fileName = file.name.toLowerCase();
-  const isPdf = fileType.includes("pdf") || fileName.endsWith(".pdf");
-
-  if (!isPdf) {
-    return `${label} must be a PDF file`;
-  }
-
-  if (file.size > MAX_APPLICATION_FILE_SIZE_BYTES) {
-    return `${label} must be 5MB or smaller`;
-  }
-
-  return null;
-}
-
-function PdfUploadField({
-  id,
-  label,
-  buttonLabel,
-  file,
-  inputRef,
-  onChange,
-  onRemove,
-  required = false,
-}: PdfUploadFieldProps) {
-  return (
-    <Field className="gap-1.5 rounded-xl border border-border/70 bg-background/70 px-3 py-2 shadow-sm">
-      <FieldLabel
-        className="w-full items-center justify-between text-sm font-semibold"
-        htmlFor={id}
-      >
-        <span>{label}</span>
-        <span
-          className={cn(
-            "rounded-full border px-2 py-0.5 text-[11px] font-medium tracking-[0.18em] uppercase",
-            required
-              ? "border-primary/30 bg-primary/10 text-primary"
-              : "border-border bg-muted text-muted-foreground"
-          )}
-        >
-          {required ? "Required" : "Optional"}
-        </span>
-      </FieldLabel>
-      <FieldContent className="gap-2">
-        <input
-          ref={inputRef}
-          id={id}
-          type="file"
-          accept="application/pdf,.pdf"
-          className="sr-only"
-          onChange={onChange}
-        />
-        <div
-          className={cn(
-            "flex flex-col gap-2 rounded-xl border border-dashed px-3 py-2 transition-colors sm:flex-row sm:items-center sm:justify-between",
-            file
-              ? "border-primary/35 bg-primary/5"
-              : "border-border/80 bg-muted/30"
-          )}
-        >
-          <div className="flex items-center gap-3">
-            <div
-              className={cn(
-                "flex size-8 shrink-0 items-center justify-center rounded-xl border",
-                file
-                  ? "border-primary/30 bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground"
-              )}
-            >
-              {file ? (
-                <CheckCircle2Icon className="size-4" />
-              ) : (
-                <UploadIcon className="size-4" />
-              )}
-            </div>
-            <div className="space-y-1">
-              <p className="text-sm leading-tight font-medium text-foreground">
-                {file ? file.name : "No file selected yet"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {file
-                  ? `${formatFileSize(file.size)} • Ready to upload`
-                  : "PDF only, up to 5MB."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2 sm:justify-end">
-            <Button
-              type="button"
-              variant={file ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => inputRef.current?.click()}
-            >
-              <UploadIcon className="size-3.5" />
-              {file ? "Replace file" : buttonLabel}
-            </Button>
-            {file ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={onRemove}
-              >
-                <XIcon className="size-3.5" />
-                Remove
-              </Button>
-            ) : null}
-          </div>
-        </div>
-      </FieldContent>
-    </Field>
-  );
-}
 
 export function InternshipDetailPage({
   preloadedInternship,
@@ -207,11 +56,16 @@ export function InternshipDetailPage({
   const [anonymousViewerKey, setAnonymousViewerKey] = useState<string | null>(
     null
   );
-  const [resumeFile, setResumeFile] = useState<File | null>(null);
+  const [resumeSelectionMode, setResumeSelectionMode] = useState<
+    "saved" | "upload" | null
+  >(null);
+  const [selectedCandidateResumeId, setSelectedCandidateResumeId] =
+    useState<Id<"candidateResumes"> | null>(null);
+  const [newResumeFile, setNewResumeFile] = useState<File | null>(null);
   const [coverLetterFile, setCoverLetterFile] = useState<File | null>(null);
   const [isApplying, setIsApplying] = useState(false);
   const trackedViewKeyRef = useRef<string | null>(null);
-  const resumeInputRef = useRef<HTMLInputElement | null>(null);
+  const newResumeInputRef = useRef<HTMLInputElement | null>(null);
   const coverLetterInputRef = useRef<HTMLInputElement | null>(null);
   const internship = usePreloadedQuery(preloadedInternship);
   const currentUser = useQuery(api.users.current);
@@ -224,8 +78,17 @@ export function InternshipDetailPage({
       ? { internshipId: internship._id }
       : "skip"
   );
+  const savedResumes = useQuery(
+    api.candidateResumes.listForCurrentUser,
+    currentUser &&
+      currentUser.role === "candidate" &&
+      currentUser.isSuspended !== true
+      ? {}
+      : "skip"
+  );
   const trackView = useMutation(api.internships.trackView);
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
+  const createCandidateResume = useMutation(api.candidateResumes.create);
   const applyToInternship = useMutation(api.applications.apply);
   const formattedDeadline = DEADLINE_DATE_FORMATTER.format(
     internship ? new Date(internship.applicationDeadline) : new Date(0)
@@ -240,6 +103,9 @@ export function InternshipDetailPage({
     internship
   );
   const showReportButton = currentUser !== undefined && !canManageListing;
+  const selectedSavedResume =
+    savedResumes?.find((resume) => resume._id === selectedCandidateResumeId) ??
+    null;
 
   const resetFileInput = (inputRef: RefObject<HTMLInputElement | null>) => {
     if (inputRef.current) {
@@ -320,17 +186,6 @@ export function InternshipDetailPage({
   }
 
   const handleApply = async () => {
-    const resumeValidationMessage = getPdfValidationMessage(
-      resumeFile,
-      "Resume",
-      true
-    );
-
-    if (resumeValidationMessage) {
-      toast.error(resumeValidationMessage);
-      return;
-    }
-
     const coverLetterValidationMessage = getPdfValidationMessage(
       coverLetterFile,
       "Cover letter"
@@ -344,50 +199,69 @@ export function InternshipDetailPage({
     setIsApplying(true);
 
     try {
-      const uploadPdf = async (file: File, label: string) => {
-        const uploadUrl = await generateUploadUrl({});
-        const uploadResponse = await fetch(uploadUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": file.type || "application/pdf",
-          },
-          body: file,
+      let resumeStorageId: Id<"_storage">;
+      let candidateResumeId: Id<"candidateResumes"> | undefined;
+
+      if (resumeSelectionMode === "saved") {
+        if (!selectedSavedResume) {
+          toast.error("Please choose a saved resume");
+          return;
+        }
+
+        resumeStorageId = selectedSavedResume.storageId;
+        candidateResumeId = selectedSavedResume._id;
+      } else {
+        const resumeValidationMessage = getPdfValidationMessage(
+          newResumeFile,
+          "Resume",
+          true
+        );
+
+        if (resumeValidationMessage) {
+          toast.error(resumeValidationMessage);
+          return;
+        }
+
+        const uploadedResumeStorageId = await uploadFileToConvexStorage(
+          newResumeFile!,
+          generateUploadUrl
+        );
+        const createdResume = await createCandidateResume({
+          storageId: uploadedResumeStorageId,
+          originalFilename: newResumeFile!.name,
         });
 
-        if (!uploadResponse.ok) {
-          throw new Error(`${label} upload failed`);
-        }
+        resumeStorageId = createdResume.storageId;
+        candidateResumeId = createdResume.candidateResumeId;
+        setSelectedCandidateResumeId(createdResume.candidateResumeId);
+        setResumeSelectionMode("saved");
+        setNewResumeFile(null);
+        resetFileInput(newResumeInputRef);
+      }
 
-        const uploadData = (await uploadResponse.json()) as {
-          storageId?: string;
-        };
-
-        if (!uploadData.storageId) {
-          throw new Error("Upload response missing storageId");
-        }
-
-        return uploadData.storageId as Id<"_storage">;
-      };
-
-      const resumeStorageId = await uploadPdf(resumeFile!, "Resume");
       const coverLetterStorageId = coverLetterFile
-        ? await uploadPdf(coverLetterFile, "Cover letter")
+        ? await uploadFileToConvexStorage(coverLetterFile, generateUploadUrl)
         : undefined;
 
       await applyToInternship({
         internshipId: internship._id,
         resumeStorageId,
+        candidateResumeId,
         coverLetterStorageId,
       });
 
       toast.success("Application submitted");
-      setResumeFile(null);
+      setSelectedCandidateResumeId(null);
+      setResumeSelectionMode(null);
+      setNewResumeFile(null);
       setCoverLetterFile(null);
-      resetFileInput(resumeInputRef);
+      resetFileInput(newResumeInputRef);
       resetFileInput(coverLetterInputRef);
     } catch (error) {
       console.error(error);
-      toast.error("Unable to submit application");
+      toast.error(
+        error instanceof Error ? error.message : "Unable to submit application"
+      );
     } finally {
       setIsApplying(false);
     }
@@ -503,21 +377,29 @@ export function InternshipDetailPage({
                 </p>
               ) : (
                 <>
-                  <div className="space-y-2.5">
-                    <PdfUploadField
-                      id="resume"
-                      label="Resume"
-                      buttonLabel="Upload resume"
-                      file={resumeFile}
-                      inputRef={resumeInputRef}
-                      required
-                      onChange={(event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        setResumeFile(file);
+                  <div className="space-y-4">
+                    <ApplicationResumePicker
+                      savedResumes={savedResumes}
+                      mode={resumeSelectionMode}
+                      selectedCandidateResumeId={selectedCandidateResumeId}
+                      newResumeFile={newResumeFile}
+                      newResumeInputRef={newResumeInputRef}
+                      disabled={isApplying}
+                      onSelectSavedResume={(candidateResumeId) => {
+                        setResumeSelectionMode("saved");
+                        setSelectedCandidateResumeId(candidateResumeId);
+                        setNewResumeFile(null);
+                        resetFileInput(newResumeInputRef);
                       }}
-                      onRemove={() => {
-                        setResumeFile(null);
-                        resetFileInput(resumeInputRef);
+                      onNewResumeChange={(file) => {
+                        setResumeSelectionMode(file ? "upload" : null);
+                        setSelectedCandidateResumeId(null);
+                        setNewResumeFile(file);
+                      }}
+                      onClearNewResume={() => {
+                        setResumeSelectionMode(null);
+                        setNewResumeFile(null);
+                        resetFileInput(newResumeInputRef);
                       }}
                     />
 
@@ -527,6 +409,7 @@ export function InternshipDetailPage({
                       buttonLabel="Upload cover letter"
                       file={coverLetterFile}
                       inputRef={coverLetterInputRef}
+                      disabled={isApplying}
                       onChange={(event) => {
                         const file = event.target.files?.[0] ?? null;
                         setCoverLetterFile(file);
@@ -541,7 +424,12 @@ export function InternshipDetailPage({
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button
                       onClick={handleApply}
-                      disabled={isApplying || !resumeFile}
+                      disabled={
+                        isApplying ||
+                        (resumeSelectionMode === "saved"
+                          ? !selectedCandidateResumeId
+                          : !newResumeFile)
+                      }
                     >
                       {isApplying ? "Submitting..." : "Apply now"}
                     </Button>
