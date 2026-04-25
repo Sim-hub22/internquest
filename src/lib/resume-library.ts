@@ -1,4 +1,4 @@
-export const MAX_ACTIVE_CANDIDATE_RESUMES = 5;
+export const CANDIDATE_RESUMES_PAGE_SIZE = 10;
 
 function stripPdfExtension(filename: string) {
   return filename.replace(/\.pdf$/i, "");

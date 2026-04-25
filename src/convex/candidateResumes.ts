@@ -1,3 +1,4 @@
+import { paginationOptsValidator } from "convex/server";
 import { ConvexError, v } from "convex/values";
 
 import { Id } from "@/convex/_generated/dataModel";
@@ -9,10 +10,7 @@ import {
 } from "@/convex/_generated/server";
 import { getUploadedPdfValidationError } from "@/convex/applications";
 import { requireRole } from "@/convex/lib/auth";
-import {
-  MAX_ACTIVE_CANDIDATE_RESUMES,
-  deriveResumeLabel,
-} from "@/convex/lib/resumeLibrary";
+import { deriveResumeLabel } from "@/convex/lib/resumeLibrary";
 
 async function getOwnedResume(
   ctx: QueryCtx | MutationCtx,
@@ -32,37 +30,29 @@ async function getOwnedResume(
   return resume;
 }
 
-async function listActiveResumesForUser(
-  ctx: QueryCtx | MutationCtx,
-  userId: Id<"users">
-) {
-  return await ctx.db
-    .query("candidateResumes")
-    .withIndex("by_userId_and_isArchived", (q) =>
-      q.eq("userId", userId).eq("isArchived", false)
-    )
-    .order("desc")
-    .take(MAX_ACTIVE_CANDIDATE_RESUMES + 1);
-}
-
 export const listForCurrentUser = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
     const candidate = await requireRole(ctx, "candidate");
-    const resumes = await ctx.db
+    const results = await ctx.db
       .query("candidateResumes")
       .withIndex("by_userId_and_isArchived", (q) =>
         q.eq("userId", candidate._id).eq("isArchived", false)
       )
       .order("desc")
-      .take(MAX_ACTIVE_CANDIDATE_RESUMES);
+      .paginate(args.paginationOpts);
 
-    return await Promise.all(
-      resumes.map(async (resume) => ({
-        ...resume,
-        url: await ctx.storage.getUrl(resume.storageId),
-      }))
-    );
+    return {
+      ...results,
+      page: await Promise.all(
+        results.page.map(async (resume) => ({
+          ...resume,
+          url: await ctx.storage.getUrl(resume.storageId),
+        }))
+      ),
+    };
   },
 });
 
@@ -74,15 +64,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     const candidate = await requireRole(ctx, "candidate");
-    const activeResumes = await listActiveResumesForUser(ctx, candidate._id);
     const originalFilename = args.originalFilename.trim() || "resume.pdf";
-
-    if (activeResumes.length >= MAX_ACTIVE_CANDIDATE_RESUMES) {
-      await ctx.storage.delete(args.storageId);
-      throw new ConvexError(
-        `You can save up to ${MAX_ACTIVE_CANDIDATE_RESUMES} resumes`
-      );
-    }
 
     const metadata = await ctx.db.system.get("_storage", args.storageId);
 

@@ -26,13 +26,21 @@ type SavedResume = {
   url: string | null;
 };
 
+type SavedResumePaginationStatus =
+  | "LoadingFirstPage"
+  | "CanLoadMore"
+  | "LoadingMore"
+  | "Exhausted";
+
 type ApplicationResumePickerProps = {
-  savedResumes: SavedResume[] | undefined;
+  savedResumes: SavedResume[];
+  savedResumesStatus: SavedResumePaginationStatus;
   mode: "saved" | "upload" | null;
   selectedCandidateResumeId: Id<"candidateResumes"> | null;
   newResumeFile: File | null;
   newResumeInputRef: RefObject<HTMLInputElement | null>;
   disabled?: boolean;
+  onLoadMoreSavedResumes: () => void;
   onSelectSavedResume: (candidateResumeId: Id<"candidateResumes">) => void;
   onNewResumeChange: (file: File | null) => void;
   onClearNewResume: () => void;
@@ -40,16 +48,21 @@ type ApplicationResumePickerProps = {
 
 export function ApplicationResumePicker({
   savedResumes,
+  savedResumesStatus,
   mode,
   selectedCandidateResumeId,
   newResumeFile,
   newResumeInputRef,
   disabled = false,
+  onLoadMoreSavedResumes,
   onSelectSavedResume,
   onNewResumeChange,
   onClearNewResume,
 }: ApplicationResumePickerProps) {
-  const hasSavedResumes = (savedResumes?.length ?? 0) > 0;
+  const hasSavedResumes = savedResumes.length > 0;
+  const isLoadingFirstPage = savedResumesStatus === "LoadingFirstPage";
+  const isLoadingMore = savedResumesStatus === "LoadingMore";
+  const canLoadMore = savedResumesStatus === "CanLoadMore";
 
   return (
     <div className="space-y-4">
@@ -66,7 +79,7 @@ export function ApplicationResumePicker({
         </Button>
       </div>
 
-      {savedResumes === undefined ? (
+      {isLoadingFirstPage ? (
         <p className="text-sm text-muted-foreground">
           Loading saved resumes...
         </p>
@@ -128,6 +141,19 @@ export function ApplicationResumePicker({
                 })}
               </div>
             </RadioGroup>
+            {canLoadMore || isLoadingMore ? (
+              <div className="pt-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={disabled || isLoadingMore}
+                  onClick={onLoadMoreSavedResumes}
+                >
+                  {isLoadingMore ? "Loading more..." : "Load more resumes"}
+                </Button>
+              </div>
+            ) : null}
             <FieldDescription>
               No saved resume is selected by default. Pick one manually if you
               want to use it for this application.

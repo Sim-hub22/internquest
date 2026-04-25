@@ -1,5 +1,3 @@
-export const MAX_ACTIVE_CANDIDATE_RESUMES = 5;
-
 function stripPdfExtension(filename: string) {
   return filename.replace(/\.pdf$/i, "");
 }

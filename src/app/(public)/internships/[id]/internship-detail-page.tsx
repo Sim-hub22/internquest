@@ -5,7 +5,12 @@ import Link from "next/link";
 import { type RefObject, useEffect, useRef, useState } from "react";
 
 import type { Preloaded } from "convex/react";
-import { useMutation, usePreloadedQuery, useQuery } from "convex/react";
+import {
+  useMutation,
+  usePaginatedQuery,
+  usePreloadedQuery,
+  useQuery,
+} from "convex/react";
 import {
   CalendarClockIcon,
   CircleAlertIcon,
@@ -39,6 +44,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { uploadFileToConvexStorage } from "@/lib/convex-file-upload";
 import { getPdfValidationMessage } from "@/lib/pdf-files";
+import { CANDIDATE_RESUMES_PAGE_SIZE } from "@/lib/resume-library";
 
 type InternshipDetailPageProps = {
   preloadedInternship: Preloaded<typeof api.internships.getPublic>;
@@ -78,13 +84,18 @@ export function InternshipDetailPage({
       ? { internshipId: internship._id }
       : "skip"
   );
-  const savedResumes = useQuery(
-    api.candidateResumes.listForCurrentUser,
+  const savedResumesEnabled =
     currentUser &&
-      currentUser.role === "candidate" &&
-      currentUser.isSuspended !== true
-      ? {}
-      : "skip"
+    currentUser.role === "candidate" &&
+    currentUser.isSuspended !== true;
+  const {
+    results: savedResumes,
+    status: savedResumesStatus,
+    loadMore: loadMoreSavedResumes,
+  } = usePaginatedQuery(
+    api.candidateResumes.listForCurrentUser,
+    savedResumesEnabled ? {} : "skip",
+    { initialNumItems: CANDIDATE_RESUMES_PAGE_SIZE }
   );
   const trackView = useMutation(api.internships.trackView);
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
@@ -380,11 +391,15 @@ export function InternshipDetailPage({
                   <div className="space-y-4">
                     <ApplicationResumePicker
                       savedResumes={savedResumes}
+                      savedResumesStatus={savedResumesStatus}
                       mode={resumeSelectionMode}
                       selectedCandidateResumeId={selectedCandidateResumeId}
                       newResumeFile={newResumeFile}
                       newResumeInputRef={newResumeInputRef}
                       disabled={isApplying}
+                      onLoadMoreSavedResumes={() =>
+                        loadMoreSavedResumes(CANDIDATE_RESUMES_PAGE_SIZE)
+                      }
                       onSelectSavedResume={(candidateResumeId) => {
                         setResumeSelectionMode("saved");
                         setSelectedCandidateResumeId(candidateResumeId);

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -111,7 +111,11 @@ function parseOptionalNumber(value: string) {
 
 export function CandidateProfileWizard() {
   const router = useRouter();
-  const profile = useQuery(api.candidateProfiles.current, {});
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const profile = useQuery(
+    api.candidateProfiles.current,
+    isAuthenticated ? {} : "skip"
+  );
   const upsertProfile = useMutation(api.candidateProfiles.upsert);
 
   const [step, setStep] = useState(1);
@@ -152,7 +156,7 @@ export function CandidateProfileWizard() {
     });
   }, [profile]);
 
-  if (profile === undefined) {
+  if (isLoading || (isAuthenticated && profile === undefined)) {
     return (
       <div className="mx-auto w-full max-w-3xl p-4 lg:p-6">
         <Skeleton className="mb-4 h-8 w-48" />

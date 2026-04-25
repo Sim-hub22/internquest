@@ -6,6 +6,8 @@ import { Id } from "@/convex/_generated/dataModel";
 import schema from "@/convex/schema";
 import { modules } from "@/convex/test.setup";
 
+const PAGE_SIZE = 3;
+
 function createUserSeed(
   clerkId: string,
   role: "candidate" | "recruiter" | "admin"
@@ -22,6 +24,21 @@ function createUserSeed(
     createdAt: now,
     updatedAt: now,
   };
+}
+
+async function listCurrentUserResumes(
+  t: ReturnType<typeof convexTest>,
+  identity: { subject: string },
+  cursor: string | null = null
+) {
+  return await t
+    .withIdentity(identity)
+    .query(api.candidateResumes.listForCurrentUser, {
+      paginationOpts: {
+        numItems: PAGE_SIZE,
+        cursor,
+      },
+    });
 }
 
 describe("convex/candidateResumes", () => {
@@ -48,12 +65,10 @@ describe("convex/candidateResumes", () => {
         originalFilename: "backend-resume.pdf",
       });
 
-    const initialList = await t
-      .withIdentity(candidateIdentity)
-      .query(api.candidateResumes.listForCurrentUser, {});
+    const initialList = await listCurrentUserResumes(t, candidateIdentity);
 
-    expect(initialList).toHaveLength(1);
-    expect(initialList[0]?.label).toBe("backend-resume");
+    expect(initialList.page).toHaveLength(1);
+    expect(initialList.page[0]?.label).toBe("backend-resume");
 
     await t
       .withIdentity(candidateIdentity)
@@ -62,11 +77,9 @@ describe("convex/candidateResumes", () => {
         label: "Backend Resume",
       });
 
-    const renamedList = await t
-      .withIdentity(candidateIdentity)
-      .query(api.candidateResumes.listForCurrentUser, {});
+    const renamedList = await listCurrentUserResumes(t, candidateIdentity);
 
-    expect(renamedList[0]?.label).toBe("Backend Resume");
+    expect(renamedList.page[0]?.label).toBe("Backend Resume");
 
     await t
       .withIdentity(candidateIdentity)
@@ -74,11 +87,9 @@ describe("convex/candidateResumes", () => {
         candidateResumeId: createdResume.candidateResumeId,
       });
 
-    const afterRemoval = await t
-      .withIdentity(candidateIdentity)
-      .query(api.candidateResumes.listForCurrentUser, {});
+    const afterRemoval = await listCurrentUserResumes(t, candidateIdentity);
 
-    expect(afterRemoval).toHaveLength(0);
+    expect(afterRemoval.page).toHaveLength(0);
   });
 
   it("rejects non-PDF uploads and enforces ownership", async () => {
@@ -128,5 +139,76 @@ describe("convex/candidateResumes", () => {
           label: "Stolen Resume",
         })
     ).rejects.toThrow("FORBIDDEN");
+  });
+
+  it("allows more than five resumes and paginates active results newest first", async () => {
+    const t = convexTest(schema, modules);
+    const candidateIdentity = { subject: "candidate_resume_many" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+    });
+
+    const createdResumeIds: Id<"candidateResumes">[] = [];
+
+    for (const index of Array.from({ length: 6 }, (_, value) => value)) {
+      const storageId = (await t.action(
+        internal.testHelpers.createTestPdfStorage,
+        {}
+      )) as Id<"_storage">;
+
+      const createdResume = await t
+        .withIdentity(candidateIdentity)
+        .mutation(api.candidateResumes.create, {
+          storageId,
+          originalFilename: `resume-${index + 1}.pdf`,
+        });
+
+      createdResumeIds.push(createdResume.candidateResumeId);
+    }
+
+    const firstPage = await listCurrentUserResumes(t, candidateIdentity);
+
+    expect(firstPage.page).toHaveLength(PAGE_SIZE);
+    expect(firstPage.page.map((resume) => resume.originalFilename)).toEqual([
+      "resume-6.pdf",
+      "resume-5.pdf",
+      "resume-4.pdf",
+    ]);
+    expect(firstPage.isDone).toBe(false);
+
+    const secondPage = await listCurrentUserResumes(
+      t,
+      candidateIdentity,
+      firstPage.continueCursor
+    );
+
+    expect(secondPage.page).toHaveLength(PAGE_SIZE);
+    expect(secondPage.page.map((resume) => resume.originalFilename)).toEqual([
+      "resume-3.pdf",
+      "resume-2.pdf",
+      "resume-1.pdf",
+    ]);
+    expect(secondPage.isDone).toBe(true);
+
+    await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.candidateResumes.remove, {
+        candidateResumeId: createdResumeIds[5],
+      });
+
+    const afterRemoval = await listCurrentUserResumes(t, candidateIdentity);
+
+    expect(afterRemoval.page.map((resume) => resume.originalFilename)).toEqual([
+      "resume-5.pdf",
+      "resume-4.pdf",
+      "resume-3.pdf",
+    ]);
+    expect(
+      afterRemoval.page.some((resume) => resume._id === createdResumeIds[5])
+    ).toBe(false);
   });
 });

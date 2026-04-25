@@ -4,7 +4,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useRef, useState } from "react";
 
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, usePaginatedQuery } from "convex/react";
 import {
   ExternalLinkIcon,
   FileTextIcon,
@@ -45,7 +45,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { uploadFileToConvexStorage } from "@/lib/convex-file-upload";
 import { getPdfValidationMessage } from "@/lib/pdf-files";
-import { MAX_ACTIVE_CANDIDATE_RESUMES } from "@/lib/resume-library";
+import { CANDIDATE_RESUMES_PAGE_SIZE } from "@/lib/resume-library";
 
 type ResumeRecord = {
   _id: Id<"candidateResumes">;
@@ -65,7 +65,16 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 
 export function CandidateResumeLibrarySection() {
   const resumeInputRef = useRef<HTMLInputElement | null>(null);
-  const resumes = useQuery(api.candidateResumes.listForCurrentUser, {});
+  const { isAuthenticated } = useConvexAuth();
+  const {
+    results: activeResumes,
+    status: resumesStatus,
+    loadMore: loadMoreResumes,
+  } = usePaginatedQuery(
+    api.candidateResumes.listForCurrentUser,
+    isAuthenticated ? {} : "skip",
+    { initialNumItems: CANDIDATE_RESUMES_PAGE_SIZE }
+  );
   const generateUploadUrl = useMutation(api.storage.generateUploadUrl);
   const createResume = useMutation(api.candidateResumes.create);
   const renameResume = useMutation(api.candidateResumes.rename);
@@ -80,11 +89,9 @@ export function CandidateResumeLibrarySection() {
   const [resumePendingRemoval, setResumePendingRemoval] =
     useState<ResumeRecord | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
-
-  const activeResumes = resumes ?? [];
-  const hasReachedLimit =
-    resumes !== undefined &&
-    activeResumes.length >= MAX_ACTIVE_CANDIDATE_RESUMES;
+  const isLoadingFirstPage = resumesStatus === "LoadingFirstPage";
+  const isLoadingMore = resumesStatus === "LoadingMore";
+  const canLoadMore = resumesStatus === "CanLoadMore";
 
   const resetUploadInput = () => {
     setUploadFile(null);
@@ -198,8 +205,7 @@ export function CandidateResumeLibrarySection() {
           <div>
             <CardTitle>Resume Library</CardTitle>
             <CardDescription>
-              Save up to {MAX_ACTIVE_CANDIDATE_RESUMES} resumes and choose the
-              right one each time you apply.
+              Save resumes here and choose the right one each time you apply.
             </CardDescription>
           </div>
           <Button asChild size="sm" variant="outline">
@@ -218,9 +224,6 @@ export function CandidateResumeLibrarySection() {
                   applications.
                 </p>
               </div>
-              <div className="rounded-full border px-3 py-1 text-xs text-muted-foreground">
-                {activeResumes.length}/{MAX_ACTIVE_CANDIDATE_RESUMES} saved
-              </div>
             </div>
 
             <div className="space-y-4">
@@ -231,7 +234,7 @@ export function CandidateResumeLibrarySection() {
                 file={uploadFile}
                 inputRef={resumeInputRef}
                 required
-                disabled={isUploading || hasReachedLimit}
+                disabled={isUploading}
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;
                   setUploadFile(file);
@@ -248,7 +251,7 @@ export function CandidateResumeLibrarySection() {
                     id="candidate-resume-library-label"
                     placeholder="Frontend Resume"
                     value={uploadLabel}
-                    disabled={isUploading || hasReachedLimit}
+                    disabled={isUploading}
                     onChange={(event) => setUploadLabel(event.target.value)}
                   />
                   <FieldDescription>
@@ -260,17 +263,12 @@ export function CandidateResumeLibrarySection() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button
                   type="button"
-                  disabled={isUploading || hasReachedLimit || !uploadFile}
+                  disabled={isUploading || !uploadFile}
                   onClick={() => void handleUpload()}
                 >
                   <UploadIcon className="size-4" />
                   {isUploading ? "Saving..." : "Save resume"}
                 </Button>
-                {hasReachedLimit ? (
-                  <p className="text-sm text-muted-foreground">
-                    Remove a saved resume before adding another one.
-                  </p>
-                ) : null}
               </div>
             </div>
           </div>
@@ -283,7 +281,7 @@ export function CandidateResumeLibrarySection() {
               </p>
             </div>
 
-            {resumes === undefined ? (
+            {isLoadingFirstPage ? (
               <p className="text-sm text-muted-foreground">
                 Loading resumes...
               </p>
@@ -408,6 +406,20 @@ export function CandidateResumeLibrarySection() {
                     </div>
                   );
                 })}
+                {canLoadMore || isLoadingMore ? (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isLoadingMore}
+                      onClick={() =>
+                        loadMoreResumes(CANDIDATE_RESUMES_PAGE_SIZE)
+                      }
+                    >
+                      {isLoadingMore ? "Loading more..." : "Load more resumes"}
+                    </Button>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>

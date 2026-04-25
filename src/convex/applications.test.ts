@@ -262,9 +262,11 @@ describe("convex/applications", () => {
 
     const savedResumes = await t
       .withIdentity(candidateIdentity)
-      .query(api.candidateResumes.listForCurrentUser, {});
+      .query(api.candidateResumes.listForCurrentUser, {
+        paginationOpts: { numItems: 10, cursor: null },
+      });
 
-    expect(savedResumes).toHaveLength(0);
+    expect(savedResumes.page).toHaveLength(0);
 
     const archivedResume = await t.run(async (ctx) => {
       return await ctx.db.get(createdResume.candidateResumeId);

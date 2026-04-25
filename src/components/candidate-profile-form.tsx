@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -37,6 +37,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 
 const INTERNSHIP_CATEGORIES = [
@@ -158,7 +159,11 @@ function parseOptionalNumber(value: string | undefined) {
 
 export function CandidateProfileForm() {
   const router = useRouter();
-  const profile = useQuery(api.candidateProfiles.current, {});
+  const { isAuthenticated, isLoading } = useConvexAuth();
+  const profile = useQuery(
+    api.candidateProfiles.current,
+    isAuthenticated ? {} : "skip"
+  );
   const upsertProfile = useMutation(api.candidateProfiles.upsert);
 
   const form = useForm<ProfileFormValues>({
@@ -238,6 +243,20 @@ export function CandidateProfileForm() {
       control: form.control,
       name: "preferredCategories",
     }) ?? [];
+
+  if (isLoading || (isAuthenticated && profile === undefined)) {
+    return (
+      <div className="mx-auto w-full max-w-5xl space-y-6 p-4 lg:p-6">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-40" />
+          <Skeleton className="h-4 w-80 max-w-full" />
+        </div>
+        <Skeleton className="h-48 w-full" />
+        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto w-full max-w-5xl p-4 lg:p-6">
