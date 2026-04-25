@@ -3,8 +3,14 @@
 import type { Route } from "next";
 import Link from "next/link";
 
-import { useQuery } from "convex/react";
-import { ArrowUpRightIcon, MapPinIcon, SparklesIcon } from "lucide-react";
+import { usePaginatedQuery, useQuery } from "convex/react";
+import {
+  ArrowUpRightIcon,
+  ExternalLinkIcon,
+  FileTextIcon,
+  MapPinIcon,
+  SparklesIcon,
+} from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +27,12 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
 import { calculateProfileCompleteness } from "@/lib/profile-completeness";
+import { CANDIDATE_RESUMES_PAGE_SIZE } from "@/lib/resume-library";
+
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function toDisplayLabel(value: string) {
   return value
@@ -69,6 +81,15 @@ export function ProfilePageContent() {
     api.candidateProfiles.current,
     user?.role === "candidate" ? {} : "skip"
   );
+  const {
+    results: savedResumes,
+    status: savedResumesStatus,
+    loadMore: loadMoreSavedResumes,
+  } = usePaginatedQuery(
+    api.candidateResumes.listForCurrentUser,
+    user?.role === "candidate" ? {} : "skip",
+    { initialNumItems: CANDIDATE_RESUMES_PAGE_SIZE }
+  );
 
   if (user === undefined) {
     return (
@@ -103,6 +124,13 @@ export function ProfilePageContent() {
   const skillsCount = profile ? profile.skills.length : 0;
   const experienceCount = profile ? profile.experience.length : 0;
   const educationCount = profile ? profile.education.length : 0;
+  const preferredCategories = profile?.preferredCategories ?? [];
+  const preferredLocationType = profile?.preferredLocationType;
+  const hasPreferences =
+    preferredCategories.length > 0 || Boolean(preferredLocationType);
+  const isLoadingSavedResumes = savedResumesStatus === "LoadingFirstPage";
+  const isLoadingMoreSavedResumes = savedResumesStatus === "LoadingMore";
+  const canLoadMoreSavedResumes = savedResumesStatus === "CanLoadMore";
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-4 lg:p-6">
@@ -246,10 +274,10 @@ export function ProfilePageContent() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Public profile preview</CardTitle>
+              <CardTitle>Candidate overview preview</CardTitle>
               <CardDescription>
-                This is what recruiters can see while reviewing your
-                application.
+                Review how your candidate profile details, preferences, and
+                saved application assets are presented here.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -294,6 +322,38 @@ export function ProfilePageContent() {
                     ) : (
                       <p className="text-sm text-muted-foreground">
                         No skills added.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Preferences</p>
+                    {hasPreferences ? (
+                      <div className="space-y-3">
+                        {preferredCategories.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {preferredCategories.map((category) => (
+                              <Badge key={category} variant="secondary">
+                                {toDisplayLabel(category)}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {preferredLocationType ? (
+                          <div className="rounded-md border p-3">
+                            <p className="text-xs tracking-wide text-muted-foreground uppercase">
+                              Preferred location
+                            </p>
+                            <p className="mt-1 text-sm font-medium">
+                              {toDisplayLabel(preferredLocationType)}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No preferences added.
                       </p>
                     )}
                   </div>
@@ -368,6 +428,91 @@ export function ProfilePageContent() {
                         label="Portfolio"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Saved resumes</p>
+                    {isLoadingSavedResumes ? (
+                      <div className="space-y-2">
+                        <Skeleton className="h-16 w-full" />
+                        <Skeleton className="h-16 w-full" />
+                      </div>
+                    ) : savedResumes.length > 0 ? (
+                      <div className="space-y-3">
+                        {savedResumes.map((resume) => (
+                          <div
+                            key={resume._id}
+                            className="rounded-md border p-3"
+                          >
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0 space-y-2">
+                                <div className="flex items-start gap-2">
+                                  <div className="mt-0.5 flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                                    <FileTextIcon className="size-4" />
+                                  </div>
+                                  <div className="min-w-0">
+                                    <p className="truncate text-sm font-medium">
+                                      {resume.label}
+                                    </p>
+                                    <p className="truncate text-sm text-muted-foreground">
+                                      {resume.originalFilename}
+                                    </p>
+                                  </div>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Added{" "}
+                                  {DATE_TIME_FORMATTER.format(
+                                    new Date(resume.createdAt)
+                                  )}
+                                  {resume.lastUsedAt
+                                    ? ` | Last used ${DATE_TIME_FORMATTER.format(
+                                        new Date(resume.lastUsedAt)
+                                      )}`
+                                    : ""}
+                                </p>
+                              </div>
+
+                              {resume.url ? (
+                                <Button asChild size="sm" variant="outline">
+                                  <a
+                                    href={resume.url}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                  >
+                                    <ExternalLinkIcon className="size-3.5" />
+                                    Open
+                                  </a>
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+
+                        {canLoadMoreSavedResumes ||
+                        isLoadingMoreSavedResumes ? (
+                          <div className="flex justify-center pt-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              disabled={isLoadingMoreSavedResumes}
+                              onClick={() =>
+                                loadMoreSavedResumes(
+                                  CANDIDATE_RESUMES_PAGE_SIZE
+                                )
+                              }
+                            >
+                              {isLoadingMoreSavedResumes
+                                ? "Loading more..."
+                                : "Load more resumes"}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No saved resumes yet.
+                      </p>
+                    )}
                   </div>
                 </>
               )}
