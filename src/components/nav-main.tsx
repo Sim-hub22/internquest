@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3Icon,
   BookOpenIcon,
+  BookmarkIcon,
   BriefcaseIcon,
   ClipboardListIcon,
   LayoutDashboardIcon,
@@ -29,6 +30,8 @@ function getSidebarIcon(icon: SidebarIcon) {
   switch (icon) {
     case "book-open":
       return <BookOpenIcon />;
+    case "bookmark":
+      return <BookmarkIcon />;
     case "briefcase":
       return <BriefcaseIcon />;
     case "chart":

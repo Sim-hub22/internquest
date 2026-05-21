@@ -8,6 +8,7 @@ import {
   InternshipStatusBadge,
   toDisplayLabel,
 } from "@/components/internships/constants";
+import { InternshipBookmarkButton } from "@/components/internships/internship-bookmark-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,7 +47,10 @@ export function InternshipCard({
           <CardTitle className="line-clamp-2 text-lg">
             {internship.title}
           </CardTitle>
-          <InternshipStatusBadge status={internship.status} />
+          <div className="flex shrink-0 items-center gap-2">
+            <InternshipStatusBadge status={internship.status} />
+            <InternshipBookmarkButton internshipId={internship._id} />
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline">{toDisplayLabel(internship.category)}</Badge>

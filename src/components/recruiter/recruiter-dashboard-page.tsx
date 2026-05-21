@@ -91,11 +91,18 @@ function toDisplayLabel(value: string) {
 
 function getAttentionNote(item: {
   status: "draft" | "open" | "closed";
+  effectiveStatus: "draft" | "open" | "closed";
   applicationDeadline: number;
   applicationCount: number;
 }) {
-  if (item.status === "draft") {
+  if (item.effectiveStatus === "draft") {
     return "Draft listing - finish the details and publish it when you are ready.";
+  }
+
+  if (item.effectiveStatus === "closed") {
+    return `${formatWholeNumber(
+      item.applicationCount
+    )} applications - deadline has already passed.`;
   }
 
   const daysUntilDeadline = Math.ceil(
@@ -458,7 +465,7 @@ export function RecruiterDashboardPageContent() {
               <div className="space-y-3">
                 {overview.listingsNeedingAttention.map((item) => {
                   const href =
-                    item.status === "draft"
+                    item.effectiveStatus === "draft"
                       ? (`/recruiter/internships/${item.internshipId}/edit` as Route)
                       : (`/recruiter/internships/${item.internshipId}/applications` as Route);
 
@@ -473,12 +480,12 @@ export function RecruiterDashboardPageContent() {
                             <p className="font-medium">{item.title}</p>
                             <Badge
                               variant={
-                                item.status === "draft"
+                                item.effectiveStatus === "draft"
                                   ? "secondary"
                                   : "outline"
                               }
                             >
-                              {toDisplayLabel(item.status)}
+                              {toDisplayLabel(item.effectiveStatus)}
                             </Badge>
                           </div>
                           <p className="text-sm text-muted-foreground">
@@ -493,7 +500,7 @@ export function RecruiterDashboardPageContent() {
                         </div>
                         <Button asChild size="sm" variant="outline">
                           <Link href={href}>
-                            {item.status === "draft"
+                            {item.effectiveStatus === "draft"
                               ? "Finish Listing"
                               : "Review Applicants"}
                           </Link>

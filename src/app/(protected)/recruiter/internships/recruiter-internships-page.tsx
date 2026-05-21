@@ -57,10 +57,14 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   dateStyle: "medium",
 });
 
-const sortByDeadline: SortingFn<Doc<"internships">> = (rowA, rowB) =>
+type RecruiterInternshipRow = Doc<"internships"> & {
+  effectiveStatus: "draft" | "open" | "closed";
+};
+
+const sortByDeadline: SortingFn<RecruiterInternshipRow> = (rowA, rowB) =>
   rowA.original.applicationDeadline - rowB.original.applicationDeadline;
 
-const sortByStipend: SortingFn<Doc<"internships">> = (rowA, rowB) =>
+const sortByStipend: SortingFn<RecruiterInternshipRow> = (rowA, rowB) =>
   (rowA.original.stipend ?? 0) - (rowB.original.stipend ?? 0);
 
 function InternshipStatusSelectCell({
@@ -110,7 +114,7 @@ function InternshipStatusSelectCell({
   );
 }
 
-const columnHelper = createColumnHelper<Doc<"internships">>();
+const columnHelper = createColumnHelper<RecruiterInternshipRow>();
 
 const columns = [
   columnHelper.accessor("title", {
@@ -140,7 +144,7 @@ const columns = [
       </Button>
     ),
   }),
-  columnHelper.accessor("status", {
+  columnHelper.accessor("effectiveStatus", {
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -155,7 +159,7 @@ const columns = [
     cell: ({ row }) => (
       <InternshipStatusSelectCell
         internshipId={row.original._id}
-        status={row.original.status}
+        status={row.original.effectiveStatus}
       />
     ),
   }),
@@ -266,7 +270,7 @@ const columns = [
       </DropdownMenu>
     ),
   }),
-] as ColumnDef<Doc<"internships">>[];
+] as ColumnDef<RecruiterInternshipRow>[];
 
 export function RecruiterInternshipsPage() {
   const { isAuthenticated } = useConvexAuth();

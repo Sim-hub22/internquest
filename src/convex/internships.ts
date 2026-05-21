@@ -90,6 +90,28 @@ function isInternshipPubliclyActive(
   );
 }
 
+export type RecruiterFacingInternshipStatus = Doc<"internships">["status"];
+
+export function getRecruiterFacingInternshipStatus(
+  internship: Pick<Doc<"internships">, "status" | "applicationDeadline">,
+  now = Date.now()
+): RecruiterFacingInternshipStatus {
+  if (internship.status === "open" && internship.applicationDeadline <= now) {
+    return "closed";
+  }
+
+  return internship.status;
+}
+
+function withRecruiterFacingInternshipStatus<
+  T extends Pick<Doc<"internships">, "status" | "applicationDeadline">,
+>(internship: T, now = Date.now()) {
+  return {
+    ...internship,
+    effectiveStatus: getRecruiterFacingInternshipStatus(internship, now),
+  };
+}
+
 async function isInternshipPubliclyVisible(
   ctx: QueryCtx | MutationCtx,
   internship: Doc<"internships"> | null,
@@ -397,6 +419,10 @@ export const remove = mutation({
       .query("internshipViews")
       .withIndex("by_internship", (q) => q.eq("internshipId", internship._id))
       .collect();
+    const internshipBookmarks = await ctx.db
+      .query("internshipBookmarks")
+      .withIndex("by_internship", (q) => q.eq("internshipId", internship._id))
+      .collect();
     const internshipReports = (
       await ctx.db
         .query("reports")
@@ -406,6 +432,7 @@ export const remove = mutation({
 
     await Promise.all([
       ...internshipViews.map((view) => ctx.db.delete(view._id)),
+      ...internshipBookmarks.map((bookmark) => ctx.db.delete(bookmark._id)),
       ...internshipReports.map((report) => ctx.db.delete(report._id)),
     ]);
 
@@ -451,9 +478,11 @@ export const getForRecruiter = query({
     }
 
     const deleteState = await getInternshipDeleteState(ctx, internship._id);
+    const recruiterFacingInternship =
+      withRecruiterFacingInternshipStatus(internship);
 
     return {
-      ...internship,
+      ...recruiterFacingInternship,
       ...deleteState,
     };
   },
@@ -511,24 +540,26 @@ export const listAllForRecruiter = query({
   args: {
     status: v.optional(internshipStatusValidator),
   },
-  handler: async (ctx, args): Promise<Doc<"internships">[]> => {
+  handler: async (ctx, args) => {
     const recruiter = await requireRole(ctx, "recruiter");
-
-    if (args.status) {
-      return await ctx.db
-        .query("internships")
-        .withIndex("by_recruiter_and_status", (q) =>
-          q.eq("recruiterId", recruiter._id).eq("status", args.status!)
-        )
-        .order("desc")
-        .collect();
-    }
-
-    return await ctx.db
+    const recruiterInternships = await ctx.db
       .query("internships")
       .withIndex("by_recruiter", (q) => q.eq("recruiterId", recruiter._id))
       .order("desc")
       .collect();
+
+    const now = Date.now();
+    const internships = recruiterInternships.map((internship) =>
+      withRecruiterFacingInternshipStatus(internship, now)
+    );
+
+    if (!args.status) {
+      return internships;
+    }
+
+    return internships.filter(
+      (internship) => internship.effectiveStatus === args.status
+    );
   },
 });
 

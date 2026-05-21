@@ -125,7 +125,7 @@ export function RecruiterInternshipDetailPage({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           <Badge>{toDisplayLabel(internship.category)}</Badge>
-          <InternshipStatusBadge status={internship.status} />
+          <InternshipStatusBadge status={internship.effectiveStatus} />
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">
           {internship.title}
@@ -162,7 +162,7 @@ export function RecruiterInternshipDetailPage({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-48">
             <DropdownMenuGroup>
-              {STATUS_FLOW[internship.status].map((status) => (
+              {STATUS_FLOW[internship.effectiveStatus].map((status) => (
                 <DropdownMenuItem
                   key={`${internship._id}-${status}`}
                   disabled={isUpdatingStatus || isDeleting}

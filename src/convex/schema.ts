@@ -88,6 +88,15 @@ export default defineSchema({
     .index("by_userId_and_isArchived", ["userId", "isArchived"])
     .index("by_storageId", ["storageId"]),
 
+  internshipBookmarks: defineTable({
+    candidateId: v.id("users"),
+    internshipId: v.id("internships"),
+    createdAt: v.number(),
+  })
+    .index("by_candidate", ["candidateId"])
+    .index("by_candidate_and_internship", ["candidateId", "internshipId"])
+    .index("by_internship", ["internshipId"]),
+
   // ─── Internships ─────────────────────────────────────────────────────────────
 
   internships: defineTable({

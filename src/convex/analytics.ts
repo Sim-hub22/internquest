@@ -2,6 +2,7 @@ import { ConvexError, v } from "convex/values";
 
 import { Doc, Id } from "@/convex/_generated/dataModel";
 import { QueryCtx, query } from "@/convex/_generated/server";
+import { getRecruiterFacingInternshipStatus } from "@/convex/internships";
 import { requireRole } from "@/convex/lib/auth";
 import { calculateProfileCompleteness } from "@/lib/profile-completeness";
 
@@ -124,10 +125,16 @@ async function listRecruiterInternships(
   ctx: QueryCtx,
   recruiterId: Id<"users">
 ) {
-  return await ctx.db
+  const now = Date.now();
+  const internships = await ctx.db
     .query("internships")
     .withIndex("by_recruiter", (q) => q.eq("recruiterId", recruiterId))
     .collect();
+
+  return internships.map((internship) => ({
+    ...internship,
+    effectiveStatus: getRecruiterFacingInternshipStatus(internship, now),
+  }));
 }
 
 async function listInternshipApplications(
@@ -634,10 +641,10 @@ export const getRecruiterDashboardOverview = query({
     return {
       summary: {
         openListings: internships.filter(
-          (internship) => internship.status === "open"
+          (internship) => internship.effectiveStatus === "open"
         ).length,
         draftListings: internships.filter(
-          (internship) => internship.status === "draft"
+          (internship) => internship.effectiveStatus === "draft"
         ).length,
         totalApplications: internshipStats.reduce(
           (sum, stat) => sum + stat.applicationCount,
@@ -665,21 +672,21 @@ export const getRecruiterDashboardOverview = query({
       listingsNeedingAttention: internshipStats
         .filter(
           (stat) =>
-            stat.internship.status === "draft" ||
+            stat.internship.effectiveStatus === "draft" ||
             (stat.internship.status === "open" &&
               stat.internship.applicationDeadline <= deadlineThreshold)
         )
         .sort((left, right) => {
           if (
-            left.internship.status === "draft" &&
-            right.internship.status !== "draft"
+            left.internship.effectiveStatus === "draft" &&
+            right.internship.effectiveStatus !== "draft"
           ) {
             return -1;
           }
 
           if (
-            right.internship.status === "draft" &&
-            left.internship.status !== "draft"
+            right.internship.effectiveStatus === "draft" &&
+            left.internship.effectiveStatus !== "draft"
           ) {
             return 1;
           }
@@ -693,6 +700,7 @@ export const getRecruiterDashboardOverview = query({
           internshipId: stat.internship._id,
           title: stat.internship.title,
           status: stat.internship.status,
+          effectiveStatus: stat.internship.effectiveStatus,
           applicationDeadline: stat.internship.applicationDeadline,
           applicationCount: stat.applicationCount,
         })),

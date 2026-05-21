@@ -24,6 +24,7 @@ import {
   InternshipMeta,
   toDisplayLabel,
 } from "@/components/internships/constants";
+import { InternshipBookmarkButton } from "@/components/internships/internship-bookmark-button";
 import { canRecruiterManageInternship } from "@/components/internships/manage-listing-access";
 import { PdfUploadField } from "@/components/pdf-upload-field";
 import { ReportContentButton } from "@/components/report-content-button";
@@ -309,9 +310,12 @@ export function InternshipDetailPage({
             {internship.viewCount} views
           </span>
         </div>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          {internship.title}
-        </h1>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <h1 className="max-w-3xl text-3xl font-semibold tracking-tight">
+            {internship.title}
+          </h1>
+          <InternshipBookmarkButton internshipId={internship._id} />
+        </div>
         <InternshipMeta
           company={internship.company}
           locationType={internship.locationType}

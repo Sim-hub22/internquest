@@ -770,12 +770,93 @@ describe("convex/analytics", () => {
       internshipId: seededIds.draftInternshipId,
       title: "Draft Ops Internship",
       status: "draft",
+      effectiveStatus: "draft",
       applicationCount: 0,
     });
     expect(result.listingsNeedingAttention[1]).toMatchObject({
       title: "Urgent Product Internship",
       status: "open",
+      effectiveStatus: "open",
       applicationCount: 2,
+    });
+  });
+
+  it("excludes expired open listings from recruiter open counts and marks them closed in attention items", async () => {
+    const t = convexTest(schema, modules);
+    const recruiterIdentity = { subject: "recruiter_dashboard_expired" };
+    const seededStorageId = (await t.action(
+      internal.testHelpers.createTestPdfStorage,
+      {}
+    )) as Id<"_storage">;
+
+    await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed(recruiterIdentity.subject, "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createUserSeed("candidate_dashboard_expired", "candidate")
+      );
+
+      const activeInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Active Support Internship",
+          applicationDeadline: Date.parse("2026-04-10T12:00:00.000Z"),
+        })
+      );
+      const expiredInternshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired Support Internship",
+          applicationDeadline: Date.parse("2026-03-22T12:00:00.000Z"),
+        })
+      );
+
+      await ctx.db.insert("applications", {
+        internshipId: expiredInternshipId,
+        candidateId,
+        resumeStorageId: seededStorageId,
+        status: "under_review",
+        statusHistory: createStatusHistory(
+          ["applied", "under_review"],
+          recruiterId,
+          Date.parse("2026-03-21T12:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-21T12:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-21T12:05:00.000Z"),
+      });
+      await ctx.db.insert("applications", {
+        internshipId: activeInternshipId,
+        candidateId,
+        resumeStorageId: seededStorageId,
+        status: "applied",
+        statusHistory: createStatusHistory(
+          ["applied"],
+          recruiterId,
+          Date.parse("2026-03-24T10:00:00.000Z")
+        ),
+        appliedAt: Date.parse("2026-03-24T10:00:00.000Z"),
+        updatedAt: Date.parse("2026-03-24T10:05:00.000Z"),
+      });
+    });
+
+    const result = await t
+      .withIdentity(recruiterIdentity)
+      .query(api.analytics.getRecruiterDashboardOverview, {});
+
+    expect(result.summary).toMatchObject({
+      openListings: 1,
+      draftListings: 0,
+      totalApplications: 2,
+    });
+    expect(result.listingsNeedingAttention).toHaveLength(1);
+    expect(result.listingsNeedingAttention[0]).toMatchObject({
+      title: "Expired Support Internship",
+      status: "open",
+      effectiveStatus: "closed",
+      applicationCount: 1,
     });
   });
 

@@ -3,6 +3,7 @@ export type SidebarRole = "candidate" | "recruiter" | "admin" | null;
 export type SidebarIcon =
   | "bell"
   | "book-open"
+  | "bookmark"
   | "briefcase"
   | "chart"
   | "clipboard-list"
@@ -30,6 +31,7 @@ const CANDIDATE_NAV: SidebarNavItem[] = [
     url: "/candidate/applications",
     icon: "clipboard-list",
   },
+  { title: "Bookmarks", url: "/candidate/bookmarks", icon: "bookmark" },
   { title: "Quizzes", url: "/candidate/quizzes", icon: "book-open" },
   { title: "Profile", url: "/candidate/profile", icon: "user" },
 ];

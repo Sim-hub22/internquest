@@ -398,6 +398,75 @@ describe("convex/internships", () => {
     expect(internship?.deleteDisabledReason).toBeNull();
   });
 
+  it("derives recruiter-facing closed status for expired open listings", async () => {
+    const t = convexTest(schema, modules);
+    const identity = { subject: "recruiter_effective_status" };
+    vi.setSystemTime(new Date("2026-04-25T12:00:00.000Z"));
+
+    const seededIds = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser(identity.subject, "recruiter")
+      );
+
+      const activeOpenId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Active Open Internship",
+          status: "open",
+          applicationDeadline: Date.parse("2026-04-28T12:00:00.000Z"),
+        })
+      );
+      const expiredOpenId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired Open Internship",
+          status: "open",
+          applicationDeadline: Date.parse("2026-04-24T12:00:00.000Z"),
+        })
+      );
+      const closedId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Closed Internship",
+          status: "closed",
+          applicationDeadline: Date.parse("2026-04-30T12:00:00.000Z"),
+        })
+      );
+
+      return { activeOpenId, expiredOpenId, closedId };
+    });
+
+    const all = await t
+      .withIdentity(identity)
+      .query(api.internships.listAllForRecruiter, {});
+    const open = await t
+      .withIdentity(identity)
+      .query(api.internships.listAllForRecruiter, { status: "open" });
+    const closed = await t
+      .withIdentity(identity)
+      .query(api.internships.listAllForRecruiter, { status: "closed" });
+    const detail = await t
+      .withIdentity(identity)
+      .query(api.internships.getForRecruiter, {
+        internshipId: seededIds.expiredOpenId,
+      });
+
+    expect(
+      all.find((internship) => internship._id === seededIds.expiredOpenId)
+        ?.effectiveStatus
+    ).toBe("closed");
+    expect(open.map((internship) => internship.title)).toEqual([
+      "Active Open Internship",
+    ]);
+    expect(closed.map((internship) => internship.title).sort()).toEqual([
+      "Closed Internship",
+      "Expired Open Internship",
+    ]);
+    expect(detail?.status).toBe("open");
+    expect(detail?.effectiveStatus).toBe("closed");
+  });
+
   it("blocks deleting recruiter listings that already have applications", async () => {
     const t = convexTest(schema, modules);
     const recruiterIdentity = { subject: "recruiter_delete_blocked" };
@@ -519,6 +588,11 @@ describe("convex/internships", () => {
         viewerKey: `user:${candidateId}`,
         viewedAt: Date.now(),
       });
+      await ctx.db.insert("internshipBookmarks", {
+        internshipId,
+        candidateId,
+        createdAt: Date.now(),
+      });
       await ctx.db.insert("internshipViews", {
         internshipId,
         viewerKey: "anon-browser",
@@ -555,6 +629,10 @@ describe("convex/internships", () => {
         .query("internshipViews")
         .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
         .collect();
+      const bookmarks = await ctx.db
+        .query("internshipBookmarks")
+        .withIndex("by_internship", (q) => q.eq("internshipId", internshipId))
+        .collect();
       const internshipReports = (
         await ctx.db
           .query("reports")
@@ -563,11 +641,18 @@ describe("convex/internships", () => {
       ).filter((report) => report.targetId === internshipId);
       const unrelatedReport = await ctx.db.get(unrelatedReportId);
 
-      return { internship, views, internshipReports, unrelatedReport };
+      return {
+        internship,
+        views,
+        bookmarks,
+        internshipReports,
+        unrelatedReport,
+      };
     });
 
     expect(snapshot.internship).toBeNull();
     expect(snapshot.views).toHaveLength(0);
+    expect(snapshot.bookmarks).toHaveLength(0);
     expect(snapshot.internshipReports).toHaveLength(0);
     expect(snapshot.unrelatedReport).not.toBeNull();
   });

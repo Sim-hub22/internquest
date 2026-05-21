@@ -23,6 +23,7 @@ import type * as emails_newResource from "../emails/newResource.js";
 import type * as emails_quizAssigned from "../emails/quizAssigned.js";
 import type * as emails_quizGraded from "../emails/quizGraded.js";
 import type * as http from "../http.js";
+import type * as internshipBookmarks from "../internshipBookmarks.js";
 import type * as internships from "../internships.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_moderation from "../lib/moderation.js";
@@ -61,6 +62,7 @@ declare const fullApi: ApiFromModules<{
   "emails/quizAssigned": typeof emails_quizAssigned;
   "emails/quizGraded": typeof emails_quizGraded;
   http: typeof http;
+  internshipBookmarks: typeof internshipBookmarks;
   internships: typeof internships;
   "lib/auth": typeof lib_auth;
   "lib/moderation": typeof lib_moderation;
