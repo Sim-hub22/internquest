@@ -254,6 +254,7 @@ export default function RecruiterQuizzesPage() {
             columns={columns}
             data={(quizzes ?? []) as RecruiterQuizRow[]}
             isLoading={quizzes === undefined}
+            getRowHref={(row) => `/recruiter/quizzes/${row._id}` as Route}
             searchPlaceholder="Search quiz title..."
             emptyMessage="No recruitment quizzes found."
             isRowSelectable={(row) => row.canDelete}

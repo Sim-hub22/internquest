@@ -351,6 +351,7 @@ export function RecruiterInternshipsPage() {
           columns={columns}
           data={results ?? []}
           isLoading={results === undefined}
+          getRowHref={(row) => `/recruiter/internships/${row._id}` as Route}
           searchPlaceholder="Search title or company…"
           emptyMessage="No internships found."
         />
