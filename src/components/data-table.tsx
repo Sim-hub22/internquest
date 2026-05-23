@@ -16,6 +16,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDownIcon } from "lucide-react";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ interface DataTableProps<TData> {
   isLoading?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
-  getRowHref?: (row: TData) => string;
+  getRowHref?: (row: TData) => Route;
   isRowSelectable?: (row: TData) => boolean;
   renderToolbarExtras?: (args: {
     selectedRows: TData[];
