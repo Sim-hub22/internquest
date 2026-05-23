@@ -55,6 +55,7 @@ import { api } from "@/convex/_generated/api";
 import type { Doc, Id } from "@/convex/_generated/dataModel";
 
 type AdminInternshipRow = Doc<"internships"> & {
+  effectiveStatus: "draft" | "open" | "closed";
   recruiter: {
     _id: Id<"users">;
     name: string;
@@ -97,7 +98,9 @@ export function AdminInternshipsPage() {
 
     return internships.filter((internship) => {
       const matchesStatus =
-        statusFilter === "all" ? true : internship.status === statusFilter;
+        statusFilter === "all"
+          ? true
+          : internship.effectiveStatus === statusFilter;
       const matchesModeration =
         moderationFilter === "all"
           ? true
@@ -153,11 +156,12 @@ export function AdminInternshipsPage() {
         );
       },
     }),
-    columnHelper.accessor("status", {
+    columnHelper.accessor("effectiveStatus", {
+      id: "status",
       header: "Status",
       cell: ({ row }) => (
         <div className="flex flex-wrap gap-2">
-          <InternshipStatusBadge status={row.original.status} />
+          <InternshipStatusBadge status={row.original.effectiveStatus} />
           {row.original.isClosedByAdmin ? (
             <Badge variant="destructive">Moderated</Badge>
           ) : null}

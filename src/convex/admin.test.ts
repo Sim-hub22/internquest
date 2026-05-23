@@ -30,6 +30,7 @@ function createInternshipSeed(
   overrides?: Partial<{
     title: string;
     status: "draft" | "open" | "closed";
+    applicationDeadline: number;
     createdAt: number;
   }>
 ) {
@@ -46,7 +47,8 @@ function createInternshipSeed(
     duration: "3 months",
     requirements: ["TypeScript"],
     status: overrides?.status ?? "open",
-    applicationDeadline: now + 10 * 24 * 60 * 60 * 1000,
+    applicationDeadline:
+      overrides?.applicationDeadline ?? now + 10 * 24 * 60 * 60 * 1000,
     viewCount: 0,
     createdAt: now,
     updatedAt: now,
@@ -126,6 +128,15 @@ describe("convex/admin", () => {
           createdAt: Date.parse("2026-03-22T08:00:00.000Z"),
         })
       );
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired Open Internship",
+          status: "open",
+          applicationDeadline: Date.parse("2026-03-23T08:00:00.000Z"),
+          createdAt: Date.parse("2026-03-21T08:00:00.000Z"),
+        })
+      );
 
       await ctx.db.insert("applications", {
         internshipId: openInternshipId,
@@ -171,12 +182,12 @@ describe("convex/admin", () => {
 
     expect(result.summary).toMatchObject({
       totalUsers: 4,
-      totalInternships: 2,
+      totalInternships: 3,
       totalApplications: 1,
       pendingReports: 1,
       suspendedUsers: 1,
       newApplicationsThisWeek: 1,
-      newInternshipsThisWeek: 2,
+      newInternshipsThisWeek: 3,
     });
     expect(
       result.usersByRole.find((entry) => entry.role === "candidate")?.count
@@ -185,11 +196,52 @@ describe("convex/admin", () => {
       result.internshipsByStatus.find((entry) => entry.status === "open")?.count
     ).toBe(1);
     expect(
+      result.internshipsByStatus.find((entry) => entry.status === "closed")
+        ?.count
+    ).toBe(1);
+    expect(
       result.trend.find((entry) => entry.date === "2026-03-24")
     ).toMatchObject({
       applications: 1,
       internships: 1,
     });
+  });
+
+  it("returns effective closed status for expired open internships", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "admin_internship_list_owner" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createUserSeed("recruiter_expired_status_seed", "recruiter")
+      );
+
+      await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Expired Open Internship",
+          status: "open",
+          applicationDeadline: Date.parse("2026-03-23T12:00:00.000Z"),
+        })
+      );
+    });
+
+    const internships = await t
+      .withIdentity(adminIdentity)
+      .query(api.admin.listInternships, {});
+
+    expect(internships).toEqual([
+      expect.objectContaining({
+        title: "Expired Open Internship",
+        status: "open",
+        effectiveStatus: "closed",
+      }),
+    ]);
   });
 
   it("omits admin accounts from user management data", async () => {

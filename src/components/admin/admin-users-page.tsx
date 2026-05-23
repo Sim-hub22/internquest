@@ -330,6 +330,7 @@ export function AdminUsersPage() {
           columns={columns}
           data={filteredUsers}
           isLoading={users === undefined}
+          getRowHref={(row) => `/admin/users/${row._id}` as Route}
           searchPlaceholder="Search name, username, or email..."
           emptyMessage="No users match the current filters."
         />

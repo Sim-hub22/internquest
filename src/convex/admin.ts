@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 
-import { Doc } from "@/convex/_generated/dataModel";
+import type { Doc } from "@/convex/_generated/dataModel";
 import { mutation, query } from "@/convex/_generated/server";
+import { getRecruiterFacingInternshipStatus } from "@/convex/internships";
 import { requireRole } from "@/convex/lib/auth";
 import {
   closeInternshipByAdmin,
@@ -98,8 +99,12 @@ export const getDashboard = query({
       }
     }
 
+    const now = Date.now();
+
     for (const internship of internships) {
-      internshipsByStatus[internship.status] += 1;
+      internshipsByStatus[
+        getRecruiterFacingInternshipStatus(internship, now)
+      ] += 1;
 
       if (internship.createdAt < trendStart) {
         continue;
@@ -232,8 +237,12 @@ export const getUserDetail = query({
       INTERNSHIP_STATUSES.map((status) => [status, 0])
     ) as Record<(typeof INTERNSHIP_STATUSES)[number], number>;
 
+    const now = Date.now();
+
     for (const internship of recruiterInternships) {
-      recruiterStatusCounts[internship.status] += 1;
+      recruiterStatusCounts[
+        getRecruiterFacingInternshipStatus(internship, now)
+      ] += 1;
     }
 
     const recruiterInternshipIds = recruiterInternships.map(
@@ -339,11 +348,14 @@ export const listInternships = query({
     ]);
     const userMap = new Map(users.map((user) => [user._id, user]));
 
+    const now = Date.now();
+
     return internships.map((internship) => {
       const recruiter = userMap.get(internship.recruiterId);
 
       return {
         ...internship,
+        effectiveStatus: getRecruiterFacingInternshipStatus(internship, now),
         recruiter: recruiter
           ? {
               _id: recruiter._id,
