@@ -12,6 +12,7 @@ import {
   ClipboardListIcon,
   LayoutDashboardIcon,
   ShieldIcon,
+  TagsIcon,
   UserIcon,
   UsersIcon,
 } from "lucide-react";
@@ -42,6 +43,8 @@ function getSidebarIcon(icon: SidebarIcon) {
       return <LayoutDashboardIcon />;
     case "shield":
       return <ShieldIcon />;
+    case "tags":
+      return <TagsIcon />;
     case "user":
       return <UserIcon />;
     case "users":

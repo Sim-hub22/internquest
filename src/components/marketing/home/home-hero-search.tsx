@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { ArrowRightIcon, SearchIcon } from "lucide-react";
+import { useQuery } from "convex/react";
 
 import {
-  INTERNSHIP_CATEGORIES,
-  toDisplayLabel,
+  getCategoryOptions,
 } from "@/components/internships/constants";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { api } from "@/convex/_generated/api";
 import { cn } from "@/lib/utils";
-
-type InternshipCategory = (typeof INTERNSHIP_CATEGORIES)[number];
 
 type HomeHeroSearchProps = {
   className?: string;
   defaultQuery?: string;
-  defaultCategory?: "all" | InternshipCategory;
+  defaultCategory?: string;
 };
 
 export function HomeHeroSearch({
@@ -37,9 +36,9 @@ export function HomeHeroSearch({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [query, setQuery] = useState(defaultQuery);
-  const [category, setCategory] = useState<"all" | InternshipCategory>(
-    defaultCategory
-  );
+  const [category, setCategory] = useState(defaultCategory);
+  const approvedCategories = useQuery(api.internshipCategories.listApproved);
+  const categoryOptions = getCategoryOptions(approvedCategories);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -89,18 +88,16 @@ export function HomeHeroSearch({
           <span className="sr-only">Filter by category</span>
           <Select
             value={category}
-            onValueChange={(value) =>
-              setCategory(value as "all" | InternshipCategory)
-            }
+            onValueChange={setCategory}
           >
             <SelectTrigger className="h-14 w-full rounded-[1.2rem] border-slate-200 bg-slate-50 px-4 text-sm shadow-none dark:border-slate-800 dark:bg-slate-900">
               <SelectValue placeholder="All categories" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All categories</SelectItem>
-              {INTERNSHIP_CATEGORIES.map((item) => (
-                <SelectItem key={item} value={item}>
-                  {toDisplayLabel(item)}
+              {categoryOptions.map((item) => (
+                <SelectItem key={item.slug} value={item.slug}>
+                  {item.name}
                 </SelectItem>
               ))}
             </SelectContent>

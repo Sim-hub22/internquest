@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { ApplicationResumePicker } from "@/components/internships/application-resume-picker";
 import {
   InternshipMeta,
+  getDisplayCategories,
   toDisplayLabel,
 } from "@/components/internships/constants";
 import { InternshipBookmarkButton } from "@/components/internships/internship-bookmark-button";
@@ -118,6 +119,7 @@ export function InternshipDetailPage({
   const selectedSavedResume =
     savedResumes?.find((resume) => resume._id === selectedCandidateResumeId) ??
     null;
+  const categories = internship ? getDisplayCategories(internship) : [];
 
   const resetFileInput = (inputRef: RefObject<HTMLInputElement | null>) => {
     if (inputRef.current) {
@@ -304,7 +306,14 @@ export function InternshipDetailPage({
           </BreadcrumbList>
         </Breadcrumb>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{toDisplayLabel(internship.category)}</Badge>
+          {categories.map((category, index) => (
+            <Badge
+              key={`${internship._id}-${category}`}
+              variant={index === 0 ? "default" : "outline"}
+            >
+              {toDisplayLabel(category)}
+            </Badge>
+          ))}
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <EyeIcon className="size-3.5" />
             {internship.viewCount} views

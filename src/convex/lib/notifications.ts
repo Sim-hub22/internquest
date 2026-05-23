@@ -8,7 +8,9 @@ type NotificationType =
   | "quiz_graded"
   | "new_internship"
   | "new_application"
-  | "new_resource";
+  | "new_resource"
+  | "category_request"
+  | "category_review";
 
 interface CreateNotificationArgs {
   userId: Id<"users">;

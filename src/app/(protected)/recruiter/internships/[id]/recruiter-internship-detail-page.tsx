@@ -14,6 +14,7 @@ import { InternshipAnalyticsSection } from "@/components/analytics/internship-an
 import {
   InternshipMeta,
   InternshipStatusBadge,
+  getDisplayCategories,
   toDisplayLabel,
 } from "@/components/internships/constants";
 import { RichTextContent } from "@/components/rich-text-content";
@@ -120,11 +121,20 @@ export function RecruiterInternshipDetailPage({
     );
   }
 
+  const categories = getDisplayCategories(internship);
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 p-4 lg:p-6">
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{toDisplayLabel(internship.category)}</Badge>
+          {categories.map((category, index) => (
+            <Badge
+              key={`${internship._id}-${category}`}
+              variant={index === 0 ? "default" : "outline"}
+            >
+              {toDisplayLabel(category)}
+            </Badge>
+          ))}
           <InternshipStatusBadge status={internship.effectiveStatus} />
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">

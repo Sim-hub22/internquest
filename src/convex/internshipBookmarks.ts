@@ -74,6 +74,7 @@ function summarizeInternship(internship: Doc<"internships"> | null) {
     title: internship.title,
     company: internship.company,
     category: internship.category,
+    categories: internship.categories,
     locationType: internship.locationType,
     duration: internship.duration,
     stipend: internship.stipend,

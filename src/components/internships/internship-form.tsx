@@ -2,7 +2,7 @@
 
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
@@ -12,7 +12,8 @@ import { toast } from "sonner";
 import { z } from "zod/v3";
 
 import {
-  INTERNSHIP_CATEGORIES,
+  getCategoryLabel,
+  getCategoryOptions,
   INTERNSHIP_STATUSES,
   LOCATION_TYPES,
   toDisplayLabel,
@@ -20,6 +21,7 @@ import {
 import { RichTextEditor } from "@/components/rich-text-editor";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
@@ -65,7 +67,8 @@ const internshipSchema = z.object({
   description: z
     .string()
     .min(10, "Description should be at least 10 characters"),
-  category: z.enum(INTERNSHIP_CATEGORIES),
+  category: z.string().min(1, "Select a primary category"),
+  categories: z.array(z.string()).min(1, "Select at least one category"),
   location: z.string().min(2, "Location is required"),
   locationType: z.enum(LOCATION_TYPES),
   duration: z.string().min(2, "Duration is required"),
@@ -95,6 +98,7 @@ const DEFAULT_VALUES: InternshipFormValues = {
   company: "",
   description: "",
   category: "technology",
+  categories: ["technology"],
   location: "",
   locationType: "remote",
   duration: "",
@@ -146,6 +150,10 @@ export function InternshipForm(props: InternshipFormProps) {
   const { isAuthenticated } = useConvexAuth();
   const createInternship = useMutation(api.internships.create);
   const updateInternship = useMutation(api.internships.update);
+  const requestCategory = useMutation(api.internshipCategories.request);
+  const approvedCategories = useQuery(api.internshipCategories.listApproved);
+  const [requestedCategoryName, setRequestedCategoryName] = useState("");
+  const [isRequestingCategory, setIsRequestingCategory] = useState(false);
 
   const internship = useQuery(
     api.internships.getForRecruiter,
@@ -158,6 +166,21 @@ export function InternshipForm(props: InternshipFormProps) {
     resolver: zodResolver(internshipSchema),
     defaultValues: DEFAULT_VALUES,
   });
+  const primaryCategory = form.watch("category");
+  const selectedCategories = form.watch("categories");
+  const categoryOptions = useMemo(() => {
+    const options = [...getCategoryOptions(approvedCategories)];
+    const currentSlugs = new Set(options.map((category) => category.slug));
+
+    for (const slug of [primaryCategory, ...selectedCategories]) {
+      if (slug && !currentSlugs.has(slug)) {
+        options.push({ slug, name: toDisplayLabel(slug) });
+        currentSlugs.add(slug);
+      }
+    }
+
+    return options;
+  }, [approvedCategories, primaryCategory, selectedCategories]);
 
   useEffect(() => {
     if (!internship || props.mode !== "edit") {
@@ -169,6 +192,10 @@ export function InternshipForm(props: InternshipFormProps) {
       company: internship.company,
       description: internship.description,
       category: internship.category,
+      categories:
+        internship.categories && internship.categories.length > 0
+          ? Array.from(new Set([internship.category, ...internship.categories]))
+          : [internship.category],
       location: internship.location,
       locationType: internship.locationType,
       duration: internship.duration,
@@ -197,6 +224,9 @@ export function InternshipForm(props: InternshipFormProps) {
       .split("\n")
       .map((value) => value.trim())
       .filter(Boolean);
+    const categories = Array.from(
+      new Set([values.category, ...values.categories])
+    );
 
     if (requirements.length === 0) {
       toast.error("Add at least one requirement");
@@ -210,6 +240,7 @@ export function InternshipForm(props: InternshipFormProps) {
           company: values.company,
           description: values.description,
           category: values.category,
+          categories,
           location: values.location,
           locationType: values.locationType,
           duration: values.duration,
@@ -229,6 +260,7 @@ export function InternshipForm(props: InternshipFormProps) {
           company: values.company,
           description: values.description,
           category: values.category,
+          categories,
           location: values.location,
           locationType: values.locationType,
           duration: values.duration,
@@ -247,6 +279,35 @@ export function InternshipForm(props: InternshipFormProps) {
       toast.error("Failed to save internship");
     } finally {
       setSubmitIntent(null);
+    }
+  };
+
+  const handleRequestCategory = async () => {
+    const name = requestedCategoryName.trim();
+
+    if (!name) {
+      toast.error("Enter a category name to request");
+      return;
+    }
+
+    try {
+      setIsRequestingCategory(true);
+      const requestedCategory = await requestCategory({ name });
+
+      if (requestedCategory?.status === "pending") {
+        toast.success("Category request sent for admin review");
+      } else {
+        toast.success("Category request updated");
+      }
+
+      setRequestedCategoryName("");
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error ? error.message : "Unable to request category"
+      );
+    } finally {
+      setIsRequestingCategory(false);
     }
   };
 
@@ -331,13 +392,28 @@ export function InternshipForm(props: InternshipFormProps) {
             <FieldLegend className="sr-only">Classification</FieldLegend>
 
             <Field data-invalid={!!form.formState.errors.category}>
-              <FieldLabel>Category</FieldLabel>
+              <FieldLabel>Primary Category</FieldLabel>
               <FieldContent>
                 <Controller
                   name="category"
                   control={form.control}
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        const current = form.getValues("categories");
+                        if (
+                          !current.includes(value)
+                        ) {
+                          form.setValue(
+                            "categories",
+                            [...current, value],
+                            { shouldDirty: true, shouldValidate: true }
+                          );
+                        }
+                      }}
+                    >
                       <SelectTrigger
                         className="w-full"
                         aria-invalid={!!form.formState.errors.category}
@@ -346,9 +422,9 @@ export function InternshipForm(props: InternshipFormProps) {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {INTERNSHIP_CATEGORIES.map((item) => (
-                            <SelectItem key={item} value={item}>
-                              {toDisplayLabel(item)}
+                          {categoryOptions.map((item) => (
+                            <SelectItem key={item.slug} value={item.slug}>
+                              {item.name}
                             </SelectItem>
                           ))}
                         </SelectGroup>
@@ -356,6 +432,9 @@ export function InternshipForm(props: InternshipFormProps) {
                     </Select>
                   )}
                 />
+                <FieldDescription>
+                  Used as the main reporting category.
+                </FieldDescription>
                 <FieldError errors={[form.formState.errors.category]} />
               </FieldContent>
             </Field>
@@ -425,6 +504,85 @@ export function InternshipForm(props: InternshipFormProps) {
               </Field>
             ) : null}
           </FieldSet>
+
+          <Field data-invalid={!!form.formState.errors.categories}>
+            <FieldLabel>Additional Categories</FieldLabel>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {categoryOptions.map((item) => {
+                const checked = selectedCategories.includes(item.slug);
+                const isPrimary = primaryCategory === item.slug;
+
+                return (
+                  <label
+                    key={item.slug}
+                    className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={isPrimary}
+                      onCheckedChange={(nextChecked) => {
+                        const current = form.getValues("categories");
+                        if (nextChecked) {
+                          form.setValue(
+                            "categories",
+                            Array.from(new Set([...current, item.slug])),
+                            { shouldDirty: true, shouldValidate: true }
+                          );
+                          return;
+                        }
+
+                        form.setValue(
+                          "categories",
+                          current.filter((category) => category !== item.slug),
+                          { shouldDirty: true, shouldValidate: true }
+                        );
+                      }}
+                    />
+                    <span>{getCategoryLabel(item.slug, categoryOptions)}</span>
+                    {isPrimary ? (
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        Primary
+                      </span>
+                    ) : null}
+                  </label>
+                );
+              })}
+            </div>
+            <FieldDescription>
+              Select every area this internship fits so candidates can find
+              cross-domain roles.
+            </FieldDescription>
+            <div className="flex flex-col gap-2 rounded-md border bg-muted/20 p-3 sm:flex-row sm:items-center">
+              <Input
+                value={requestedCategoryName}
+                onChange={(event) =>
+                  setRequestedCategoryName(event.target.value)
+                }
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    void handleRequestCategory();
+                  }
+                }}
+                placeholder="Request a new category"
+                className="bg-background"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleRequestCategory}
+                disabled={isRequestingCategory}
+                className="sm:w-auto"
+              >
+                {isRequestingCategory ? <Spinner /> : <PlusIcon />}
+                Request
+              </Button>
+            </div>
+            <FieldDescription>
+              Requested categories become available after admin approval.
+            </FieldDescription>
+            <FieldError errors={[form.formState.errors.categories]} />
+          </Field>
 
           <FieldSet className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <FieldLegend className="sr-only">Details</FieldLegend>

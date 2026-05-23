@@ -36,6 +36,15 @@ function createInternshipSeed(
       | "finance"
       | "healthcare"
       | "other";
+    categories: (
+      | "technology"
+      | "business"
+      | "design"
+      | "marketing"
+      | "finance"
+      | "healthcare"
+      | "other"
+    )[];
     viewCount: number;
     applicationDeadline: number;
   }>
@@ -48,6 +57,7 @@ function createInternshipSeed(
     company: "InternQuest",
     description: "desc",
     category: overrides?.category ?? "technology",
+    ...(overrides?.categories ? { categories: overrides.categories } : {}),
     location: "Kathmandu",
     locationType: "remote" as const,
     duration: "3 months",
@@ -399,6 +409,7 @@ describe("convex/analytics", () => {
         createInternshipSeed(recruiterId, {
           title: "Platform Engineering Intern",
           category: "technology",
+          categories: ["technology", "design"],
           viewCount: 10,
         })
       );
@@ -968,6 +979,15 @@ describe("convex/analytics", () => {
           applicationDeadline: Date.parse("2026-04-02T12:00:00.000Z"),
         })
       );
+      const secondaryCategoryMatchId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Technical Project Management Internship",
+          category: "business",
+          categories: ["business", "technology"],
+          applicationDeadline: Date.parse("2026-04-03T12:00:00.000Z"),
+        })
+      );
       await ctx.db.insert(
         "internships",
         createInternshipSeed(recruiterId, {
@@ -1085,6 +1105,7 @@ describe("convex/analytics", () => {
       return {
         appliedInternshipId,
         matchingInternshipId,
+        secondaryCategoryMatchId,
         expiredMatchingInternshipId,
         appliedApplicationId,
         quizApplicationId,
@@ -1122,6 +1143,9 @@ describe("convex/analytics", () => {
     ).not.toContain(seededIds.expiredMatchingInternshipId);
     expect(
       result.matchingInternships.map((internship) => internship.internshipId)
-    ).toEqual([seededIds.matchingInternshipId]);
+    ).toEqual([
+      seededIds.matchingInternshipId,
+      seededIds.secondaryCategoryMatchId,
+    ]);
   });
 });

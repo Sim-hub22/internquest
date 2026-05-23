@@ -15,20 +15,32 @@ export function ClerkProvider({
   ...props
 }: ClerkProviderProps) {
   const { theme } = useTheme();
+  const mergedAppearance = {
+    ...appearance,
+    theme: shadcn,
+    elements: {
+      footerItem: {
+        display: "none",
+      },
+      footer: {
+        "& > :not(:first-child)": {
+          display: "none",
+        },
+      },
+      ...appearance?.elements,
+    },
+    options: {
+      socialButtonsPlacement: "bottom",
+      unsafe_disableDevelopmentModeWarnings: true,
+      logoImageUrl:
+        theme === "dark" ? "/internquest-dark.svg" : "/internquest-light.svg",
+      ...appearance?.options,
+    },
+  } as ClerkProviderProps["appearance"];
+
   return (
     <ClerkNextJsProvider
-      appearance={{
-        theme: shadcn,
-        options: {
-          socialButtonsPlacement: "bottom",
-          unsafe_disableDevelopmentModeWarnings: true,
-          logoImageUrl:
-            theme === "dark"
-              ? "/internquest-dark.svg"
-              : "/internquest-light.svg",
-        },
-        ...appearance,
-      }}
+      appearance={mergedAppearance}
       localization={{
         formFieldInputPlaceholder__username: "Enter your username",
         ...localization,

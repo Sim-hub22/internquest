@@ -1,8 +1,6 @@
 import { Metadata } from "next";
 
-import { SignUp } from "@clerk/nextjs";
-
-import { Spinner } from "@/components/ui/spinner";
+import { CustomSignUpForm } from "@/components/auth/custom-sign-up-form";
 
 export const metadata: Metadata = {
   title: "Sign Up",
@@ -11,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function SignUpPage() {
-  return <SignUp fallback={<Spinner className="size-10 text-primary" />} />;
+  return <CustomSignUpForm />;
 }

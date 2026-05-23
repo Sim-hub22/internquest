@@ -11,15 +11,24 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
-export const INTERNSHIP_CATEGORIES = [
-  "technology",
-  "business",
-  "design",
-  "marketing",
-  "finance",
-  "healthcare",
-  "other",
+export const DEFAULT_INTERNSHIP_CATEGORIES = [
+  { slug: "technology", name: "Technology" },
+  { slug: "business", name: "Business" },
+  { slug: "design", name: "Design" },
+  { slug: "marketing", name: "Marketing" },
+  { slug: "finance", name: "Finance" },
+  { slug: "healthcare", name: "Healthcare" },
+  { slug: "other", name: "Other" },
 ] as const;
+
+export const INTERNSHIP_CATEGORIES = DEFAULT_INTERNSHIP_CATEGORIES.map(
+  (category) => category.slug
+);
+
+export type InternshipCategoryOption = {
+  slug: string;
+  name: string;
+};
 
 export const LOCATION_TYPES = ["remote", "onsite", "hybrid"] as const;
 
@@ -37,9 +46,35 @@ export function formatInternshipStipend(stipend?: number, emptyLabel?: string) {
 
 export function toDisplayLabel(value: string) {
   return value
-    .split("_")
+    .split(/[-_]/)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+export function getCategoryOptions(
+  categories: InternshipCategoryOption[] | undefined
+) {
+  return categories && categories.length > 0
+    ? categories
+    : DEFAULT_INTERNSHIP_CATEGORIES;
+}
+
+export function getCategoryLabel(
+  slug: string,
+  categories?: InternshipCategoryOption[]
+) {
+  return (
+    categories?.find((category) => category.slug === slug)?.name ??
+    toDisplayLabel(slug)
+  );
+}
+
+export function getDisplayCategories<
+  T extends { category: string; categories?: string[] },
+>(internship: T) {
+  return Array.from(
+    new Set([internship.category, ...(internship.categories ?? [])])
+  );
 }
 
 export function InternshipStatusBadge({ status }: { status: string }) {

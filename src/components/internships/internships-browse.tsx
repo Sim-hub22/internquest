@@ -9,7 +9,7 @@ import { usePreloadedQuery, useQuery } from "convex/react";
 import { BriefcaseBusinessIcon, SearchIcon } from "lucide-react";
 
 import {
-  INTERNSHIP_CATEGORIES,
+  getCategoryOptions,
   LOCATION_TYPES,
   toDisplayLabel,
 } from "@/components/internships/constants";
@@ -44,10 +44,9 @@ type InternshipsBrowseProps = {
   showCreateCta?: boolean;
   preloadedListResults: Preloaded<typeof api.internships.listPublic>;
   initialSearch?: string;
-  initialCategory?: "all" | InternshipCategory;
+  initialCategory?: string;
 };
 
-type InternshipCategory = (typeof INTERNSHIP_CATEGORIES)[number];
 type InternshipLocationType = (typeof LOCATION_TYPES)[number];
 
 const PAGE_SIZE = 9;
@@ -59,9 +58,7 @@ export function InternshipsBrowse({
   initialCategory = "all",
 }: InternshipsBrowseProps) {
   const [search, setSearch] = useState(initialSearch);
-  const [category, setCategory] = useState<"all" | InternshipCategory>(
-    initialCategory
-  );
+  const [category, setCategory] = useState(initialCategory);
   const [locationType, setLocationType] = useState<
     "all" | InternshipLocationType
   >("all");
@@ -86,6 +83,8 @@ export function InternshipsBrowse({
     cursor === null;
 
   const ssrListResults = usePreloadedQuery(preloadedListResults);
+  const approvedCategories = useQuery(api.internshipCategories.listApproved);
+  const categoryOptions = getCategoryOptions(approvedCategories);
 
   const dynamicListResults = useQuery(
     api.internships.listPublic,
@@ -175,7 +174,7 @@ export function InternshipsBrowse({
         <Select
           value={category}
           onValueChange={(value) => {
-            setCategory(value as "all" | InternshipCategory);
+            setCategory(value);
             resetPagination();
           }}
         >
@@ -184,9 +183,9 @@ export function InternshipsBrowse({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All categories</SelectItem>
-            {INTERNSHIP_CATEGORIES.map((item) => (
-              <SelectItem key={item} value={item}>
-                {toDisplayLabel(item)}
+            {categoryOptions.map((item) => (
+              <SelectItem key={item.slug} value={item.slug}>
+                {item.name}
               </SelectItem>
             ))}
           </SelectContent>

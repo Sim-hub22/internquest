@@ -4,6 +4,10 @@ import { Doc, Id } from "@/convex/_generated/dataModel";
 import { QueryCtx, query } from "@/convex/_generated/server";
 import { getRecruiterFacingInternshipStatus } from "@/convex/internships";
 import { requireRole } from "@/convex/lib/auth";
+import {
+  getApprovedCategoryOptions,
+  toCategoryName,
+} from "@/convex/lib/internshipCategories";
 import { calculateProfileCompleteness } from "@/lib/profile-completeness";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -39,24 +43,21 @@ const ACTIVE_PIPELINE_STATUSES = new Set<ApplicationStatus>([
   "quiz_completed",
 ]);
 
-const INTERNSHIP_CATEGORIES = [
-  "technology",
-  "business",
-  "design",
-  "marketing",
-  "finance",
-  "healthcare",
-  "other",
-] as const;
-
 type ApplicationStatus = (typeof APPLICATION_STATUSES)[number];
-type InternshipCategory = (typeof INTERNSHIP_CATEGORIES)[number];
 
 function toDisplayLabel(value: string) {
   return value
-    .split("_")
+    .split(/[-_]/)
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(" ");
+}
+
+function getInternshipCategories(
+  internship: Pick<Doc<"internships">, "category" | "categories">
+): string[] {
+  return Array.from(
+    new Set([internship.category, ...(internship.categories ?? [])])
+  );
 }
 
 function getUtcDayStart(timestamp: number) {
@@ -328,8 +329,8 @@ function internshipMatchesProfile(
     return false;
   }
 
-  const matchesCategory = profile.preferredCategories.includes(
-    internship.category
+  const matchesCategory = profile.preferredCategories.some((category) =>
+    getInternshipCategories(internship).includes(category)
   );
   const matchesLocationType =
     !profile?.preferredLocationType ||
@@ -408,6 +409,7 @@ export const getRecruiterAnalyticsDashboard = query({
   handler: async (ctx) => {
     const recruiter = await requireRole(ctx, "recruiter");
     const internships = await listRecruiterInternships(ctx, recruiter._id);
+    const approvedCategories = await getApprovedCategoryOptions(ctx);
 
     if (internships.length === 0) {
       return {
@@ -424,9 +426,9 @@ export const getRecruiterAnalyticsDashboard = query({
             applications,
           })
         ),
-        categoryPerformance: INTERNSHIP_CATEGORIES.map((category) => ({
-          category,
-          label: toDisplayLabel(category),
+        categoryPerformance: approvedCategories.map((category) => ({
+          category: category.slug,
+          label: category.name,
           views: 0,
           applications: 0,
           acceptedApplications: 0,
@@ -488,20 +490,20 @@ export const getRecruiterAnalyticsDashboard = query({
     }
 
     const categoryMap = new Map<
-      InternshipCategory,
+      string,
       {
-        category: InternshipCategory;
+        category: string;
         label: string;
         views: number;
         applications: number;
         acceptedApplications: number;
       }
     >(
-      INTERNSHIP_CATEGORIES.map((category) => [
-        category,
+      approvedCategories.map((category) => [
+        category.slug,
         {
-          category,
-          label: toDisplayLabel(category),
+          category: category.slug,
+          label: category.name,
           views: 0,
           applications: 0,
           acceptedApplications: 0,
@@ -510,10 +512,17 @@ export const getRecruiterAnalyticsDashboard = query({
     );
 
     for (const stat of internshipStats) {
-      const categoryEntry = categoryMap.get(stat.internship.category);
+      let categoryEntry = categoryMap.get(stat.internship.category);
 
       if (!categoryEntry) {
-        continue;
+        categoryEntry = {
+          category: stat.internship.category,
+          label: toCategoryName(stat.internship.category),
+          views: 0,
+          applications: 0,
+          acceptedApplications: 0,
+        };
+        categoryMap.set(stat.internship.category, categoryEntry);
       }
 
       categoryEntry.views += stat.internship.viewCount;
@@ -823,6 +832,7 @@ export const getCandidateDashboardOverview = query({
       title: string;
       company: string;
       category: Doc<"internships">["category"];
+      categories: Doc<"internships">["categories"];
       locationType: Doc<"internships">["locationType"];
       applicationDeadline: number;
       stipend?: number;
@@ -835,6 +845,7 @@ export const getCandidateDashboardOverview = query({
         title: internship.title,
         company: internship.company,
         category: internship.category,
+        categories: internship.categories,
         locationType: internship.locationType,
         applicationDeadline: internship.applicationDeadline,
         ...(internship.stipend === undefined

@@ -10,17 +10,14 @@ import {
   query,
 } from "@/convex/_generated/server";
 import { getCurrentUser, requireRole } from "@/convex/lib/auth";
+import {
+  assertApprovedCategorySlugs,
+  normalizeCategorySlug,
+  normalizeCategorySlugs,
+} from "@/convex/lib/internshipCategories";
 import { createNotification } from "@/convex/lib/notifications";
 
-const internshipCategoryValidator = v.union(
-  v.literal("technology"),
-  v.literal("business"),
-  v.literal("design"),
-  v.literal("marketing"),
-  v.literal("finance"),
-  v.literal("healthcare"),
-  v.literal("other")
-);
+type InternshipCategory = Doc<"internships">["category"];
 
 const locationTypeValidator = v.union(
   v.literal("remote"),
@@ -74,9 +71,20 @@ function assertRecruiterCanManageInternship(internship: Doc<"internships">) {
 
 function includesMatchingCategory(
   preferredCategories: string[] | undefined,
-  internshipCategory: Doc<"internships">["category"]
+  internshipCategories: InternshipCategory[]
 ) {
-  return preferredCategories?.includes(internshipCategory) ?? false;
+  return (
+    preferredCategories?.some((category) =>
+      internshipCategories.includes(category)
+    ) ?? false
+  );
+}
+
+function getInternshipCategories(
+  internship: Pick<Doc<"internships">, "category" | "categories">
+): InternshipCategory[] {
+  const categories = internship.categories ?? [];
+  return Array.from(new Set([internship.category, ...categories]));
 }
 
 function isInternshipPubliclyActive(
@@ -163,11 +171,14 @@ function paginateInternshipSlice(
 function matchesPublicInternshipFilters(
   internship: Doc<"internships">,
   filters: {
-    category?: Doc<"internships">["category"];
+    category?: InternshipCategory;
     locationType?: Doc<"internships">["locationType"];
   }
 ) {
-  if (filters.category && internship.category !== filters.category) {
+  if (
+    filters.category &&
+    !getInternshipCategories(internship).includes(filters.category)
+  ) {
     return false;
   }
 
@@ -235,7 +246,8 @@ export const create = mutation({
     title: v.string(),
     company: v.string(),
     description: v.string(),
-    category: internshipCategoryValidator,
+    category: v.string(),
+    categories: v.optional(v.array(v.string())),
     location: v.string(),
     locationType: locationTypeValidator,
     duration: v.string(),
@@ -251,12 +263,17 @@ export const create = mutation({
     ensureFutureDeadline(args.applicationDeadline);
 
     const now = Date.now();
+    const category = normalizeCategorySlug(args.category);
+    const categories = normalizeCategorySlugs(category, args.categories);
+    await assertApprovedCategorySlugs(ctx, categories);
+
     const internshipId = await ctx.db.insert("internships", {
       recruiterId: recruiter._id,
       title: args.title.trim(),
       company: args.company.trim(),
       description: args.description,
-      category: args.category,
+      category,
+      categories,
       location: args.location.trim(),
       locationType: args.locationType,
       duration: args.duration.trim(),
@@ -291,7 +308,8 @@ export const update = mutation({
     title: v.string(),
     company: v.string(),
     description: v.string(),
-    category: internshipCategoryValidator,
+    category: v.string(),
+    categories: v.optional(v.array(v.string())),
     location: v.string(),
     locationType: locationTypeValidator,
     duration: v.string(),
@@ -316,6 +334,9 @@ export const update = mutation({
     assertRecruiterCanManageInternship(internship);
 
     ensureFutureDeadline(args.applicationDeadline);
+    const category = normalizeCategorySlug(args.category);
+    const categories = normalizeCategorySlugs(category, args.categories);
+    await assertApprovedCategorySlugs(ctx, categories);
 
     const shouldNotifyMatches =
       !isInternshipPubliclyActive(internship) &&
@@ -328,7 +349,8 @@ export const update = mutation({
       title: args.title.trim(),
       company: args.company.trim(),
       description: args.description,
-      category: args.category,
+      category,
+      categories,
       location: args.location.trim(),
       locationType: args.locationType,
       duration: args.duration.trim(),
@@ -565,7 +587,7 @@ export const listAllForRecruiter = query({
 
 export const listPublic = query({
   args: {
-    category: v.optional(internshipCategoryValidator),
+    category: v.optional(v.string()),
     locationType: v.optional(locationTypeValidator),
     sortBy: v.union(
       v.literal("newest"),
@@ -576,9 +598,12 @@ export const listPublic = query({
   },
   handler: async (ctx, args) => {
     const now = Date.now();
+    const category = args.category
+      ? normalizeCategorySlug(args.category)
+      : undefined;
     const matchesFilters = (internship: Doc<"internships">) =>
       matchesPublicInternshipFilters(internship, {
-        category: args.category,
+        category,
         locationType: args.locationType,
       });
     const buildResponse = async (internships: Doc<"internships">[]) => {
@@ -634,33 +659,6 @@ export const listPublic = query({
       };
     }
 
-    if (args.category && args.locationType) {
-      const internships = await ctx.db
-        .query("internships")
-        .withIndex("by_category_and_status_and_locationType", (q) =>
-          q
-            .eq("category", args.category!)
-            .eq("status", "open")
-            .eq("locationType", args.locationType!)
-        )
-        .order("desc")
-        .take(MAX_PUBLIC_INTERNSHIP_SCAN);
-
-      return await buildResponse(internships);
-    }
-
-    if (args.category) {
-      const internships = await ctx.db
-        .query("internships")
-        .withIndex("by_category_and_status", (q) =>
-          q.eq("category", args.category!).eq("status", "open")
-        )
-        .order("desc")
-        .take(MAX_PUBLIC_INTERNSHIP_SCAN);
-
-      return await buildResponse(internships);
-    }
-
     if (args.locationType) {
       const internships = await ctx.db
         .query("internships")
@@ -686,13 +684,16 @@ export const listPublic = query({
 export const searchPublic = query({
   args: {
     query: v.string(),
-    category: v.optional(internshipCategoryValidator),
+    category: v.optional(v.string()),
     locationType: v.optional(locationTypeValidator),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const searchTerm = args.query.trim();
     const now = Date.now();
+    const category = args.category
+      ? normalizeCategorySlug(args.category)
+      : undefined;
 
     if (!searchTerm) {
       return {
@@ -707,10 +708,6 @@ export const searchPublic = query({
       .withSearchIndex("search_internships", (q) => {
         let scoped = q.search("title", searchTerm).eq("status", "open");
 
-        if (args.category) {
-          scoped = scoped.eq("category", args.category);
-        }
-
         if (args.locationType) {
           scoped = scoped.eq("locationType", args.locationType);
         }
@@ -720,7 +717,15 @@ export const searchPublic = query({
       .take(MAX_PUBLIC_INTERNSHIP_SCAN);
 
     const filtered = await filterPublicInternships(ctx, internships, now);
-    return paginateInternshipSlice(filtered, args.paginationOpts);
+    return paginateInternshipSlice(
+      filtered.filter((internship) =>
+        matchesPublicInternshipFilters(internship, {
+          category,
+          locationType: args.locationType,
+        })
+      ),
+      args.paginationOpts
+    );
   },
 });
 
@@ -804,7 +809,7 @@ export const notifyMatchingCandidates = internalMutation({
     for (const profile of profiles) {
       const matchesCategory = includesMatchingCategory(
         profile.preferredCategories,
-        internship.category
+        getInternshipCategories(internship)
       );
       const matchesLocationType =
         profile.preferredLocationType === internship.locationType;

@@ -111,7 +111,7 @@ export default function CandidateBookmarksPage() {
                     {bookmark.isAvailable ? "Open" : bookmark.unavailableReason}
                   </Badge>
                   {bookmark.internship ? (
-                    <Badge variant="outline">
+                    <Badge>
                       {toDisplayLabel(bookmark.internship.category)}
                     </Badge>
                   ) : null}

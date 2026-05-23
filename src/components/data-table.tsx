@@ -16,6 +16,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDownIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -38,6 +39,12 @@ import {
 } from "@/components/ui/table";
 
 const PAGE_SIZE = 10;
+const ROW_CLICK_IGNORE_SELECTOR =
+  "a, button, input, textarea, select, [role=\"button\"], [role=\"checkbox\"], [data-row-click-ignore]";
+
+function shouldIgnoreRowClick(target: EventTarget | null) {
+  return target instanceof Element && target.closest(ROW_CLICK_IGNORE_SELECTOR);
+}
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
@@ -45,6 +52,7 @@ interface DataTableProps<TData> {
   isLoading?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  getRowHref?: (row: TData) => string;
   isRowSelectable?: (row: TData) => boolean;
   renderToolbarExtras?: (args: {
     selectedRows: TData[];
@@ -58,9 +66,11 @@ export function DataTable<TData>({
   isLoading = false,
   searchPlaceholder = "Search…",
   emptyMessage = "No results.",
+  getRowHref,
   isRowSelectable,
   renderToolbarExtras,
 }: DataTableProps<TData>) {
+  const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [columnVisibility, setColumnVisibility] =
@@ -186,21 +196,45 @@ export function DataTable<TData>({
                 </TableRow>
               ))
             ) : table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const rowHref = getRowHref?.(row.original);
+
+                return (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    tabIndex={rowHref ? 0 : undefined}
+                    role={rowHref ? "link" : undefined}
+                    className={rowHref ? "cursor-pointer" : undefined}
+                    onClick={(event) => {
+                      if (!rowHref || shouldIgnoreRowClick(event.target)) {
+                        return;
+                      }
+
+                      router.push(rowHref);
+                    }}
+                    onKeyDown={(event) => {
+                      if (!rowHref || shouldIgnoreRowClick(event.target)) {
+                        return;
+                      }
+
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        router.push(rowHref);
+                      }
+                    }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

@@ -10,6 +10,7 @@ export type SidebarIcon =
   | "dashboard"
   | "settings"
   | "shield"
+  | "tags"
   | "user"
   | "users"
   | "logout";
@@ -58,6 +59,7 @@ const ADMIN_NAV: SidebarNavItem[] = [
   },
   { title: "Users", url: "/admin/users", icon: "users" },
   { title: "Internships", url: "/admin/internships", icon: "briefcase" },
+  { title: "Categories", url: "/admin/categories", icon: "tags" },
   { title: "Blog", url: "/admin/blog", icon: "book-open" },
   { title: "Quizzes", url: "/admin/quizzes", icon: "clipboard-list" },
   { title: "Reports", url: "/admin/reports", icon: "shield" },

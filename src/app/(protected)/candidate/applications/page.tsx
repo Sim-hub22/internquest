@@ -214,6 +214,9 @@ export default function CandidateApplicationsPage() {
         columns={columns}
         data={(results ?? []) as ApplicationRow[]}
         isLoading={results === undefined}
+        getRowHref={(row) =>
+          `/candidate/applications/${row.application._id}` as Route
+        }
         searchPlaceholder="Search internship or company…"
         emptyMessage="No applications found."
       />

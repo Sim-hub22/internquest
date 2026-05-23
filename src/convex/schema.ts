@@ -97,6 +97,26 @@ export default defineSchema({
     .index("by_candidate_and_internship", ["candidateId", "internshipId"])
     .index("by_internship", ["internshipId"]),
 
+  internshipCategories: defineTable({
+    name: v.string(),
+    slug: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("approved"),
+      v.literal("rejected")
+    ),
+    requestedBy: v.optional(v.id("users")),
+    reviewedBy: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    adminNotes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_status", ["status"])
+    .index("by_status_and_slug", ["status", "slug"])
+    .index("by_requestedBy", ["requestedBy"]),
+
   // ─── Internships ─────────────────────────────────────────────────────────────
 
   internships: defineTable({
@@ -104,15 +124,8 @@ export default defineSchema({
     title: v.string(),
     company: v.string(),
     description: v.string(),
-    category: v.union(
-      v.literal("technology"),
-      v.literal("business"),
-      v.literal("design"),
-      v.literal("marketing"),
-      v.literal("finance"),
-      v.literal("healthcare"),
-      v.literal("other")
-    ),
+    category: v.string(),
+    categories: v.optional(v.array(v.string())),
     location: v.string(),
     locationType: v.union(
       v.literal("remote"),
@@ -333,7 +346,9 @@ export default defineSchema({
       v.literal("quiz_graded"),
       v.literal("new_internship"),
       v.literal("new_application"),
-      v.literal("new_resource")
+      v.literal("new_resource"),
+      v.literal("category_request"),
+      v.literal("category_review")
     ),
     title: v.string(),
     message: v.string(),

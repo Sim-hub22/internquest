@@ -8,16 +8,10 @@ import {
   query,
 } from "@/convex/_generated/server";
 import { requireAnyRole, requireRole } from "@/convex/lib/auth";
-
-const categoryValidator = v.union(
-  v.literal("technology"),
-  v.literal("business"),
-  v.literal("design"),
-  v.literal("marketing"),
-  v.literal("finance"),
-  v.literal("healthcare"),
-  v.literal("other")
-);
+import {
+  assertApprovedCategorySlugs,
+  normalizeCategorySlug,
+} from "@/convex/lib/internshipCategories";
 
 const locationTypeValidator = v.union(
   v.literal("remote"),
@@ -124,6 +118,18 @@ function normalizeLinks(links: {
   };
 }
 
+function normalizePreferredCategories(categories: string[] | undefined) {
+  if (!categories?.length) {
+    return undefined;
+  }
+
+  const normalized = Array.from(
+    new Set(categories.map(normalizeCategorySlug).filter(Boolean))
+  );
+
+  return normalized.length > 0 ? normalized : undefined;
+}
+
 async function profileByUserId(
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">
@@ -172,7 +178,7 @@ export const upsert = mutation({
       linkedin: v.optional(v.string()),
       portfolio: v.optional(v.string()),
     }),
-    preferredCategories: v.optional(v.array(categoryValidator)),
+    preferredCategories: v.optional(v.array(v.string())),
     preferredLocationType: v.optional(locationTypeValidator),
     location: v.optional(v.string()),
   },
@@ -180,6 +186,13 @@ export const upsert = mutation({
     const candidate = await requireRole(ctx, "candidate");
     const existingProfile = await profileByUserId(ctx, candidate._id);
     const now = Date.now();
+    const preferredCategories = normalizePreferredCategories(
+      args.preferredCategories
+    );
+
+    if (preferredCategories) {
+      await assertApprovedCategorySlugs(ctx, preferredCategories);
+    }
 
     const profilePatch = {
       education: normalizeEducation(args.education),
@@ -193,8 +206,8 @@ export const upsert = mutation({
       ...(trimOptionalString(args.location)
         ? { location: trimOptionalString(args.location) }
         : {}),
-      ...(args.preferredCategories && args.preferredCategories.length > 0
-        ? { preferredCategories: args.preferredCategories }
+      ...(preferredCategories
+        ? { preferredCategories }
         : {}),
       ...(args.preferredLocationType
         ? { preferredLocationType: args.preferredLocationType }

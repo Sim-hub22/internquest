@@ -13,6 +13,10 @@ import { toast } from "sonner";
 import { z } from "zod/v3";
 
 import { CandidateResumeLibrarySection } from "@/components/candidate-resume-library-section";
+import {
+  getCategoryOptions,
+  toDisplayLabel,
+} from "@/components/internships/constants";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +29,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Field,
   FieldContent,
+  FieldDescription,
   FieldError,
   FieldLabel,
 } from "@/components/ui/field";
@@ -39,22 +44,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/convex/_generated/api";
-
-const INTERNSHIP_CATEGORIES = [
-  "technology",
-  "business",
-  "design",
-  "marketing",
-  "finance",
-  "healthcare",
-  "other",
-] as const;
-
-function isInternshipCategory(
-  value: string
-): value is (typeof INTERNSHIP_CATEGORIES)[number] {
-  return (INTERNSHIP_CATEGORIES as readonly string[]).includes(value);
-}
 
 const LOCATION_TYPES = ["remote", "onsite", "hybrid"] as const;
 const PROFICIENCY_LEVELS = ["beginner", "intermediate", "advanced"] as const;
@@ -82,7 +71,7 @@ const emptyExperience = {
 const profileFormSchema = z.object({
   headline: z.string().optional(),
   location: z.string().optional(),
-  preferredCategories: z.array(z.enum(INTERNSHIP_CATEGORIES)),
+  preferredCategories: z.array(z.string()),
   preferredLocationType: z.enum(LOCATION_TYPES).optional(),
   education: z.array(
     z.object({
@@ -131,13 +120,6 @@ const DEFAULT_VALUES: ProfileFormValues = {
   },
 };
 
-function toDisplayLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
 function trimOrUndefined(value: string | undefined) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
@@ -164,6 +146,7 @@ export function CandidateProfileForm() {
     api.candidateProfiles.current,
     isAuthenticated ? {} : "skip"
   );
+  const approvedCategories = useQuery(api.internshipCategories.listApproved);
   const upsertProfile = useMutation(api.candidateProfiles.upsert);
 
   const form = useForm<ProfileFormValues>({
@@ -199,9 +182,7 @@ export function CandidateProfileForm() {
     form.reset({
       headline: profile.headline ?? "",
       location: profile.location ?? "",
-      preferredCategories: (profile.preferredCategories ?? []).filter(
-        isInternshipCategory
-      ),
+      preferredCategories: profile.preferredCategories ?? [],
       preferredLocationType: profile.preferredLocationType,
       education:
         profile.education.length > 0
@@ -243,6 +224,7 @@ export function CandidateProfileForm() {
       control: form.control,
       name: "preferredCategories",
     }) ?? [];
+  const categoryOptions = getCategoryOptions(approvedCategories);
 
   if (isLoading || (isAuthenticated && profile === undefined)) {
     return (
@@ -373,13 +355,17 @@ export function CandidateProfileForm() {
           <CardContent className="space-y-4">
             <Field>
               <FieldLabel>Preferred Categories</FieldLabel>
+              <FieldDescription>
+                Select every area you are open to so cross-domain internships
+                can match your profile.
+              </FieldDescription>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {INTERNSHIP_CATEGORIES.map((category) => {
-                  const checked = preferredCategories.includes(category);
+                {categoryOptions.map((category) => {
+                  const checked = preferredCategories.includes(category.slug);
 
                   return (
                     <label
-                      key={category}
+                      key={category.slug}
                       className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
                     >
                       <Checkbox
@@ -390,18 +376,18 @@ export function CandidateProfileForm() {
                           if (isChecked) {
                             form.setValue("preferredCategories", [
                               ...current,
-                              category,
+                              category.slug,
                             ]);
                             return;
                           }
 
                           form.setValue(
                             "preferredCategories",
-                            current.filter((item) => item !== category)
+                            current.filter((item) => item !== category.slug)
                           );
                         }}
                       />
-                      {toDisplayLabel(category)}
+                      {category.name}
                     </label>
                   );
                 })}

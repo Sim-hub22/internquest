@@ -258,9 +258,7 @@ export function CandidateDashboardPage() {
                       <div className="space-y-2">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-medium">{internship.title}</p>
-                          <Badge variant="outline">
-                            {toDisplayLabel(internship.category)}
-                          </Badge>
+                          <Badge>{toDisplayLabel(internship.category)}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
                           {internship.company}

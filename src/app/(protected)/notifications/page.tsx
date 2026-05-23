@@ -51,6 +51,8 @@ const NOTIFICATION_TYPES = [
   "new_internship",
   "new_application",
   "new_resource",
+  "category_request",
+  "category_review",
 ] as const;
 
 type NotificationType = (typeof NOTIFICATION_TYPES)[number];

@@ -8,10 +8,14 @@ import { useEffect, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { toast } from "sonner";
 
+import {
+  getCategoryOptions,
+  toDisplayLabel,
+} from "@/components/internships/constants";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,25 +28,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/convex/_generated/api";
 
-const INTERNSHIP_CATEGORIES = [
-  "technology",
-  "business",
-  "design",
-  "marketing",
-  "finance",
-  "healthcare",
-  "other",
-] as const;
-
 const LOCATION_TYPES = ["remote", "onsite", "hybrid"] as const;
 
-type Category = (typeof INTERNSHIP_CATEGORIES)[number];
 type LocationType = (typeof LOCATION_TYPES)[number];
 
 type WizardState = {
   headline: string;
   location: string;
-  preferredCategories: Category[];
+  preferredCategories: string[];
   preferredLocationType: LocationType | "";
   educationInstitution: string;
   educationDegree: string;
@@ -87,13 +80,6 @@ const STEP_TITLES = [
   "Links & Save",
 ] as const;
 
-function toDisplayLabel(value: string) {
-  return value
-    .split("_")
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
 function trimOrUndefined(value: string) {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
@@ -116,6 +102,7 @@ export function CandidateProfileWizard() {
     api.candidateProfiles.current,
     isAuthenticated ? {} : "skip"
   );
+  const approvedCategories = useQuery(api.internshipCategories.listApproved);
   const upsertProfile = useMutation(api.candidateProfiles.upsert);
 
   const [step, setStep] = useState(1);
@@ -133,7 +120,7 @@ export function CandidateProfileWizard() {
     setFormState({
       headline: profile.headline ?? "",
       location: profile.location ?? "",
-      preferredCategories: (profile.preferredCategories ?? []) as Category[],
+      preferredCategories: profile.preferredCategories ?? [],
       preferredLocationType: (profile.preferredLocationType ?? "") as
         | LocationType
         | "",
@@ -175,7 +162,7 @@ export function CandidateProfileWizard() {
     }));
   };
 
-  const toggleCategory = (category: Category, checked: boolean) => {
+  const toggleCategory = (category: string, checked: boolean) => {
     setFormState((previous) => {
       if (checked) {
         return {
@@ -195,6 +182,7 @@ export function CandidateProfileWizard() {
 
   const nextStep = () => setStep((previous) => Math.min(5, previous + 1));
   const previousStep = () => setStep((previous) => Math.max(1, previous - 1));
+  const categoryOptions = getCategoryOptions(approvedCategories);
 
   const submitWizard = async () => {
     const educationInstitution = formState.educationInstitution.trim();
@@ -338,21 +326,25 @@ export function CandidateProfileWizard() {
             <>
               <Field>
                 <FieldLabel>Preferred Categories</FieldLabel>
+                <FieldDescription>
+                  Select every area you are open to so cross-domain internships
+                  can match your profile.
+                </FieldDescription>
                 <div className="grid gap-2 sm:grid-cols-2">
-                  {INTERNSHIP_CATEGORIES.map((category) => (
+                  {categoryOptions.map((category) => (
                     <label
                       className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm"
-                      key={category}
+                      key={category.slug}
                     >
                       <Checkbox
                         checked={formState.preferredCategories.includes(
-                          category
+                          category.slug
                         )}
                         onCheckedChange={(checked) =>
-                          toggleCategory(category, Boolean(checked))
+                          toggleCategory(category.slug, Boolean(checked))
                         }
                       />
-                      {toDisplayLabel(category)}
+                      {category.name}
                     </label>
                   ))}
                 </div>

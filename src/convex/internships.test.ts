@@ -36,6 +36,15 @@ function createInternshipSeed(
       | "finance"
       | "healthcare"
       | "other";
+    categories: (
+      | "technology"
+      | "business"
+      | "design"
+      | "marketing"
+      | "finance"
+      | "healthcare"
+      | "other"
+    )[];
     locationType: "remote" | "onsite" | "hybrid";
     stipend: number;
     status: "draft" | "open" | "closed";
@@ -51,6 +60,7 @@ function createInternshipSeed(
     company: "InternQuest",
     description: "Great internship",
     category: overrides?.category ?? "technology",
+    ...(overrides?.categories ? { categories: overrides.categories } : {}),
     location: "Kathmandu",
     locationType: overrides?.locationType ?? "remote",
     duration: "3 months",
@@ -169,7 +179,8 @@ describe("convex/internships", () => {
         title: "  Frontend Intern  ",
         company: "  Acme  ",
         description: "desc",
-        category: "technology",
+        category: "business",
+        categories: ["technology", "business", "technology"],
         location: "  Kathmandu  ",
         locationType: "remote",
         duration: " 3 months ",
@@ -192,6 +203,8 @@ describe("convex/internships", () => {
     expect(created?.location).toBe("Kathmandu");
     expect(created?.duration).toBe("3 months");
     expect(created?.requirements).toEqual(["React", "TypeScript"]);
+    expect(created?.category).toBe("business");
+    expect(created?.categories).toEqual(["business", "technology"]);
     expect(created?.viewCount).toBe(0);
   });
 
@@ -344,6 +357,7 @@ describe("convex/internships", () => {
       company: "Updated Co",
       description: "updated",
       category: "business",
+      categories: ["technology", "business"],
       location: "Pokhara",
       locationType: "hybrid",
       duration: "6 months",
@@ -363,6 +377,7 @@ describe("convex/internships", () => {
     expect(updated?.title).toBe("Updated Title");
     expect(updated?.status).toBe("open");
     expect(updated?.category).toBe("business");
+    expect(updated?.categories).toEqual(["business", "technology"]);
 
     await expect(
       t.withIdentity(otherIdentity).mutation(api.internships.updateStatus, {
@@ -768,6 +783,7 @@ describe("convex/internships", () => {
         createInternshipSeed(recruiterId, {
           title: "Open Business Onsite",
           category: "business",
+          categories: ["business", "technology"],
           locationType: "onsite",
           status: "open",
           applicationDeadline: Date.now() + 2 * 86_400_000,
@@ -814,13 +830,15 @@ describe("convex/internships", () => {
 
     const technologyRemote = await t.query(api.internships.listPublic, {
       category: "technology",
-      locationType: "remote",
+      locationType: undefined,
       sortBy: "newest",
       paginationOpts: { numItems: 20, cursor: null },
     });
 
-    expect(technologyRemote.page).toHaveLength(1);
-    expect(technologyRemote.page[0]?.title).toBe("Open Technology Remote");
+    expect(technologyRemote.page.map((item) => item.title).sort()).toEqual([
+      "Open Business Onsite",
+      "Open Technology Remote",
+    ]);
 
     const deadlineSorted = await t.query(api.internships.listPublic, {
       category: undefined,
@@ -952,6 +970,8 @@ describe("convex/internships", () => {
         "internships",
         createInternshipSeed(recruiterId, {
           title: "Backend Platform Internship",
+          category: "business",
+          categories: ["business", "technology"],
           status: "open",
         })
       );
@@ -983,6 +1003,21 @@ describe("convex/internships", () => {
 
     expect(results.page).toHaveLength(1);
     expect(results.page[0]?.title).toBe("Frontend Engineering Internship");
+
+    const secondaryCategoryResults = await t.query(
+      api.internships.searchPublic,
+      {
+        query: "backend",
+        category: "technology",
+        locationType: undefined,
+        paginationOpts: { numItems: 10, cursor: null },
+      }
+    );
+
+    expect(secondaryCategoryResults.page).toHaveLength(1);
+    expect(secondaryCategoryResults.page[0]?.title).toBe(
+      "Backend Platform Internship"
+    );
   });
 
   it("hides orphaned open internships from public search", async () => {
@@ -1124,6 +1159,59 @@ describe("convex/internships", () => {
     });
 
     expect(internship).toBeNull();
+  });
+
+  it("notifies candidates when their preferred category matches a secondary listing category", async () => {
+    const t = convexTest(schema, modules);
+
+    const { candidateId, internshipId } = await t.run(async (ctx) => {
+      const recruiterId = await ctx.db.insert(
+        "users",
+        createTestUser("recruiter_secondary_notification", "recruiter")
+      );
+      const candidateId = await ctx.db.insert(
+        "users",
+        createTestUser("candidate_secondary_notification", "candidate")
+      );
+
+      await ctx.db.insert("candidateProfiles", {
+        userId: candidateId,
+        education: [],
+        skills: [],
+        experience: [],
+        links: {},
+        preferredCategories: ["technology"],
+        updatedAt: Date.now(),
+      });
+
+      const internshipId = await ctx.db.insert(
+        "internships",
+        createInternshipSeed(recruiterId, {
+          title: "Project Management Internship",
+          category: "business",
+          categories: ["business", "technology"],
+          status: "open",
+        })
+      );
+
+      return { candidateId, internshipId };
+    });
+
+    await t.mutation(internal.internships.notifyMatchingCandidates, {
+      internshipId,
+    });
+
+    const notifications = await t.run(async (ctx) => {
+      return await ctx.db
+        .query("notifications")
+        .withIndex("by_user", (q) => q.eq("userId", candidateId))
+        .collect();
+    });
+
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]?.title).toBe(
+      "New internship: Project Management Internship"
+    );
   });
 
   it("rejects reopening an expired listing through status-only updates", async () => {

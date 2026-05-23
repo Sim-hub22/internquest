@@ -11,7 +11,9 @@ const notificationTypeValidator = v.union(
   v.literal("quiz_graded"),
   v.literal("new_internship"),
   v.literal("new_application"),
-  v.literal("new_resource")
+  v.literal("new_resource"),
+  v.literal("category_request"),
+  v.literal("category_review")
 );
 
 /** List the current user's unread notifications (most recent first, max 20). */

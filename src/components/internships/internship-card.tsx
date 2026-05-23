@@ -52,8 +52,8 @@ export function InternshipCard({
             <InternshipBookmarkButton internshipId={internship._id} />
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="outline">{toDisplayLabel(internship.category)}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge>{toDisplayLabel(internship.category)}</Badge>
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <EyeIcon className="size-3.5" />
             {internship.viewCount}
