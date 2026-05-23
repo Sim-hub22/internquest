@@ -43,8 +43,16 @@ const PAGE_SIZE = 10;
 const ROW_CLICK_IGNORE_SELECTOR =
   "a, button, input, textarea, select, [role=\"button\"], [role=\"checkbox\"], [data-row-click-ignore]";
 
-function shouldIgnoreRowClick(target: EventTarget | null) {
-  return target instanceof Element && target.closest(ROW_CLICK_IGNORE_SELECTOR);
+function shouldIgnoreRowClick(
+  target: EventTarget | null,
+  currentTarget: EventTarget | null
+) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  const interactiveElement = target.closest(ROW_CLICK_IGNORE_SELECTOR);
+  return interactiveElement !== null && interactiveElement !== currentTarget;
 }
 
 interface DataTableProps<TData> {
@@ -54,6 +62,7 @@ interface DataTableProps<TData> {
   searchPlaceholder?: string;
   emptyMessage?: string;
   getRowHref?: (row: TData) => Route;
+  onRowClick?: (row: TData) => void;
   isRowSelectable?: (row: TData) => boolean;
   renderToolbarExtras?: (args: {
     selectedRows: TData[];
@@ -68,6 +77,7 @@ export function DataTable<TData>({
   searchPlaceholder = "Search…",
   emptyMessage = "No results.",
   getRowHref,
+  onRowClick,
   isRowSelectable,
   renderToolbarExtras,
 }: DataTableProps<TData>) {
@@ -199,29 +209,46 @@ export function DataTable<TData>({
             ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => {
                 const rowHref = getRowHref?.(row.original);
+                const hasRowAction = rowHref !== undefined || onRowClick;
 
                 return (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
-                    tabIndex={rowHref ? 0 : undefined}
-                    role={rowHref ? "link" : undefined}
-                    className={rowHref ? "cursor-pointer" : undefined}
+                    tabIndex={hasRowAction ? 0 : undefined}
+                    role={
+                      rowHref ? "link" : onRowClick ? "button" : undefined
+                    }
+                    className={hasRowAction ? "cursor-pointer" : undefined}
                     onClick={(event) => {
-                      if (!rowHref || shouldIgnoreRowClick(event.target)) {
+                      if (
+                        !hasRowAction ||
+                        shouldIgnoreRowClick(event.target, event.currentTarget)
+                      ) {
                         return;
                       }
 
-                      router.push(rowHref);
+                      if (rowHref) {
+                        router.push(rowHref);
+                      } else {
+                        onRowClick?.(row.original);
+                      }
                     }}
                     onKeyDown={(event) => {
-                      if (!rowHref || shouldIgnoreRowClick(event.target)) {
+                      if (
+                        !hasRowAction ||
+                        shouldIgnoreRowClick(event.target, event.currentTarget)
+                      ) {
                         return;
                       }
 
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        router.push(rowHref);
+                        if (rowHref) {
+                          router.push(rowHref);
+                        } else {
+                          onRowClick?.(row.original);
+                        }
                       }
                     }}
                   >

@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 
 import { type ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { EyeIcon, ShieldAlertIcon } from "lucide-react";
+import { ShieldAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { DataTable } from "@/components/data-table";
@@ -217,31 +217,14 @@ export function AdminReportsPage() {
         );
       },
     }),
-    columnHelper.display({
-      id: "actions",
-      enableHiding: false,
-      cell: ({ row }) => (
-        <Button
-          variant="outline"
-          size="sm"
-          className="whitespace-nowrap"
-          onClick={() => {
-            setSelectedReportId(row.original._id);
-            setReviewStatus(
-              row.original.status === "pending" ? "reviewed" : "resolved"
-            );
-            setReviewAction("none");
-            setReviewNotes(
-              row.original.reviewNotes ?? row.original.details ?? ""
-            );
-          }}
-        >
-          <EyeIcon />
-          Review
-        </Button>
-      ),
-    }),
   ] as ColumnDef<AdminReportRow>[];
+
+  const openReportReview = (report: AdminReportRow) => {
+    setSelectedReportId(report._id);
+    setReviewStatus(report.status === "pending" ? "reviewed" : "resolved");
+    setReviewAction("none");
+    setReviewNotes(report.reviewNotes ?? report.details ?? "");
+  };
 
   const actionOptions = getActionOptions(selectedReport?.target?.type);
 
@@ -342,6 +325,7 @@ export function AdminReportsPage() {
           columns={columns}
           data={reports ?? []}
           isLoading={reports === undefined}
+          onRowClick={openReportReview}
           searchPlaceholder="Search target, reporter, or reason..."
           emptyMessage="No reports match the current filters."
         />

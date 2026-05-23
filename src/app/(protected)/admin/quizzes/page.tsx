@@ -248,6 +248,7 @@ export default function AdminQuizzesPage() {
             columns={columns}
             data={(quizzes ?? []) as AdminQuizRow[]}
             isLoading={quizzes === undefined}
+            getRowHref={(row) => `/admin/quizzes/${row._id}` as Route}
             searchPlaceholder="Search quiz title…"
             emptyMessage="No sample quizzes found."
             isRowSelectable={(row) => row.canDelete}

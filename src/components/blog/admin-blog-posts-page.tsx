@@ -247,6 +247,7 @@ export function AdminBlogPostsPage() {
           columns={columns}
           data={filteredPosts as BlogPostRow[]}
           isLoading={posts === undefined}
+          getRowHref={(row) => `/admin/blog/${row._id}` as Route}
           searchPlaceholder="Search resource title..."
           emptyMessage="No resources match that filter."
           renderToolbarExtras={({ selectedRows }) =>

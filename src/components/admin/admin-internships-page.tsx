@@ -317,6 +317,7 @@ export function AdminInternshipsPage() {
           columns={columns}
           data={filteredInternships}
           isLoading={internships === undefined}
+          getRowHref={(row) => `/internships/${row._id}` as Route}
           searchPlaceholder="Search listing, company, or recruiter..."
           emptyMessage="No internships match the current filters."
         />
