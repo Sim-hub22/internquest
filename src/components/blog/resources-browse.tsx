@@ -95,7 +95,11 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
   const remainingPosts = results?.page.slice(1) ?? [];
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.10),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,1))] dark:bg-[radial-gradient(circle_at_top,rgba(245,158,11,0.16),transparent_28%),linear-gradient(180deg,rgba(2,6,23,1),rgba(3,7,18,1))]">
+    <main className="relative isolate min-h-screen overflow-hidden bg-[linear-gradient(180deg,#F6F9FF_0%,#EDF3FF_34%,#FFFFFF_100%)] dark:bg-[linear-gradient(180deg,#08111f_0%,#0c1727_34%,#09121e_100%)]">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(15,23,42,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.04)_1px,transparent_1px)] mask-[linear-gradient(to_bottom,white,transparent_82%)] bg-size-[34px_34px] dark:bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)]"
+      />
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-8 px-4 py-10 lg:px-6 lg:py-14">
         <section className="grid gap-6 rounded-[2rem] border bg-background/85 p-6 shadow-sm backdrop-blur lg:grid-cols-[1.2fr_0.8fr] lg:p-8">
           <div className="space-y-5">
@@ -151,7 +155,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
 
           <div className="grid gap-4 rounded-[1.5rem] bg-slate-950 p-5 text-slate-50">
             <div className="space-y-2">
-              <p className="text-sm tracking-[0.22em] text-amber-200/80 uppercase">
+              <p className="text-sm tracking-[0.22em] text-[#AFC2FF] uppercase">
                 Practice Mode
               </p>
               <h2 className="text-2xl font-semibold tracking-tight">
@@ -170,7 +174,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
               </div>
               <Button
                 asChild
-                className="w-fit bg-amber-400 text-slate-950 hover:bg-amber-300"
+                className="w-fit bg-[linear-gradient(135deg,#1447E6,#3A66F0)] text-white shadow-lg shadow-[#1447E6]/25 hover:opacity-95"
               >
                 <Link href={"/resources/quizzes" as Route}>
                   Explore Quizzes
@@ -214,7 +218,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
                       className="h-full min-h-72 w-full object-cover lg:min-h-full"
                     />
                   ) : (
-                    <div className="h-full min-h-72 bg-[linear-gradient(135deg,rgba(249,115,22,0.18),rgba(250,204,21,0.12),rgba(255,255,255,0.04))]" />
+                    <div className="h-full min-h-72 bg-[linear-gradient(135deg,rgba(20,71,230,0.18),rgba(88,122,245,0.14),rgba(255,255,255,0.06))]" />
                   )}
                 </div>
 
@@ -266,7 +270,7 @@ export function ResourcesBrowse({ preloadedPosts }: ResourcesBrowseProps) {
                       className="aspect-16/10 w-full object-cover"
                     />
                   ) : (
-                    <div className="aspect-16/10 bg-[linear-gradient(140deg,rgba(251,191,36,0.18),rgba(255,255,255,0.06),rgba(59,130,246,0.10))]" />
+                    <div className="aspect-16/10 bg-[linear-gradient(140deg,rgba(20,71,230,0.16),rgba(255,255,255,0.06),rgba(88,122,245,0.14))]" />
                   )}
                   <div className="flex flex-1 flex-col gap-4 p-5">
                     <div className="flex flex-wrap items-center gap-2">
