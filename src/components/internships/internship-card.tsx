@@ -53,7 +53,9 @@ export function InternshipCard({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge>{toDisplayLabel(internship.category)}</Badge>
+          <Badge className="border-slate-300 bg-white text-slate-700 hover:bg-white">
+            {toDisplayLabel(internship.category)}
+          </Badge>
           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
             <EyeIcon className="size-3.5" />
             {internship.viewCount}
