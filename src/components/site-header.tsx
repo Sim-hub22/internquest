@@ -11,7 +11,7 @@ import { AuthLoading, Authenticated } from "convex/react";
 import { ModeToggle } from "@/components/mode-toggle";
 import { NotificationButton } from "@/components/notification-button";
 import { SiteHeaderBreadcrumbLabel } from "@/components/site-header-breadcrumb-label";
-import { getSiteHeaderBreadcrumbOverride } from "@/components/site-header-breadcrumb-overrides";
+import { getSiteHeaderBreadcrumbOverrides } from "@/components/site-header-breadcrumb-overrides";
 import { buildSiteHeaderBreadcrumbs } from "@/components/site-header-breadcrumbs";
 import {
   Breadcrumb,
@@ -29,7 +29,7 @@ export function SiteHeader() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const breadcrumbs = buildSiteHeaderBreadcrumbs(pathname);
-  const breadcrumbOverride = getSiteHeaderBreadcrumbOverride(
+  const breadcrumbOverrides = getSiteHeaderBreadcrumbOverrides(
     pathname,
     searchParams
   );
@@ -47,15 +47,17 @@ export function SiteHeader() {
         <Breadcrumb>
           <BreadcrumbList>
             {breadcrumbs.map((breadcrumb, index) => {
-              const label =
-                breadcrumbOverride?.href === breadcrumb.href ? (
-                  <SiteHeaderBreadcrumbLabel
-                    fallbackLabel={breadcrumb.label}
-                    override={breadcrumbOverride}
-                  />
-                ) : (
-                  breadcrumb.label
-                );
+              const breadcrumbOverride = breadcrumbOverrides.find(
+                (override) => override.href === breadcrumb.href
+              );
+              const label = breadcrumbOverride ? (
+                <SiteHeaderBreadcrumbLabel
+                  fallbackLabel={breadcrumb.label}
+                  override={breadcrumbOverride}
+                />
+              ) : (
+                breadcrumb.label
+              );
 
               return (
                 <Fragment key={breadcrumb.href}>

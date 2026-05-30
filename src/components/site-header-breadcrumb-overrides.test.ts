@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { getSiteHeaderBreadcrumbOverride } from "@/components/site-header-breadcrumb-overrides";
+import {
+  getSiteHeaderBreadcrumbOverride,
+  getSiteHeaderBreadcrumbOverrides,
+} from "@/components/site-header-breadcrumb-overrides";
 
 const INTERNSHIP_ID = "Jx75fzsdkqkvz5dfjx631pkrs1845bq6";
 const QUIZ_ID = "K972x5d9ggxbmhpbs11r9nmpnx84c7ea";
@@ -19,17 +22,25 @@ describe("getSiteHeaderBreadcrumbOverride", () => {
     });
   });
 
-  it("matches nested recruiter internship application routes", () => {
+  it("matches recruiter application detail routes", () => {
     expect(
-      getSiteHeaderBreadcrumbOverride(
+      getSiteHeaderBreadcrumbOverrides(
         `/recruiter/internships/${INTERNSHIP_ID}/applications/${APPLICATION_ID}`
       )
-    ).toEqual({
-      entity: "internship",
-      href: `/recruiter/internships/${INTERNSHIP_ID}`,
-      internshipId: INTERNSHIP_ID,
-      scope: "recruiter",
-    });
+    ).toEqual([
+      {
+        entity: "internship",
+        href: `/recruiter/internships/${INTERNSHIP_ID}`,
+        internshipId: INTERNSHIP_ID,
+        scope: "recruiter",
+      },
+      {
+        applicationId: APPLICATION_ID,
+        entity: "application",
+        href: `/recruiter/internships/${INTERNSHIP_ID}/applications/${APPLICATION_ID}`,
+        scope: "recruiter",
+      },
+    ]);
   });
 
   it("matches recruiter quiz result routes", () => {

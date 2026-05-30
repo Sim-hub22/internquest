@@ -628,6 +628,23 @@ export const getCandidateBreadcrumbLabel = query({
   },
 });
 
+export const getRecruiterBreadcrumbLabel = query({
+  args: {
+    applicationId: v.id("applications"),
+  },
+  handler: async (ctx, args) => {
+    const recruiter = await requireRole(ctx, "recruiter");
+    const { application } = await getApplicationForRecruiter(
+      ctx,
+      recruiter._id,
+      args.applicationId
+    );
+    const candidate = await ctx.db.get(application.candidateId);
+
+    return candidate?.name ?? "Candidate";
+  },
+});
+
 export const listForInternship = query({
   args: {
     internshipId: v.id("internships"),

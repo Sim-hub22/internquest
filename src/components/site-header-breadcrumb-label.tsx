@@ -109,6 +109,22 @@ function CandidateApplicationBreadcrumbLabel({
   );
 }
 
+function RecruiterApplicationBreadcrumbLabel({
+  applicationId,
+  fallbackLabel,
+}: {
+  applicationId: string;
+  fallbackLabel: string;
+}) {
+  const label = useQuery(api.applications.getRecruiterBreadcrumbLabel, {
+    applicationId: applicationId as Id<"applications">,
+  });
+
+  return (
+    <ResolvedBreadcrumbLabel fallbackLabel={fallbackLabel} label={label} />
+  );
+}
+
 function AdminBlogPostBreadcrumbLabel({
   fallbackLabel,
   postId,
@@ -148,6 +164,15 @@ export function SiteHeaderBreadcrumbLabel({
   }
 
   if (override.entity === "application") {
+    if (override.scope === "recruiter") {
+      return (
+        <RecruiterApplicationBreadcrumbLabel
+          applicationId={override.applicationId}
+          fallbackLabel={fallbackLabel}
+        />
+      );
+    }
+
     return (
       <CandidateApplicationBreadcrumbLabel
         applicationId={override.applicationId}

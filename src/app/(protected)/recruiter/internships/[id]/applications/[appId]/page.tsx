@@ -159,9 +159,6 @@ function RecruiterApplicationReviewContent({
         <h1 className="text-2xl font-semibold tracking-tight">
           {detail.internship.title}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          {detail.internship.company}
-        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

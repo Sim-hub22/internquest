@@ -163,7 +163,7 @@ function RecruiterApplicationsList({
                   </div>
                 </div>
 
-                <Button asChild>
+                <Button asChild size="sm">
                   <Link
                     href={`/recruiter/internships/${internshipId}/applications/${row.application._id}`}
                   >

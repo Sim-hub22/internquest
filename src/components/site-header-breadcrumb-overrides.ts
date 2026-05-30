@@ -17,7 +17,7 @@ export type SiteHeaderBreadcrumbOverride =
       applicationId: string;
       entity: "application";
       href: string;
-      scope: "candidate";
+      scope: "candidate" | "recruiter";
     }
   | {
       entity: "quiz";
@@ -37,11 +37,12 @@ function isConvexDocumentId(value: string | null | undefined): value is string {
   return /^[A-Za-z0-9]{20,}$/.test(value ?? "");
 }
 
-export function getSiteHeaderBreadcrumbOverride(
+export function getSiteHeaderBreadcrumbOverrides(
   pathname: string,
   searchParams?: SearchParamsLike | null
-): SiteHeaderBreadcrumbOverride | null {
+): SiteHeaderBreadcrumbOverride[] {
   const segments = pathname.split("/").filter(Boolean);
+  const overrides: SiteHeaderBreadcrumbOverride[] = [];
 
   if (
     segments[0] === "recruiter" &&
@@ -49,12 +50,32 @@ export function getSiteHeaderBreadcrumbOverride(
     !STATIC_RECRUITER_INTERNSHIP_SEGMENTS.has(segments[2] ?? "") &&
     isConvexDocumentId(segments[2])
   ) {
-    return {
+    overrides.push({
       entity: "internship",
       href: `/recruiter/internships/${segments[2]}`,
       internshipId: segments[2],
       scope: "recruiter",
-    };
+    });
+  }
+
+  if (
+    segments[0] === "recruiter" &&
+    segments[1] === "internships" &&
+    !STATIC_RECRUITER_INTERNSHIP_SEGMENTS.has(segments[2] ?? "") &&
+    isConvexDocumentId(segments[2]) &&
+    segments[3] === "applications" &&
+    isConvexDocumentId(segments[4])
+  ) {
+    overrides.push({
+      applicationId: segments[4],
+      entity: "application",
+      href: `/recruiter/internships/${segments[2]}/applications/${segments[4]}`,
+      scope: "recruiter",
+    });
+  }
+
+  if (overrides.length > 0) {
+    return overrides;
   }
 
   if (
@@ -63,12 +84,14 @@ export function getSiteHeaderBreadcrumbOverride(
     !STATIC_QUIZ_SEGMENTS.has(segments[2] ?? "") &&
     isConvexDocumentId(segments[2])
   ) {
-    return {
-      entity: "quiz",
-      href: `/recruiter/quizzes/${segments[2]}`,
-      quizId: segments[2],
-      scope: "recruiter",
-    };
+    return [
+      {
+        entity: "quiz",
+        href: `/recruiter/quizzes/${segments[2]}`,
+        quizId: segments[2],
+        scope: "recruiter",
+      },
+    ];
   }
 
   if (
@@ -77,12 +100,14 @@ export function getSiteHeaderBreadcrumbOverride(
     !STATIC_QUIZ_SEGMENTS.has(segments[2] ?? "") &&
     isConvexDocumentId(segments[2])
   ) {
-    return {
-      entity: "quiz",
-      href: `/admin/quizzes/${segments[2]}`,
-      quizId: segments[2],
-      scope: "admin",
-    };
+    return [
+      {
+        entity: "quiz",
+        href: `/admin/quizzes/${segments[2]}`,
+        quizId: segments[2],
+        scope: "admin",
+      },
+    ];
   }
 
   if (
@@ -90,12 +115,14 @@ export function getSiteHeaderBreadcrumbOverride(
     segments[1] === "applications" &&
     isConvexDocumentId(segments[2])
   ) {
-    return {
-      applicationId: segments[2],
-      entity: "application",
-      href: `/candidate/applications/${segments[2]}`,
-      scope: "candidate",
-    };
+    return [
+      {
+        applicationId: segments[2],
+        entity: "application",
+        href: `/candidate/applications/${segments[2]}`,
+        scope: "candidate",
+      },
+    ];
   }
 
   if (
@@ -105,13 +132,15 @@ export function getSiteHeaderBreadcrumbOverride(
   ) {
     const applicationId = searchParams?.get("applicationId");
 
-    return {
-      entity: "quiz",
-      href: `/candidate/quizzes/${segments[2]}`,
-      quizId: segments[2],
-      scope: "candidate",
-      ...(isConvexDocumentId(applicationId) ? { applicationId } : {}),
-    };
+    return [
+      {
+        entity: "quiz",
+        href: `/candidate/quizzes/${segments[2]}`,
+        quizId: segments[2],
+        scope: "candidate",
+        ...(isConvexDocumentId(applicationId) ? { applicationId } : {}),
+      },
+    ];
   }
 
   if (
@@ -120,13 +149,22 @@ export function getSiteHeaderBreadcrumbOverride(
     !STATIC_ADMIN_BLOG_SEGMENTS.has(segments[2] ?? "") &&
     isConvexDocumentId(segments[2])
   ) {
-    return {
-      entity: "blogPost",
-      href: `/admin/blog/${segments[2]}`,
-      postId: segments[2],
-      scope: "admin",
-    };
+    return [
+      {
+        entity: "blogPost",
+        href: `/admin/blog/${segments[2]}`,
+        postId: segments[2],
+        scope: "admin",
+      },
+    ];
   }
 
-  return null;
+  return [];
+}
+
+export function getSiteHeaderBreadcrumbOverride(
+  pathname: string,
+  searchParams?: SearchParamsLike | null
+): SiteHeaderBreadcrumbOverride | null {
+  return getSiteHeaderBreadcrumbOverrides(pathname, searchParams)[0] ?? null;
 }
