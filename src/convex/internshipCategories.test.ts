@@ -47,12 +47,29 @@ describe("convex/internshipCategories", () => {
 
     const categories = await t.query(api.internshipCategories.listApproved, {});
 
-    expect(categories.map((category) => category.slug)).toContain(
-      "technology"
-    );
+    expect(categories.map((category) => category.slug)).toContain("technology");
+    expect(categories.map((category) => category.slug)).not.toContain("other");
     expect(categories.every((category) => category.status === "approved")).toBe(
       true
     );
+  });
+
+  it("does not expose retired built-in categories from existing rows", async () => {
+    const t = convexTest(schema, modules);
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert("internshipCategories", {
+        name: "Other",
+        slug: "other",
+        status: "approved",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    });
+
+    const categories = await t.query(api.internshipCategories.listApproved, {});
+
+    expect(categories.map((category) => category.slug)).not.toContain("other");
   });
 
   it("allows recruiters to request categories and merges duplicate slugs", async () => {
@@ -240,7 +257,9 @@ describe("convex/internshipCategories", () => {
       link: "/recruiter/internships/new",
       relatedId: request?._id,
     });
-    expect(notifications[0]?.message).toContain("Please use Technology instead.");
+    expect(notifications[0]?.message).toContain(
+      "Please use Technology instead."
+    );
   });
 
   it("requires admin review before custom categories can be used", async () => {
@@ -275,16 +294,20 @@ describe("convex/internshipCategories", () => {
     ).rejects.toThrow("not an approved internship category");
 
     await expect(
-      t.withIdentity(recruiterIdentity).mutation(api.internshipCategories.review, {
-        categoryId: request!._id,
-        status: "approved",
-      })
+      t
+        .withIdentity(recruiterIdentity)
+        .mutation(api.internshipCategories.review, {
+          categoryId: request!._id,
+          status: "approved",
+        })
     ).rejects.toThrow("FORBIDDEN");
 
-    await t.withIdentity(adminIdentity).mutation(api.internshipCategories.review, {
-      categoryId: request!._id,
-      status: "approved",
-    });
+    await t
+      .withIdentity(adminIdentity)
+      .mutation(api.internshipCategories.review, {
+        categoryId: request!._id,
+        status: "approved",
+      });
 
     const approvedCategories = await t.query(
       api.internshipCategories.listApproved,

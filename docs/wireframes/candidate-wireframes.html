@@ -1,0 +1,1087 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>InternQuest Candidate Wireframes</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --ink: #111827;
+      --muted: #65758b;
+      --line: #dbe3ef;
+      --soft: #eef4ff;
+      --blue: #2563eb;
+      --blue-weak: #dbeafe;
+      --panel: #ffffff;
+      --shade: #e5e7eb;
+      --sidebar: #0f172a;
+      --sidebar-muted: #93a4bd;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    .board-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px 28px;
+      background: rgba(255, 255, 255, 0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(12px);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 240px;
+    }
+
+    .logo {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    .board-header h1 {
+      font-size: 18px;
+      line-height: 1.2;
+    }
+
+    .board-header p {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .frame-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .frame-nav a {
+      color: var(--blue);
+      background: var(--soft);
+      border: 1px solid var(--blue-weak);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    main {
+      display: grid;
+      gap: 46px;
+      padding: 34px 28px 70px;
+    }
+
+    .screen {
+      max-width: 1220px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .screen-title {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .screen-title strong {
+      display: block;
+      color: var(--ink);
+      font-size: 20px;
+      margin-bottom: 3px;
+    }
+
+    .wireframe-window {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 22px 50px rgba(15, 23, 42, 0.08);
+    }
+
+    .browser-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 38px;
+      padding: 0 16px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: #cbd5e1;
+    }
+
+    .url {
+      margin-left: 8px;
+      width: 320px;
+      max-width: 70%;
+      padding: 5px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: #fff;
+      font-size: 12px;
+    }
+
+    .app-shell {
+      display: grid;
+      min-height: 690px;
+      grid-template-columns: 224px 1fr;
+      background: #f8fafc;
+    }
+
+    .sidebar {
+      padding: 22px 16px;
+      background: var(--sidebar);
+      color: #fff;
+    }
+
+    .sidebar .brand-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+      font-weight: 700;
+    }
+
+    .mini-logo {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border-radius: 8px;
+      background: var(--blue);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .nav-group {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 30px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      padding: 9px 11px;
+      border-radius: 10px;
+      color: var(--sidebar-muted);
+      font-size: 13px;
+    }
+
+    .nav-item.active {
+      color: #fff;
+      background: rgba(37, 99, 235, 0.32);
+    }
+
+    .nav-icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      background: currentColor;
+      opacity: 0.42;
+    }
+
+    .sidebar-note {
+      margin-top: auto;
+      padding: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.24);
+      border-radius: 14px;
+      background: rgba(15, 23, 42, 0.4);
+      color: var(--sidebar-muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .main-area {
+      display: grid;
+      grid-template-rows: 64px 1fr;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 28px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .search {
+      width: min(420px, 55%);
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #f8fafc;
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: var(--shade);
+      border: 1px solid #cbd5e1;
+    }
+
+    .content {
+      padding: 28px;
+      min-width: 0;
+    }
+
+    .page-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 24px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .page-head h2 {
+      margin-top: 4px;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .page-head p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+    }
+
+    .btn.ghost {
+      background: #f8fafc;
+      color: var(--muted);
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .two-col {
+      grid-template-columns: minmax(0, 1.1fr) minmax(300px, 0.9fr);
+    }
+
+    .three-col {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .four-col {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+      padding: 18px;
+    }
+
+    .card h3 {
+      font-size: 16px;
+      margin-bottom: 6px;
+    }
+
+    .card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .metric {
+      min-height: 116px;
+    }
+
+    .metric .number {
+      margin-top: 14px;
+      font-size: 30px;
+      font-weight: 800;
+    }
+
+    .metric .caption {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .progress {
+      overflow: hidden;
+      height: 8px;
+      margin-top: 14px;
+      border-radius: 999px;
+      background: #e2e8f0;
+    }
+
+    .progress span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--blue);
+    }
+
+    .list {
+      display: grid;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .list-row {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfdff;
+    }
+
+    .thumb {
+      width: 38px;
+      height: 38px;
+      border-radius: 9px;
+      background: var(--shade);
+    }
+
+    .row-title {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .row-sub {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      padding: 0 9px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .pill.success {
+      color: var(--success);
+      background: #dcfce7;
+    }
+
+    .pill.warning {
+      color: var(--warning);
+      background: #fef3c7;
+    }
+
+    .pill.danger {
+      color: var(--danger);
+      background: #fee2e2;
+    }
+
+    .chart {
+      display: flex;
+      align-items: end;
+      gap: 14px;
+      min-height: 170px;
+      margin-top: 16px;
+      padding: 12px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .bar {
+      flex: 1;
+      min-width: 30px;
+      border-radius: 8px 8px 0 0;
+      background: #cbd5e1;
+    }
+
+    .bar.blue {
+      background: #93c5fd;
+    }
+
+    .table {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .table-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 0.8fr 0.8fr 0.6fr;
+      gap: 14px;
+      align-items: center;
+      min-height: 58px;
+      padding: 0 16px;
+      border-bottom: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .table-row:last-child {
+      border-bottom: 0;
+    }
+
+    .table-head {
+      min-height: 44px;
+      background: #f8fafc;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .input {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .input.search-wide {
+      flex: 1;
+      min-width: 240px;
+    }
+
+    .select {
+      width: 180px;
+    }
+
+    .timeline {
+      position: relative;
+      display: grid;
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 12px;
+    }
+
+    .timeline-dot {
+      width: 16px;
+      height: 16px;
+      margin-top: 3px;
+      border: 4px solid var(--blue-weak);
+      border-radius: 999px;
+      background: var(--blue);
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 16px;
+    }
+
+    .job-card {
+      display: grid;
+      gap: 13px;
+      min-height: 230px;
+    }
+
+    .job-card .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .job-card h3 {
+      margin-top: 6px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .empty-state {
+      display: grid;
+      min-height: 180px;
+      place-items: center;
+      text-align: center;
+      border: 1px dashed #cbd5e1;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+
+    .profile-hero {
+      display: grid;
+      grid-template-columns: 88px 1fr auto;
+      align-items: center;
+      gap: 18px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .profile-avatar {
+      width: 88px;
+      height: 88px;
+      border-radius: 22px;
+      background: var(--shade);
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .stat {
+      padding: 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .field .input {
+      width: 100%;
+      background: #f8fafc;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .textarea {
+      min-height: 92px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .stepper {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .step {
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .step.active {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: var(--soft);
+      font-weight: 800;
+    }
+
+    .quiz-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 16px;
+    }
+
+    .question {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .option {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #f8fafc;
+    }
+
+    .alert {
+      padding: 13px 15px;
+      border: 1px solid #fed7aa;
+      border-radius: 12px;
+      background: #fff7ed;
+      color: #9a3412;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .score {
+      display: grid;
+      min-height: 170px;
+      place-items: center;
+      text-align: center;
+      border-radius: 14px;
+      background: var(--soft);
+      color: var(--blue);
+    }
+
+    .score strong {
+      display: block;
+      font-size: 48px;
+    }
+
+    .footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    @media (max-width: 980px) {
+      .board-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .frame-nav {
+        justify-content: flex-start;
+      }
+
+      .app-shell {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+
+      .two-col,
+      .three-col,
+      .four-col,
+      .detail-grid,
+      .quiz-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .profile-hero {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="board-header">
+    <div class="brand">
+      <div class="logo">IQ</div>
+      <div>
+        <h1>InternQuest Candidate Wireframes</h1>
+        <p>Editable local board for candidate-only pages and protected shell.</p>
+      </div>
+    </div>
+    <nav class="frame-nav" aria-label="Candidate wireframe navigation">
+      <a href="#dashboard">Dashboard</a>
+      <a href="#applications">Applications</a>
+      <a href="#application-detail">Application Detail</a>
+      <a href="#bookmarks">Bookmarks</a>
+      <a href="#profile">Profile</a>
+      <a href="#profile-edit">Edit Profile</a>
+      <a href="#wizard">Wizard</a>
+      <a href="#quizzes">Quizzes</a>
+      <a href="#quiz-taking">Take Quiz</a>
+      <a href="#quiz-result">Quiz Result</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="screen" id="dashboard">
+      <div class="screen-title">
+        <div><strong>Candidate Dashboard</strong>/candidate/dashboard</div>
+        <span>Overview, matching opportunities, action queue, recent applications</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/dashboard</span></div>
+        <div class="app-shell">
+          <aside class="sidebar">
+            <div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div>
+            <div class="nav-group">
+              <div class="nav-item active"><span class="nav-icon"></span>Dashboard</div>
+              <div class="nav-item"><span class="nav-icon"></span>Applications</div>
+              <div class="nav-item"><span class="nav-icon"></span>Bookmarks</div>
+              <div class="nav-item"><span class="nav-icon"></span>Quizzes</div>
+              <div class="nav-item"><span class="nav-icon"></span>Profile</div>
+              <div class="nav-item"><span class="nav-icon"></span>Exit Portal</div>
+            </div>
+            <div class="sidebar-note">Candidate portal with application tracking, quiz tasks, and profile completion.</div>
+          </aside>
+          <section class="main-area">
+            <div class="topbar"><div class="search"></div><div class="user-chip"><span>Candidate</span><span class="avatar"></span></div></div>
+            <div class="content">
+              <div class="page-head">
+                <div>
+                  <div class="eyebrow">Candidate</div>
+                  <h2>Welcome back, Ayesha</h2>
+                  <p>Track your internship pipeline and finish the steps that improve your matches.</p>
+                </div>
+                <div class="actions"><span class="btn ghost">View Applications</span><span class="btn primary">Browse Internships</span></div>
+              </div>
+              <div class="grid four-col">
+                <div class="card metric"><h3>Profile Completeness</h3><div class="number">76%</div><div class="progress"><span style="width:76%"></span></div><div class="caption">Add projects and links to improve visibility.</div></div>
+                <div class="card metric"><h3>Applications</h3><div class="number">12</div><div class="caption">4 shortlisted, 3 under review</div></div>
+                <div class="card metric"><h3>Pending Quizzes</h3><div class="number">3</div><div class="caption">2 due within 48 hours</div></div>
+                <div class="card metric"><h3>Unread Updates</h3><div class="number">5</div><div class="caption">Latest from Product Labs</div></div>
+              </div>
+              <div class="grid two-col" style="margin-top:16px">
+                <div class="card">
+                  <h3>Matching Opportunities</h3>
+                  <p>Internships ranked by skills, preferences, and profile strength.</p>
+                  <div class="list">
+                    <div class="list-row"><span class="thumb"></span><div><div class="row-title">Frontend Engineering Intern</div><div class="row-sub">Nimbus Labs · Remote · 92% match</div></div><span class="pill">Apply</span></div>
+                    <div class="list-row"><span class="thumb"></span><div><div class="row-title">UX Research Intern</div><div class="row-sub">PixelWorks · Hybrid · 88% match</div></div><span class="pill">Saved</span></div>
+                    <div class="list-row"><span class="thumb"></span><div><div class="row-title">Data Analyst Intern</div><div class="row-sub">FinEdge · Kathmandu · 81% match</div></div><span class="pill">View</span></div>
+                  </div>
+                </div>
+                <div class="card">
+                  <h3>Action Queue</h3>
+                  <p>Priority tasks based on active applications.</p>
+                  <div class="list">
+                    <div class="list-row"><span class="thumb"></span><div><div class="row-title">Complete skill quiz</div><div class="row-sub">Due May 27, 2026</div></div><span class="pill warning">Due</span></div>
+                    <div class="list-row"><span class="thumb"></span><div><div class="row-title">Add portfolio link</div><div class="row-sub">Recommended for design roles</div></div><span class="pill">Profile</span></div>
+                    <div class="list-row"><span class="thumb"></span><div><div class="row-title">Read company update</div><div class="row-sub">Product Labs moved you to review</div></div><span class="pill success">New</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="grid two-col" style="margin-top:16px">
+                <div class="card"><h3>Recent Applications</h3><div class="list"><div class="list-row"><span class="thumb"></span><div><div class="row-title">Product Marketing Intern</div><div class="row-sub">Applied May 22, 2026</div></div><span class="pill warning">Review</span></div><div class="list-row"><span class="thumb"></span><div><div class="row-title">Backend Engineering Intern</div><div class="row-sub">Quiz submitted May 20, 2026</div></div><span class="pill success">Shortlisted</span></div></div></div>
+                <div class="card"><h3>Application Status</h3><div class="chart"><span class="bar blue" style="height:80%"></span><span class="bar" style="height:42%"></span><span class="bar blue" style="height:62%"></span><span class="bar" style="height:30%"></span><span class="bar blue" style="height:52%"></span></div></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="applications">
+      <div class="screen-title">
+        <div><strong>My Applications</strong>/candidate/applications</div>
+        <span>Status filters with application table</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/applications</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item active"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item"><span class="nav-icon"></span>Quizzes</div><div class="nav-item"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area">
+            <div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div>
+            <div class="content">
+              <div class="page-head"><div><div class="eyebrow">Pipeline</div><h2>My Applications</h2><p>Monitor every internship you have applied to and jump into next actions.</p></div><div class="actions"><span class="btn primary">Find More Roles</span></div></div>
+              <div class="filter-bar"><div class="input search-wide"></div><div class="input select"></div></div>
+              <div class="table">
+                <div class="table-row table-head"><span>Internship</span><span>Company</span><span>Status</span><span>Applied</span><span>Actions</span></div>
+                <div class="table-row"><strong>Frontend Engineering Intern</strong><span>Nimbus Labs</span><span class="pill warning">Under Review</span><span>May 21, 2026</span><span class="btn ghost">Open</span></div>
+                <div class="table-row"><strong>Backend Engineering Intern</strong><span>CloudNova</span><span class="pill success">Shortlisted</span><span>May 18, 2026</span><span class="btn ghost">Open</span></div>
+                <div class="table-row"><strong>UX Research Intern</strong><span>PixelWorks</span><span class="pill">Quiz Sent</span><span>May 15, 2026</span><span class="btn ghost">Open</span></div>
+                <div class="table-row"><strong>Product Marketing Intern</strong><span>BrightPath</span><span class="pill danger">Not Selected</span><span>May 10, 2026</span><span class="btn ghost">Open</span></div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="application-detail">
+      <div class="screen-title">
+        <div><strong>Application Detail</strong>/candidate/applications/[id]</div>
+        <span>Status timeline, quiz state, submitted material, internship snapshot</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/applications/app_1042</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item active"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item"><span class="nav-icon"></span>Quizzes</div><div class="nav-item"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area">
+            <div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div>
+            <div class="content">
+              <div class="page-head"><div><div class="eyebrow">Application</div><h2>Frontend Engineering Intern</h2><p>Nimbus Labs · Remote · Applied May 21, 2026</p></div><div class="actions"><span class="btn ghost">Back</span><span class="btn primary">Message Recruiter</span></div></div>
+              <div class="detail-grid">
+                <div class="grid">
+                  <div class="card"><h3>Current Status</h3><p>Your application is under review. A technical quiz has been assigned.</p><div class="stat-row"><div class="stat"><strong>Applied</strong><br>May 21, 2026</div><div class="stat"><strong>Updated</strong><br>May 24, 2026</div><div class="stat"><strong>Resume</strong><br>frontend-resume.pdf</div></div></div>
+                  <div class="card"><h3>Status Timeline</h3><div class="timeline"><div class="timeline-item"><span class="timeline-dot"></span><div><div class="row-title">Application submitted</div><div class="row-sub">Resume and cover letter received.</div></div></div><div class="timeline-item"><span class="timeline-dot"></span><div><div class="row-title">Screening started</div><div class="row-sub">Company moved application to review.</div></div></div><div class="timeline-item"><span class="timeline-dot"></span><div><div class="row-title">Quiz assigned</div><div class="row-sub">Complete before May 27, 2026.</div></div></div></div></div>
+                  <div class="card"><h3>Cover Letter</h3><p>I am excited to apply my React and UI engineering experience to your internship program...</p></div>
+                </div>
+                <aside class="grid">
+                  <div class="card"><h3>Assigned Quiz</h3><p>Frontend fundamentals · 8 questions · 30 minutes</p><div class="footer-actions"><span class="btn primary">Take Quiz</span></div></div>
+                  <div class="card"><h3>Internship Snapshot</h3><div class="list"><div class="row-sub">Category</div><div class="row-title">Software Development</div><div class="row-sub">Location</div><div class="row-title">Remote</div><div class="row-sub">Stipend</div><div class="row-title">$500/month</div></div></div>
+                </aside>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="bookmarks">
+      <div class="screen-title">
+        <div><strong>Bookmarks</strong>/candidate/bookmarks</div>
+        <span>Saved opportunities, availability state, empty state</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/bookmarks</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item active"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item"><span class="nav-icon"></span>Quizzes</div><div class="nav-item"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div><div class="content">
+            <div class="page-head"><div><div class="eyebrow">Saved</div><h2>Bookmarked Internships</h2><p>Keep track of roles you want to compare or apply to later.</p></div><span class="btn primary">Browse Internships</span></div>
+            <div class="grid three-col">
+              <div class="card job-card"><div class="top"><span class="thumb"></span><span class="pill success">Open</span></div><h3>Frontend Engineering Intern</h3><p>Nimbus Labs needs a React-focused intern for product UI work.</p><div class="meta"><span>Software</span><span>Remote</span><span>Deadline May 30</span><span>$500/mo</span></div><span class="btn primary">View Internship</span></div>
+              <div class="card job-card"><div class="top"><span class="thumb"></span><span class="pill success">Open</span></div><h3>UX Research Intern</h3><p>Conduct interviews, synthesize findings, and support product discovery.</p><div class="meta"><span>Design</span><span>Hybrid</span><span>Deadline Jun 4</span><span>$350/mo</span></div><span class="btn primary">View Internship</span></div>
+              <div class="card job-card"><div class="top"><span class="thumb"></span><span class="pill danger">Unavailable</span></div><h3>Data Analyst Intern</h3><p>This saved role is no longer accepting applications.</p><div class="meta"><span>Analytics</span><span>Kathmandu</span><span>Closed</span><span>$400/mo</span></div><span class="btn ghost">Review Details</span></div>
+            </div>
+            <div class="empty-state" style="margin-top:16px"><div><h3>Empty State Variation</h3><p>When no bookmarks exist, show a short prompt and Browse Internships action.</p></div></div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="profile">
+      <div class="screen-title">
+        <div><strong>Candidate Profile</strong>/candidate/profile</div>
+        <span>Profile summary, completion, account, public preview</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/profile</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item"><span class="nav-icon"></span>Quizzes</div><div class="nav-item active"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div><div class="content">
+            <div class="profile-hero"><span class="profile-avatar"></span><div><div class="eyebrow">Candidate Profile</div><h2>Ayesha Sharma</h2><p>@ayesha · Frontend intern candidate · Kathmandu, Nepal</p><div class="progress"><span style="width:76%"></span></div></div><div class="actions"><span class="btn ghost">Preview</span><span class="btn primary">Edit Profile</span></div></div>
+            <div class="grid three-col" style="margin-top:16px"><div class="card metric"><h3>Skills</h3><div class="number">9</div><p>React, TypeScript, UX writing</p></div><div class="card metric"><h3>Education</h3><div class="number">2</div><p>BSc CSIT and certification</p></div><div class="card metric"><h3>Experience</h3><div class="number">3</div><p>Projects and volunteer roles</p></div></div>
+            <div class="grid two-col" style="margin-top:16px"><div class="card"><h3>Candidate Overview Preview</h3><div class="list"><div><div class="row-title">Headline</div><div class="row-sub">Frontend developer focused on accessible learning tools.</div></div><div><div class="row-title">Preferences</div><div class="row-sub">Remote or hybrid · Software, Design · 3 to 6 months</div></div><div><div class="row-title">Links</div><div class="row-sub">Portfolio · GitHub · LinkedIn</div></div></div></div><div class="card"><h3>Profile Actions</h3><p>Quick links for resume library, onboarding wizard, and account details.</p><div class="list"><div class="list-row"><span class="thumb"></span><div><div class="row-title">Resume Library</div><div class="row-sub">2 saved resumes</div></div><span class="pill">Manage</span></div><div class="list-row"><span class="thumb"></span><div><div class="row-title">Onboarding Wizard</div><div class="row-sub">Continue guided profile setup</div></div><span class="pill">Open</span></div></div></div></div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="profile-edit">
+      <div class="screen-title">
+        <div><strong>Edit Profile</strong>/candidate/profile/edit</div>
+        <span>Stacked editable profile form sections</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/profile/edit</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item"><span class="nav-icon"></span>Quizzes</div><div class="nav-item active"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div><div class="content">
+            <div class="page-head"><div><div class="eyebrow">Profile Editor</div><h2>Edit Candidate Profile</h2><p>Update details that companies see when reviewing applications.</p></div><div class="actions"><span class="btn ghost">Cancel</span><span class="btn primary">Save Profile</span></div></div>
+            <div class="grid two-col">
+              <div class="card"><h3>Basic Info</h3><div class="form-grid"><label class="field">Full name<span class="input"></span></label><label class="field">Username<span class="input"></span></label><label class="field full">Headline<span class="input"></span></label><label class="field full">Bio<span class="textarea"></span></label></div></div>
+              <div class="card"><h3>Resume Library</h3><p>Upload and choose the default resume for applications.</p><div class="empty-state" style="margin-top:14px"><div><strong>Drop resume here</strong><p>PDF, DOC, or DOCX</p></div></div></div>
+              <div class="card"><h3>Preferences</h3><div class="form-grid"><label class="field">Categories<span class="input"></span></label><label class="field">Location preference<span class="input"></span></label><label class="field">Duration<span class="input"></span></label><label class="field">Stipend range<span class="input"></span></label></div></div>
+              <div class="card"><h3>Education</h3><div class="form-grid"><label class="field">School<span class="input"></span></label><label class="field">Degree<span class="input"></span></label><label class="field">Start year<span class="input"></span></label><label class="field">Graduation year<span class="input"></span></label></div></div>
+              <div class="card"><h3>Skills & Experience</h3><div class="form-grid"><label class="field full">Skills<span class="input"></span></label><label class="field full">Experience summary<span class="textarea"></span></label></div></div>
+              <div class="card"><h3>Links</h3><div class="form-grid"><label class="field">Portfolio<span class="input"></span></label><label class="field">GitHub<span class="input"></span></label><label class="field">LinkedIn<span class="input"></span></label><label class="field">Website<span class="input"></span></label></div></div>
+            </div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="wizard">
+      <div class="screen-title">
+        <div><strong>Profile Wizard</strong>/candidate/profile/wizard</div>
+        <span>Guided onboarding flow with five steps</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/profile/wizard</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item"><span class="nav-icon"></span>Quizzes</div><div class="nav-item active"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div><div class="content">
+            <div class="page-head"><div><div class="eyebrow">Guided Setup</div><h2>Complete Your Candidate Profile</h2><p>InternQuest uses these details to improve matching and application review.</p></div><span class="btn ghost">Open full editor</span></div>
+            <div class="stepper"><div class="step active">1. Basics</div><div class="step">2. Preferences</div><div class="step">3. Education</div><div class="step">4. Skills</div><div class="step">5. Links</div></div>
+            <div class="card"><h3>Step 1: Basics</h3><p>Capture the candidate identity, headline, location, and short introduction.</p><div class="form-grid"><label class="field">Full name<span class="input"></span></label><label class="field">Location<span class="input"></span></label><label class="field full">Headline<span class="input"></span></label><label class="field full">Short bio<span class="textarea"></span></label></div><div class="footer-actions"><span class="btn ghost">Back</span><span class="btn primary">Next</span></div></div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="quizzes">
+      <div class="screen-title">
+        <div><strong>Assigned Quizzes</strong>/candidate/quizzes</div>
+        <span>Quiz list with status and linked application</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/quizzes</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item active"><span class="nav-icon"></span>Quizzes</div><div class="nav-item"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div><div class="content">
+            <div class="page-head"><div><div class="eyebrow">Assessments</div><h2>Assigned Quizzes</h2><p>Complete company assessments and review results from submitted quizzes.</p></div></div>
+            <div class="grid three-col">
+              <div class="card job-card"><div class="top"><span class="thumb"></span><span class="pill warning">Ready</span></div><h3>Frontend Fundamentals</h3><p>Nimbus Labs · 8 questions · 30 minutes · Due May 27, 2026</p><div class="actions"><span class="btn primary">Take Quiz</span><span class="btn ghost">Application</span></div></div>
+              <div class="card job-card"><div class="top"><span class="thumb"></span><span class="pill">Pending Review</span></div><h3>Product Thinking</h3><p>BrightPath · Short answer review pending from recruiter.</p><div class="actions"><span class="btn ghost">Open Result</span><span class="btn ghost">Application</span></div></div>
+              <div class="card job-card"><div class="top"><span class="thumb"></span><span class="pill success">Graded</span></div><h3>Data Basics</h3><p>FinEdge · Score available with question breakdown.</p><div class="actions"><span class="btn primary">View Result</span><span class="btn ghost">Application</span></div></div>
+            </div>
+            <div class="empty-state" style="margin-top:16px"><div><h3>Empty State Variation</h3><p>When no quizzes are assigned, guide candidates back to applications.</p></div></div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="quiz-taking">
+      <div class="screen-title">
+        <div><strong>Take Quiz</strong>/candidate/quizzes/[id]</div>
+        <span>Assessment workspace with warning, questions, answer inputs</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/quizzes/quiz_832</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item active"><span class="nav-icon"></span>Quizzes</div><div class="nav-item"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>29:14 left</span><span class="avatar"></span></div></div><div class="content">
+            <div class="page-head"><div><div class="eyebrow">Quiz</div><h2>Frontend Fundamentals</h2><p>Nimbus Labs · 8 questions · Auto-save enabled</p></div><div class="actions"><span class="pill warning">In Progress</span><span class="pill">30 min</span></div></div>
+            <div class="quiz-layout">
+              <div>
+                <div class="alert">Stay on this tab while taking the quiz. Leaving repeatedly may auto-submit your attempt based on company policy.</div>
+                <div class="question"><h3>1. Which hook is best for memoizing an expensive computed value?</h3><div class="option"></div><div class="option"></div><div class="option"></div><div class="option"></div></div>
+                <div class="question"><h3>2. Explain how you would make a reusable button accessible.</h3><div class="textarea"></div></div>
+                <div class="footer-actions"><span class="btn ghost">Save Draft</span><span class="btn primary">Submit Quiz</span></div>
+              </div>
+              <aside class="card"><h3>Question Navigator</h3><div class="grid" style="grid-template-columns:repeat(4,1fr);margin-top:14px"><span class="btn primary">1</span><span class="btn">2</span><span class="btn">3</span><span class="btn">4</span><span class="btn">5</span><span class="btn">6</span><span class="btn">7</span><span class="btn">8</span></div><div class="progress"><span style="width:25%"></span></div><p style="margin-top:12px">2 of 8 answered</p></aside>
+            </div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="quiz-result">
+      <div class="screen-title">
+        <div><strong>Quiz Result</strong>/candidate/quizzes/[id]/result</div>
+        <span>Score summary, policy status, question breakdown</span>
+      </div>
+      <div class="wireframe-window">
+        <div class="browser-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="url">internquest.app/candidate/quizzes/quiz_832/result</span></div>
+        <div class="app-shell">
+          <aside class="sidebar"><div class="brand-name"><span class="mini-logo">IQ</span>InternQuest</div><div class="nav-group"><div class="nav-item"><span class="nav-icon"></span>Dashboard</div><div class="nav-item"><span class="nav-icon"></span>Applications</div><div class="nav-item"><span class="nav-icon"></span>Bookmarks</div><div class="nav-item active"><span class="nav-icon"></span>Quizzes</div><div class="nav-item"><span class="nav-icon"></span>Profile</div></div></aside>
+          <section class="main-area"><div class="topbar"><div class="search"></div><div class="user-chip"><span>Ayesha</span><span class="avatar"></span></div></div><div class="content">
+            <div class="page-head"><div><div class="eyebrow">Result</div><h2>Frontend Fundamentals</h2><p>Submitted May 24, 2026 · Linked to Frontend Engineering Intern</p></div><div class="actions"><span class="btn ghost">Application</span><span class="btn primary">Back to Quizzes</span></div></div>
+            <div class="grid two-col">
+              <div class="score"><div><strong>82%</strong><span>Auto-graded score</span></div></div>
+              <div class="card"><h3>Review Status</h3><p>Multiple-choice questions are graded. Short answers may require recruiter review before the final decision.</p><div class="list"><div class="list-row"><span class="thumb"></span><div><div class="row-title">Auto-submitted policy</div><div class="row-sub">No violations detected</div></div><span class="pill success">Clear</span></div><div class="list-row"><span class="thumb"></span><div><div class="row-title">Manual grading</div><div class="row-sub">2 written answers pending</div></div><span class="pill warning">Pending</span></div></div></div>
+            </div>
+            <div class="card" style="margin-top:16px"><h3>Question Breakdown</h3><div class="table"><div class="table-row table-head"><span>Question</span><span>Type</span><span>Status</span><span>Score</span><span>Review</span></div><div class="table-row"><strong>React hooks</strong><span>Multiple choice</span><span class="pill success">Correct</span><span>10/10</span><span>Auto</span></div><div class="table-row"><strong>Accessible button</strong><span>Short answer</span><span class="pill warning">Pending</span><span>-</span><span>Manual</span></div><div class="table-row"><strong>State management</strong><span>Multiple choice</span><span class="pill danger">Incorrect</span><span>0/10</span><span>Auto</span></div></div></div>
+          </div></section>
+        </div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

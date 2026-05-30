@@ -10,11 +10,16 @@ export const BUILT_IN_INTERNSHIP_CATEGORIES = [
   { slug: "marketing", name: "Marketing" },
   { slug: "finance", name: "Finance" },
   { slug: "healthcare", name: "Healthcare" },
-  { slug: "other", name: "Other" },
 ] as const;
 
-const BUILT_IN_CATEGORY_BY_SLUG = new Map<string, (typeof BUILT_IN_INTERNSHIP_CATEGORIES)[number]>(
-  BUILT_IN_INTERNSHIP_CATEGORIES.map((category) => [category.slug, category])
+export const RETIRED_INTERNSHIP_CATEGORY_SLUGS = ["other"] as const;
+
+const BUILT_IN_CATEGORY_BY_SLUG = new Map<
+  string,
+  (typeof BUILT_IN_INTERNSHIP_CATEGORIES)[number]
+>(BUILT_IN_INTERNSHIP_CATEGORIES.map((category) => [category.slug, category]));
+const RETIRED_CATEGORY_SLUGS = new Set<string>(
+  RETIRED_INTERNSHIP_CATEGORY_SLUGS
 );
 
 export type InternshipCategoryOption = {
@@ -77,6 +82,10 @@ export async function getApprovedCategoryOptions(
   }
 
   for (const category of approvedCustomCategories) {
+    if (isRetiredCategorySlug(category.slug)) {
+      continue;
+    }
+
     bySlug.set(category.slug, {
       slug: category.slug,
       name: category.name,
@@ -90,9 +99,7 @@ export async function getApprovedCategoryOptions(
   );
 }
 
-export async function getApprovedCategorySlugSet(
-  ctx: QueryCtx | MutationCtx
-) {
+export async function getApprovedCategorySlugSet(ctx: QueryCtx | MutationCtx) {
   const approvedCategories = await getApprovedCategoryOptions(ctx);
   return new Set(approvedCategories.map((category) => category.slug));
 }
@@ -113,6 +120,10 @@ export async function assertApprovedCategorySlugs(
 
 export function isBuiltInCategorySlug(slug: string) {
   return BUILT_IN_CATEGORY_BY_SLUG.has(slug);
+}
+
+export function isRetiredCategorySlug(slug: string) {
+  return RETIRED_CATEGORY_SLUGS.has(slug);
 }
 
 export function buildCategoryOptionFromDoc(

@@ -12,10 +12,11 @@ import { toast } from "sonner";
 import { z } from "zod/v3";
 
 import {
-  getCategoryLabel,
-  getCategoryOptions,
   INTERNSHIP_STATUSES,
   LOCATION_TYPES,
+  getCategoryLabel,
+  getCategoryOptions,
+  isRetiredCategorySlug,
   toDisplayLabel,
 } from "@/components/internships/constants";
 import { RichTextEditor } from "@/components/rich-text-editor";
@@ -173,6 +174,10 @@ export function InternshipForm(props: InternshipFormProps) {
     const currentSlugs = new Set(options.map((category) => category.slug));
 
     for (const slug of [primaryCategory, ...selectedCategories]) {
+      if (isRetiredCategorySlug(slug)) {
+        continue;
+      }
+
       if (slug && !currentSlugs.has(slug)) {
         options.push({ slug, name: toDisplayLabel(slug) });
         currentSlugs.add(slug);
@@ -187,15 +192,22 @@ export function InternshipForm(props: InternshipFormProps) {
       return;
     }
 
+    const primaryCategory = isRetiredCategorySlug(internship.category)
+      ? DEFAULT_VALUES.category
+      : internship.category;
+    const categories =
+      internship.categories && internship.categories.length > 0
+        ? Array.from(new Set([primaryCategory, ...internship.categories]))
+        : [primaryCategory];
+
     form.reset({
       title: internship.title,
       company: internship.company,
       description: internship.description,
-      category: internship.category,
-      categories:
-        internship.categories && internship.categories.length > 0
-          ? Array.from(new Set([internship.category, ...internship.categories]))
-          : [internship.category],
+      category: primaryCategory,
+      categories: categories.filter(
+        (category) => !isRetiredCategorySlug(category)
+      ),
       location: internship.location,
       locationType: internship.locationType,
       duration: internship.duration,
@@ -226,7 +238,7 @@ export function InternshipForm(props: InternshipFormProps) {
       .filter(Boolean);
     const categories = Array.from(
       new Set([values.category, ...values.categories])
-    );
+    ).filter((category) => !isRetiredCategorySlug(category));
 
     if (requirements.length === 0) {
       toast.error("Add at least one requirement");
@@ -403,14 +415,11 @@ export function InternshipForm(props: InternshipFormProps) {
                       onValueChange={(value) => {
                         field.onChange(value);
                         const current = form.getValues("categories");
-                        if (
-                          !current.includes(value)
-                        ) {
-                          form.setValue(
-                            "categories",
-                            [...current, value],
-                            { shouldDirty: true, shouldValidate: true }
-                          );
+                        if (!current.includes(value)) {
+                          form.setValue("categories", [...current, value], {
+                            shouldDirty: true,
+                            shouldValidate: true,
+                          });
                         }
                       }}
                     >

@@ -8,6 +8,7 @@ import {
   buildCategoryOptionFromDoc,
   getApprovedCategoryOptions,
   isBuiltInCategorySlug,
+  isRetiredCategorySlug,
   normalizeCategoryName,
   normalizeCategorySlug,
 } from "@/convex/lib/internshipCategories";
@@ -112,7 +113,9 @@ export const listForAdmin = query({
           .collect()
       : await ctx.db.query("internshipCategories").order("desc").collect();
 
-    const rows = requestedCategories.map(buildCategoryOptionFromDoc);
+    const rows = requestedCategories
+      .filter((category) => !isRetiredCategorySlug(category.slug))
+      .map(buildCategoryOptionFromDoc);
 
     if (args.status && args.status !== "approved") {
       return rows;
@@ -156,6 +159,10 @@ export const request = mutation({
 
     if (isBuiltInCategorySlug(slug)) {
       throw new ConvexError("That category is already available");
+    }
+
+    if (isRetiredCategorySlug(slug)) {
+      throw new ConvexError("That category is no longer available");
     }
 
     const existing = await ctx.db

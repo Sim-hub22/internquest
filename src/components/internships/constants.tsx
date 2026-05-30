@@ -18,11 +18,16 @@ export const DEFAULT_INTERNSHIP_CATEGORIES = [
   { slug: "marketing", name: "Marketing" },
   { slug: "finance", name: "Finance" },
   { slug: "healthcare", name: "Healthcare" },
-  { slug: "other", name: "Other" },
 ] as const;
+
+export const RETIRED_INTERNSHIP_CATEGORY_SLUGS = ["other"] as const;
 
 export const INTERNSHIP_CATEGORIES = DEFAULT_INTERNSHIP_CATEGORIES.map(
   (category) => category.slug
+);
+
+const RETIRED_CATEGORY_SLUGS = new Set<string>(
+  RETIRED_INTERNSHIP_CATEGORY_SLUGS
 );
 
 export type InternshipCategoryOption = {
@@ -54,9 +59,16 @@ export function toDisplayLabel(value: string) {
 export function getCategoryOptions(
   categories: InternshipCategoryOption[] | undefined
 ) {
-  return categories && categories.length > 0
-    ? categories
-    : DEFAULT_INTERNSHIP_CATEGORIES;
+  const options =
+    categories && categories.length > 0
+      ? categories
+      : DEFAULT_INTERNSHIP_CATEGORIES;
+
+  return options.filter((category) => !isRetiredCategorySlug(category.slug));
+}
+
+export function isRetiredCategorySlug(slug: string) {
+  return RETIRED_CATEGORY_SLUGS.has(slug);
 }
 
 export function getCategoryLabel(
