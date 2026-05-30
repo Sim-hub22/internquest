@@ -709,17 +709,48 @@ export const listPublishedSamples = query({
       .order("desc")
       .collect();
 
-    return quizzes.map((quiz) => ({
-      _id: quiz._id,
-      title: quiz.title,
-      description: quiz.description,
-      timeLimit: quiz.timeLimit,
-      publishedAt: quiz.publishedAt,
-      questionCount: quiz.questions.length,
-      maxScore: calculateMaxScore(quiz.questions),
-      createdAt: quiz.createdAt,
-      updatedAt: quiz.updatedAt,
-    }));
+    const user = await requireAnyRole(ctx, [
+      "candidate",
+      "recruiter",
+      "admin",
+    ]).catch(() => null);
+    const candidateSampleAttempts =
+      user?.role === "candidate"
+        ? await ctx.db
+            .query("quizAttempts")
+            .withIndex("by_candidate", (q) => q.eq("candidateId", user._id))
+            .filter((q) => q.eq(q.field("attemptType"), "sample"))
+            .collect()
+        : [];
+    const attemptByQuizId = new Map(
+      candidateSampleAttempts.map((attempt) => [attempt.quizId, attempt])
+    );
+
+    return quizzes.map((quiz) => {
+      const viewerAttempt = attemptByQuizId.get(quiz._id);
+
+      return {
+        _id: quiz._id,
+        title: quiz.title,
+        description: quiz.description,
+        timeLimit: quiz.timeLimit,
+        publishedAt: quiz.publishedAt,
+        questionCount: quiz.questions.length,
+        maxScore: calculateMaxScore(quiz.questions),
+        createdAt: quiz.createdAt,
+        updatedAt: quiz.updatedAt,
+        viewerAttempt: viewerAttempt
+          ? {
+              _id: viewerAttempt._id,
+              status: viewerAttempt.status,
+              score: viewerAttempt.score,
+              maxScore: viewerAttempt.maxScore,
+              submittedAt: viewerAttempt.submittedAt,
+              gradedAt: viewerAttempt.gradedAt,
+            }
+          : null,
+      };
+    });
   },
 });
 

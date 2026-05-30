@@ -490,6 +490,79 @@ describe("convex/quizAttempts", () => {
     ).rejects.toThrow("This attempt can no longer be updated");
   });
 
+  it("includes the candidate's sample quiz result in the published sample listing", async () => {
+    const t = convexTest(schema, modules);
+    const adminIdentity = { subject: "sample_listing_admin" };
+    const candidateIdentity = { subject: "sample_listing_candidate" };
+
+    await t.run(async (ctx) => {
+      await ctx.db.insert(
+        "users",
+        createUserSeed(adminIdentity.subject, "admin")
+      );
+      await ctx.db.insert(
+        "users",
+        createUserSeed(candidateIdentity.subject, "candidate")
+      );
+    });
+
+    const sampleQuizId = await t
+      .withIdentity(adminIdentity)
+      .mutation(api.quizzes.create, {
+        title: "Listed Result Sample",
+        description: "Public practice",
+        type: "sample",
+        questions: [
+          {
+            id: "q1",
+            type: "multiple_choice",
+            question: "Which one is CSS?",
+            points: 1,
+            options: [
+              { id: "a", text: "Cascading Style Sheets" },
+              { id: "b", text: "Computer Style Syntax" },
+            ],
+            correctOptionId: "a",
+          },
+        ],
+      });
+
+    await t.withIdentity(adminIdentity).mutation(api.quizzes.publish, {
+      quizId: sampleQuizId,
+    });
+
+    const attemptId = await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.start, {
+        quizId: sampleQuizId,
+      });
+
+    await t
+      .withIdentity(candidateIdentity)
+      .mutation(api.quizAttempts.saveAnswer, {
+        attemptId,
+        questionId: "q1",
+        selectedOptionId: "a",
+      });
+    await t.withIdentity(candidateIdentity).mutation(api.quizAttempts.submit, {
+      attemptId,
+    });
+
+    const publicSamples = await t.query(api.quizzes.listPublishedSamples, {});
+    const candidateSamples = await t
+      .withIdentity(candidateIdentity)
+      .query(api.quizzes.listPublishedSamples, {});
+    const listedSample = candidateSamples.find(
+      (quiz) => quiz._id === sampleQuizId
+    );
+
+    expect(
+      publicSamples.find((quiz) => quiz._id === sampleQuizId)?.viewerAttempt
+    ).toBeNull();
+    expect(listedSample?.viewerAttempt?.score).toBe(1);
+    expect(listedSample?.viewerAttempt?.status).toBe("graded");
+  });
+
   it("restarts sample quizzes by resetting the existing attempt", async () => {
     const t = convexTest(schema, modules);
     const adminIdentity = { subject: "sample_restart_admin" };

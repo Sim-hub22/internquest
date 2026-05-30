@@ -61,9 +61,11 @@ export default function PublicSampleQuizzesPage() {
                 <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
                   <span>{quiz.questionCount} questions</span>
                   <span>{formatMinutesLabel(quiz.timeLimit)}</span>
-                  <span>{formatScore(undefined, quiz.maxScore)}</span>
+                  <span>
+                    {formatScore(quiz.viewerAttempt?.score, quiz.maxScore)}
+                  </span>
                 </div>
-                <Button asChild variant="outline">
+                <Button asChild>
                   <Link href={`/resources/quizzes/${quiz._id}` as Route}>
                     Preview Quiz
                   </Link>
