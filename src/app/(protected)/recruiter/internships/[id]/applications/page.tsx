@@ -9,7 +9,7 @@ import { FileText, UserRound } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardTitle } from "@/components/ui/card";
 import {
   Empty,
   EmptyDescription,
@@ -133,42 +133,43 @@ function RecruiterApplicationsList({
       ) : (
         <div className="space-y-4">
           {results.map((row) => (
-            <Card key={row.application._id}>
-              <CardHeader className="pb-3">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <CardTitle className="text-base">
-                    {row.candidate?.name ?? "Unknown candidate"}
-                  </CardTitle>
-                  <Badge
-                    className={badgeClassForStatus(row.application.status)}
-                    variant="outline"
-                  >
-                    {labelForStatus(row.application.status)}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                  <span className="inline-flex items-center gap-2">
-                    <UserRound className="size-4" />
-                    {row.candidate?.email ?? "No email available"}
-                  </span>
-                  <span className="inline-flex items-center gap-2">
-                    <FileText className="size-4" />
-                    Applied{" "}
-                    {new Date(row.application.appliedAt).toLocaleDateString()}
-                  </span>
+            <Card key={row.application._id} size="sm">
+              <CardContent className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <div className="min-w-0 space-y-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <CardTitle className="text-base">
+                      {row.candidate?.name ?? "Unknown candidate"}
+                    </CardTitle>
+                    <Badge
+                      className={badgeClassForStatus(row.application.status)}
+                      variant="outline"
+                    >
+                      {labelForStatus(row.application.status)}
+                    </Badge>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                    <span className="inline-flex min-w-0 items-center gap-2">
+                      <UserRound className="size-4" />
+                      <span className="truncate">
+                        {row.candidate?.email ?? "No email available"}
+                      </span>
+                    </span>
+                    <span className="inline-flex items-center gap-2">
+                      <FileText className="size-4" />
+                      Applied{" "}
+                      {new Date(row.application.appliedAt).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="flex justify-end">
-                  <Button asChild>
-                    <Link
-                      href={`/recruiter/internships/${internshipId}/applications/${row.application._id}`}
-                    >
-                      Review application
-                    </Link>
-                  </Button>
-                </div>
+                <Button asChild>
+                  <Link
+                    href={`/recruiter/internships/${internshipId}/applications/${row.application._id}`}
+                  >
+                    Review application
+                  </Link>
+                </Button>
               </CardContent>
             </Card>
           ))}
