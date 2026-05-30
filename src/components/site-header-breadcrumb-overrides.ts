@@ -14,6 +14,12 @@ export type SiteHeaderBreadcrumbOverride =
       scope: "recruiter";
     }
   | {
+      applicationId: string;
+      entity: "application";
+      href: string;
+      scope: "candidate";
+    }
+  | {
       entity: "quiz";
       href: string;
       quizId: string;
@@ -76,6 +82,19 @@ export function getSiteHeaderBreadcrumbOverride(
       href: `/admin/quizzes/${segments[2]}`,
       quizId: segments[2],
       scope: "admin",
+    };
+  }
+
+  if (
+    segments[0] === "candidate" &&
+    segments[1] === "applications" &&
+    isConvexDocumentId(segments[2])
+  ) {
+    return {
+      applicationId: segments[2],
+      entity: "application",
+      href: `/candidate/applications/${segments[2]}`,
+      scope: "candidate",
     };
   }
 

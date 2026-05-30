@@ -162,6 +162,13 @@ describe("convex/applications", () => {
       });
 
     expect(candidateDetail?.application.status).toBe("applied");
+    await expect(
+      t
+        .withIdentity(candidateIdentity)
+        .query(api.applications.getCandidateBreadcrumbLabel, {
+          applicationId,
+        })
+    ).resolves.toBe("Backend Intern");
     expect(candidateDetail?.application.coverLetterStorageId).toBe(
       coverLetterStorageId
     );

@@ -606,6 +606,28 @@ export const getCandidateDetail = query({
   },
 });
 
+export const getCandidateBreadcrumbLabel = query({
+  args: {
+    applicationId: v.id("applications"),
+  },
+  handler: async (ctx, args) => {
+    const candidate = await requireRole(ctx, "candidate");
+    const application = await ctx.db.get(args.applicationId);
+
+    if (!application) {
+      return null;
+    }
+
+    if (application.candidateId !== candidate._id) {
+      throw new ConvexError("FORBIDDEN");
+    }
+
+    const internship = await ctx.db.get(application.internshipId);
+
+    return internship?.title ?? null;
+  },
+});
+
 export const listForInternship = query({
   args: {
     internshipId: v.id("internships"),

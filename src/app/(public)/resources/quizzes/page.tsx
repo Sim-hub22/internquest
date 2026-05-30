@@ -63,9 +63,6 @@ export default function PublicSampleQuizzesPage() {
                   <span>{formatMinutesLabel(quiz.timeLimit)}</span>
                   <span>{formatScore(undefined, quiz.maxScore)}</span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Public preview available. Sign in to start the scored attempt.
-                </p>
                 <Button asChild variant="outline">
                   <Link href={`/resources/quizzes/${quiz._id}` as Route}>
                     Preview Quiz

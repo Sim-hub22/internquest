@@ -93,6 +93,22 @@ function CandidateQuizBreadcrumbLabel({
   );
 }
 
+function CandidateApplicationBreadcrumbLabel({
+  applicationId,
+  fallbackLabel,
+}: {
+  applicationId: string;
+  fallbackLabel: string;
+}) {
+  const label = useQuery(api.applications.getCandidateBreadcrumbLabel, {
+    applicationId: applicationId as Id<"applications">,
+  });
+
+  return (
+    <ResolvedBreadcrumbLabel fallbackLabel={fallbackLabel} label={label} />
+  );
+}
+
 function AdminBlogPostBreadcrumbLabel({
   fallbackLabel,
   postId,
@@ -127,6 +143,15 @@ export function SiteHeaderBreadcrumbLabel({
       <AdminBlogPostBreadcrumbLabel
         fallbackLabel={fallbackLabel}
         postId={override.postId}
+      />
+    );
+  }
+
+  if (override.entity === "application") {
+    return (
+      <CandidateApplicationBreadcrumbLabel
+        applicationId={override.applicationId}
+        fallbackLabel={fallbackLabel}
       />
     );
   }

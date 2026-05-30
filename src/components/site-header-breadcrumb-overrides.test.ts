@@ -102,6 +102,19 @@ describe("getSiteHeaderBreadcrumbOverride", () => {
     });
   });
 
+  it("matches candidate application detail routes", () => {
+    expect(
+      getSiteHeaderBreadcrumbOverride(
+        `/candidate/applications/${APPLICATION_ID}`
+      )
+    ).toEqual({
+      applicationId: APPLICATION_ID,
+      entity: "application",
+      href: `/candidate/applications/${APPLICATION_ID}`,
+      scope: "candidate",
+    });
+  });
+
   it("ignores unrelated routes and static create pages", () => {
     expect(getSiteHeaderBreadcrumbOverride("/candidate/dashboard")).toBeNull();
     expect(getSiteHeaderBreadcrumbOverride("/recruiter/internships/new")).toBe(
