@@ -23,6 +23,7 @@ type SavedResume = {
   storageId: Id<"_storage">;
   label: string;
   originalFilename: string;
+  createdAt: number;
   url: string | null;
 };
 
@@ -45,6 +46,10 @@ type ApplicationResumePickerProps = {
   onNewResumeChange: (file: File | null) => void;
   onClearNewResume: () => void;
 };
+
+const ADDED_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  dateStyle: "medium",
+});
 
 export function ApplicationResumePicker({
   savedResumes,
@@ -98,6 +103,9 @@ export function ApplicationResumePicker({
                   const isSelected =
                     mode === "saved" &&
                     selectedCandidateResumeId === resume._id;
+                  const addedDate = ADDED_DATE_FORMATTER.format(
+                    new Date(resume.createdAt)
+                  );
 
                   return (
                     <label
@@ -114,27 +122,29 @@ export function ApplicationResumePicker({
                         disabled={disabled}
                         className="mt-1"
                       />
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <FileTextIcon className="size-4 text-primary" />
-                          <p className="truncate text-sm font-medium">
-                            {resume.label}
-                          </p>
+                      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <FileTextIcon className="size-4 text-primary" />
+                            <p className="truncate text-sm font-medium">
+                              {resume.label}
+                            </p>
+                          </div>
+                          {resume.url ? (
+                            <a
+                              href={resume.url}
+                              rel="noreferrer"
+                              target="_blank"
+                              className="inline-flex text-xs text-primary underline-offset-4 hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                            >
+                              Open saved PDF
+                            </a>
+                          ) : null}
                         </div>
-                        <p className="truncate text-sm text-muted-foreground">
-                          {resume.originalFilename}
+                        <p className="shrink-0 text-xs text-muted-foreground">
+                          Added {addedDate}
                         </p>
-                        {resume.url ? (
-                          <a
-                            href={resume.url}
-                            rel="noreferrer"
-                            target="_blank"
-                            className="inline-flex text-xs text-primary underline-offset-4 hover:underline"
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            Open saved PDF
-                          </a>
-                        ) : null}
                       </div>
                     </label>
                   );
